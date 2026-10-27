@@ -1,0 +1,599 @@
+/*
+ * Beacon design tokens — single source of truth for every UI surface.
+ * Spec: docs/DESIGN.md. Do not hard-code a colour, radius, shadow, duration or z-index anywhere else.
+ *
+ * Usage (apps/web/src/index.css):
+ *   @import 'tailwindcss';
+ *   @import '@kestrel/ui/tokens.css';   (workspace scope is still @kestrel/*; follow it if renamed)
+ *
+ * All theme switches live on <html>:
+ *   class="dark" | data-theme="light|dark"   colour theme (set before first paint by the inline script in index.html)
+ *   data-accent="amber|teal|cobalt|ink"      accent preset (default amber = signal amber; Settings > Appearance)
+ *   data-density="comfortable|compact"       row/control density (default comfortable)
+ *   data-font-size="sm|md|lg|xl"             root font scale (default md = 16px)
+ *   data-motion="reduced|full"               overrides prefers-reduced-motion either way (absent = follow OS)
+ * `.light` / `.dark` / [data-theme] may also be put on a subtree to force a theme locally.
+ *
+ * The file is plain CSS. The Tailwind-only at-rules at the bottom (@custom-variant, @theme) register the same
+ * variables as utilities (bg-surface, text-fg-secondary, rounded-md, shadow-md, duration-base, ease-spring, z-drawer…).
+ * Browsers ignore them, so the file is also safe to load without Tailwind.
+ */
+
+/* ───────────────────────────── 1. Theme-independent tokens ───────────────────────────── */
+:root {
+  /* Typography: families (self-hosted via @fontsource; the "Variable" names are fontsource's family names) */
+  --font-display: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-sans: 'Geist Variable', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale (rem, so data-font-size scales everything). size / line-height / tracking / weight */
+  --text-display-xl: 4rem;          --text-display-xl--line-height: 4rem;       --text-display-xl--letter-spacing: -0.02em;   --text-display-xl--font-weight: 400;
+  --text-display: 3rem;             --text-display--line-height: 3.25rem;       --text-display--letter-spacing: -0.015em;     --text-display--font-weight: 400;
+  --text-h1: 2rem;                  --text-h1--line-height: 2.25rem;            --text-h1--letter-spacing: -0.01em;           --text-h1--font-weight: 400;
+  --text-h2: 1.125rem;              --text-h2--line-height: 1.5rem;             --text-h2--letter-spacing: -0.011em;          --text-h2--font-weight: 600;
+  --text-h3: 0.9375rem;             --text-h3--line-height: 1.25rem;            --text-h3--letter-spacing: -0.006em;          --text-h3--font-weight: 600;
+  --text-body-lg: 1rem;             --text-body-lg--line-height: 1.5rem;        --text-body-lg--letter-spacing: -0.006em;
+  --text-body: 0.875rem;            --text-body--line-height: 1.25rem;          --text-body--letter-spacing: 0em;
+  --text-small: 0.8125rem;          --text-small--line-height: 1.125rem;        --text-small--letter-spacing: 0em;
+  --text-caption: 0.75rem;          --text-caption--line-height: 1rem;          --text-caption--letter-spacing: 0.005em;
+  --text-label: 0.6875rem;          --text-label--line-height: 1rem;            --text-label--letter-spacing: 0.06em;         --text-label--font-weight: 500;
+  --text-mono-lg: 1.5rem;           --text-mono-lg--line-height: 2rem;          --text-mono-lg--letter-spacing: -0.02em;      --text-mono-lg--font-weight: 500;
+  --text-mono: 0.8125rem;           --text-mono--line-height: 1.25rem;          --text-mono--letter-spacing: 0em;
+  --text-mono-sm: 0.75rem;          --text-mono-sm--line-height: 1rem;          --text-mono-sm--letter-spacing: 0em;
+
+  /* Spacing: 4-pt grid. Tailwind multiplies this (p-1 = 4px, p-3 = 12px, p-6 = 24px). Use only steps
+     0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24. */
+  --spacing: 0.25rem;
+
+  /* Radius */
+  --radius-xs: 4px;   /* chips, kbd, checkbox */
+  --radius-sm: 6px;   /* buttons, inputs, badges, logo tiles */
+  --radius-md: 8px;   /* cards, rows-as-cards, menus items, Kanban cards */
+  --radius-lg: 12px;  /* popovers, dialogs, palette, drawer (inner edge) */
+  --radius-xl: 16px;  /* bottom sheet top corners, landing feed frame */
+  --radius-full: 9999px;
+  --radius: var(--radius-md); /* shadcn base */
+
+  /* Z-index (portals included) */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-sticky: 10;     /* sticky list headers, table header */
+  --z-rail: 20;       /* filter rail, sidebar */
+  --z-topbar: 30;     /* app top bar, mobile tab bar */
+  --z-drawer: 40;     /* detail drawer (non-modal, desktop) */
+  --z-scrim: 50;      /* modal backdrop */
+  --z-modal: 60;      /* dialog, sheet, bottom sheet */
+  --z-popover: 70;    /* popover, dropdown, select, hover-card (above modals: they open from them) */
+  --z-palette: 80;    /* command palette */
+  --z-coachmark: 85;  /* onboarding tour */
+  --z-toast: 90;
+  --z-tooltip: 100;
+
+  /* Motion */
+  --duration-fast: 120ms;   /* hover, press, toggles, exits, palette open */
+  --duration-base: 180ms;   /* list enter, toasts, popovers, tabs */
+  --duration-slow: 240ms;   /* drawer, sheet, score ring fill, Kanban settle */
+  --duration-fade: 120ms;   /* opacity-only transitions; kept under reduced motion */
+  --stagger: 20ms;          /* list enter stagger, first 12 rows only */
+  --motion-distance-sm: 4px;
+  --motion-distance-md: 8px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Critically-near spring (stiffness 400, damping 34, mass 1; zeta 0.85, 0.6% overshoot), sampled to linear().
+     Pair with --duration-slow or --duration-base. */
+  --ease-spring: linear(0, 0.047, 0.154, 0.287, 0.423, 0.548, 0.658, 0.749, 0.822, 0.878, 0.92, 0.951, 0.972, 0.987, 0.996, 1.002, 1.005, 1.006, 1.006, 1.006, 1.005, 1.004, 1.003, 1.003, 1);
+
+  /* Density: comfortable (default) */
+  --row-h: 4rem;              /* radar feed row: title line + meta line + chips inline */
+  --row-h-table: 2.75rem;     /* sources / tracker table rows */
+  --control-h: 2.25rem;       /* buttons, inputs, selects (md) */
+  --control-h-sm: 1.75rem;    /* toolbar buttons, chips with actions */
+  --control-h-lg: 2.75rem;    /* primary CTAs, mobile controls */
+  --card-pad: 0.75rem;        /* Kanban card, timeline pill group */
+  --cell-px: 0.75rem;         /* table cell horizontal padding */
+
+  /* Layout */
+  --topbar-h: 3rem;
+  --tabbar-h: 3.5rem;
+  --rail-w: 15rem;
+  --rail-w-collapsed: 3.5rem;
+  --drawer-w: 27.5rem;
+  --drawer-w-wide: 35rem;
+  --content-max: 75rem;
+  --prose-max: 40rem;
+  --gutter: 1.5rem;
+  --target-min: 1.5rem;        /* WCAG 2.2 AA 2.5.8 */
+  --target-touch: 2.75rem;     /* coarse pointers */
+
+  /* Focus ring geometry (colour is per theme) */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+}
+
+@media (max-width: 39.999rem) {
+  :root {
+    --text-display-xl: 2.75rem; --text-display-xl--line-height: 3rem;
+    --text-display: 2.25rem;    --text-display--line-height: 2.5rem;
+    --text-h1: 1.75rem;         --text-h1--line-height: 2rem;
+    --gutter: 1rem;
+    --control-h: 2.75rem;        /* touch first: 44px controls on phones */
+  }
+}
+
+/* Root font scale (Settings > Appearance > Text size) */
+[data-font-size='sm'] { font-size: 93.75%; }  /* 15px */
+[data-font-size='md'] { font-size: 100%; }    /* 16px */
+[data-font-size='lg'] { font-size: 106.25%; } /* 17px */
+[data-font-size='xl'] { font-size: 112.5%; }  /* 18px */
+
+/* ───────────────────────────── 2. Light theme (default) ───────────────────────────── */
+:root,
+.light,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Background layers: bg (canvas) < surface (panels, feed) < surface-raised (cards, inputs) < overlay (menus, dialogs) */
+  --color-bg: #f7f6f3;
+  --color-surface: #fcfbf9;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f0eeea;   /* wells, tracks, skeleton base, code */
+  --color-surface-hover: #f2f0ec;
+  --color-surface-active: #ebe8e3;   /* selected / keyboard-cursor row */
+  --color-overlay: #ffffff;
+  --color-scrim: rgb(28 25 23 / 0.32);
+  --color-skeleton-shine: rgb(255 255 255 / 0.6);
+
+  /* Text */
+  --color-fg: #1c1917;               /* 16.9:1 on surface */
+  --color-fg-secondary: #57524c;     /* 7.5:1 */
+  --color-fg-tertiary: #736c65;      /* 5.0:1 — still AA for body text */
+  --color-fg-disabled: #a9a39c;      /* 2.4:1 — disabled only (exempt) */
+  --color-fg-inverse: #f7f6f3;
+
+  /* Borders */
+  --color-border-subtle: #ece9e4;    /* row dividers */
+  --color-border: #e1ddd7;           /* cards, panels */
+  --color-border-strong: #cdc8c0;    /* hover border, separators that must show */
+  --color-border-input: #8e877f;     /* form control outline: 3.4:1 (WCAG 1.4.11) */
+
+  /* Accent — Beacon signal amber. Two roles, because a bright amber cannot be text on paper (2:1):
+     --color-accent        = the light: fills (primary buttons, selected segments, app tile, beacon dot)
+     --color-accent-strong = accent you must READ on a surface: text, links, icons, 2 px bars, focus ring */
+  --color-accent: #f5a524;           /* fill; accent-fg on it 8.8:1 */
+  --color-accent-hover: #e89a14;     /* accent-fg on it 7.8:1 */
+  --color-accent-active: #db8f0c;    /* accent-fg on it 6.8:1 */
+  --color-accent-strong: #945300;    /* 5.8:1 on surface, 5.6:1 on bg */
+  --color-accent-subtle: #fdf2dc;
+  --color-accent-subtle-fg: #7a4800; /* 6.9:1 on accent-subtle */
+  --color-accent-fg: #1f1505;        /* lamp black: text and icons on accent fills */
+  --color-focus-ring: #945300;       /* = accent-strong; 5.6:1 on bg */
+
+  /* Semantic: each with a subtle background; text-on-subtle uses the base colour */
+  --color-success: #1e7a4c;  --color-success-subtle: #e5f2ea;
+  --color-warning: #b3410e;  --color-warning-subtle: #fcebe2;   /* orange-red (hue 19°), kept clear of the amber accent (hue 37°) */
+  --color-danger: #b42338;   --color-danger-subtle: #fbe8eb;   --color-danger-fg: #ffffff;
+  --color-info: #2d5e9a;     --color-info-subtle: #e7eef7;
+
+  /* Fit-score ramp: monotonic in lightness so it reads in greyscale; always paired with number + label */
+  --color-fit-low: #736c65;   --color-fit-low-subtle: #f3f1ee;    /* 0–39  Long shot */
+  --color-fit-mid: #56695e;   --color-fit-mid-subtle: #ecf1ed;    /* 40–59 Worth a look */
+  --color-fit-good: #256b4f;  --color-fit-good-subtle: #e4f1eb;   /* 60–79 Good fit */
+  --color-fit-great: #16613f; --color-fit-great-subtle: #dcefe4;  /* 80–100 Strong fit */
+  --color-fit-track: #e1ddd7;
+
+  /* Ghost / stale risk */
+  --color-ghost-low: var(--color-fg-tertiary);  --color-ghost-low-subtle: var(--color-surface-sunken);
+  --color-ghost-med: var(--color-warning);      --color-ghost-med-subtle: var(--color-warning-subtle);
+  --color-ghost-high: var(--color-danger);      --color-ghost-high-subtle: var(--color-danger-subtle);
+
+  /* Tooltip (inverted in light) */
+  --color-tooltip: #1c1917;
+  --color-tooltip-fg: #f7f6f3;
+
+  /* Letter-avatar tints for company fallback logos (text: --color-fg-secondary) */
+  --color-avatar-1: #ede6df; --color-avatar-2: #e4e8e1; --color-avatar-3: #e2e6ec;
+  --color-avatar-4: #ede3e6; --color-avatar-5: #e9e5da; --color-avatar-6: #e1e8e7;
+
+  /* Shadows: three levels, subtle, warm-tinted */
+  --shadow-sm: 0 1px 2px 0 rgb(28 25 23 / 0.05);
+  --shadow-md: 0 1px 2px 0 rgb(28 25 23 / 0.04), 0 4px 12px -2px rgb(28 25 23 / 0.08);
+  --shadow-lg: 0 2px 4px -1px rgb(28 25 23 / 0.05), 0 16px 40px -8px rgb(28 25 23 / 0.18);
+}
+
+/* ───────────────────────────── 3. Dark theme ───────────────────────────── */
+.dark,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #131110;
+  --color-surface: #191716;
+  --color-surface-raised: #201e1c;
+  --color-surface-sunken: #0f0e0d;
+  --color-surface-hover: #211f1d;
+  --color-surface-active: #2a2725;
+  --color-overlay: #272422;
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-skeleton-shine: rgb(255 255 255 / 0.04);
+
+  --color-fg: #edeae6;               /* 14.9:1 on surface */
+  --color-fg-secondary: #b3ada6;     /* 8.0:1 */
+  --color-fg-tertiary: #968f88;      /* 5.6:1 (4.8:1 on overlay) */
+  --color-fg-disabled: #5c5651;
+  --color-fg-inverse: #131110;
+
+  --color-border-subtle: #24211f;
+  --color-border: #2e2b28;
+  --color-border-strong: #3c3834;
+  --color-border-input: #6e6760;     /* 3.2:1 */
+
+  --color-accent: #ffb547;           /* the light in the dark: 10.2:1 on surface; accent-fg on it 10.2:1 */
+  --color-accent-hover: #ffc266;
+  --color-accent-active: #f5a62e;
+  --color-accent-strong: #ffb547;    /* in dark the fill is already readable as text */
+  --color-accent-subtle: #352710;
+  --color-accent-subtle-fg: #ffc873; /* 9.5:1 on accent-subtle */
+  --color-accent-fg: #1f1505;
+  --color-focus-ring: #ffb547;
+
+  --color-success: #5dbe8b;  --color-success-subtle: #132a1e;
+  --color-warning: #ff9466;  --color-warning-subtle: #37200f;
+  --color-danger: #f27d8e;   --color-danger-subtle: #36171c;   --color-danger-fg: #1a0d07;
+  --color-info: #82a9e2;     --color-info-subtle: #16233a;
+
+  --color-fit-low: #8f8881;   --color-fit-low-subtle: #24211f;
+  --color-fit-mid: #93a89b;   --color-fit-mid-subtle: #1e2521;
+  --color-fit-good: #62b892;  --color-fit-good-subtle: #16271f;
+  --color-fit-great: #7fd8ac; --color-fit-great-subtle: #12291d;
+  --color-fit-track: #2e2b28;
+
+  --color-ghost-low: var(--color-fg-tertiary);  --color-ghost-low-subtle: var(--color-surface-raised);
+  --color-ghost-med: var(--color-warning);      --color-ghost-med-subtle: var(--color-warning-subtle);
+  --color-ghost-high: var(--color-danger);      --color-ghost-high-subtle: var(--color-danger-subtle);
+
+  --color-tooltip: #34302d;
+  --color-tooltip-fg: #edeae6;
+
+  --color-avatar-1: #2e2723; --color-avatar-2: #242a24; --color-avatar-3: #23272e;
+  --color-avatar-4: #2d2427; --color-avatar-5: #2b2820; --color-avatar-6: #222a29;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.05), 0 16px 40px -8px rgb(0 0 0 / 0.65);
+}
+
+/* ───────────────────────────── 4. Accent presets (Settings > Appearance) ─────────────────────────────
+   All presets verified AA in both themes (docs/DESIGN.md §3.4). Signal amber is the brand (no rule needed: it is the
+   default above); presets are a user preference and always set accent-strong too. */
+[data-accent='teal'],
+[data-accent='teal'] .light,
+[data-accent='teal'] [data-theme='light'] {
+  --color-accent: #0f6e6a; --color-accent-strong: #0f6e6a; --color-accent-hover: #0c5d5a; --color-accent-active: #0a4d4a;
+  --color-accent-subtle: #e3f1ef; --color-accent-subtle-fg: #0b5a57; --color-accent-fg: #ffffff; --color-focus-ring: #0f6e6a;
+}
+[data-accent='teal'].dark, [data-accent='teal'][data-theme='dark'],
+[data-accent='teal'] .dark, [data-accent='teal'] [data-theme='dark'] {
+  --color-accent: #4fbfb5; --color-accent-strong: #4fbfb5; --color-accent-hover: #6ccdc4; --color-accent-active: #3baea4;
+  --color-accent-subtle: #132a28; --color-accent-subtle-fg: #8fdcd4; --color-accent-fg: #04201e; --color-focus-ring: #4fbfb5;
+}
+[data-accent='cobalt'],
+[data-accent='cobalt'] .light,
+[data-accent='cobalt'] [data-theme='light'] {
+  --color-accent: #2f55c4; --color-accent-strong: #2f55c4; --color-accent-hover: #2747a6; --color-accent-active: #1f3a88;
+  --color-accent-subtle: #e8edfa; --color-accent-subtle-fg: #2747a6; --color-accent-fg: #ffffff; --color-focus-ring: #2f55c4;
+}
+[data-accent='cobalt'].dark, [data-accent='cobalt'][data-theme='dark'],
+[data-accent='cobalt'] .dark, [data-accent='cobalt'] [data-theme='dark'] {
+  --color-accent: #86a6f5; --color-accent-strong: #86a6f5; --color-accent-hover: #9db7f7; --color-accent-active: #6f92ee;
+  --color-accent-subtle: #18213a; --color-accent-subtle-fg: #b0c5f8; --color-accent-fg: #0a1430; --color-focus-ring: #86a6f5;
+}
+[data-accent='ink'],
+[data-accent='ink'] .light,
+[data-accent='ink'] [data-theme='light'] {
+  --color-accent: #2a2622; --color-accent-strong: #2a2622; --color-accent-hover: #3a3530; --color-accent-active: #141210;
+  --color-accent-subtle: #eceae6; --color-accent-subtle-fg: #2a2622; --color-accent-fg: #ffffff; --color-focus-ring: #2a2622;
+}
+[data-accent='ink'].dark, [data-accent='ink'][data-theme='dark'],
+[data-accent='ink'] .dark, [data-accent='ink'] [data-theme='dark'] {
+  --color-accent: #e6e2dc; --color-accent-strong: #e6e2dc; --color-accent-hover: #f2efea; --color-accent-active: #d6d1ca;
+  --color-accent-subtle: #2b2825; --color-accent-subtle-fg: #edeae6; --color-accent-fg: #171513; --color-focus-ring: #e6e2dc;
+}
+
+/* ───────────────────────────── 5. Aliases (re-declared per theme scope so they follow local overrides) ───────────────────────────── */
+:root,
+.light,
+.dark,
+[data-theme],
+[data-accent] {
+  /* shadcn/ui names → Beacon tokens. NOTE: shadcn's own "accent" means a hover background; in Beacon
+     --color-accent is the brand colour. After `shadcn add`, rewrite bg-accent → bg-surface-hover and
+     text-accent-foreground → text-fg (docs/DESIGN.md §6.0). */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface-raised);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-overlay);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-secondary: var(--color-surface-sunken);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted: var(--color-surface-sunken);
+  --color-muted-foreground: var(--color-fg-secondary);
+  --color-accent-foreground: var(--color-accent-fg);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-danger-fg);
+  --color-input: var(--color-border-input);
+  --color-ring: var(--color-focus-ring);
+  --color-sidebar: var(--color-bg);
+  --color-sidebar-foreground: var(--color-fg-secondary);
+  --color-sidebar-primary: var(--color-accent);
+  --color-sidebar-primary-foreground: var(--color-accent-fg);
+  --color-sidebar-accent: var(--color-surface-hover);
+  --color-sidebar-accent-foreground: var(--color-fg);
+  --color-sidebar-border: var(--color-border-subtle);
+  --color-sidebar-ring: var(--color-focus-ring);
+  /* Charts (shadcn Chart): one accent series + neutrals; never a rainbow */
+  --color-chart-1: var(--color-accent-strong);
+  --color-chart-2: var(--color-fg-tertiary);
+  --color-chart-3: var(--color-fit-good);
+  --color-chart-4: var(--color-info);
+  --color-chart-5: var(--color-warning);
+  /* Deadline urgency */
+  --color-deadline-far: var(--color-fg-tertiary);   /* > 14 days */
+  --color-deadline-near: var(--color-fg-secondary); /* 4–14 days */
+  --color-deadline-soon: var(--color-warning);      /* 1–3 days */
+  --color-deadline-today: var(--color-danger);      /* due today / < 24 h */
+}
+
+/* ───────────────────────────── 6. Density: compact ───────────────────────────── */
+[data-density='compact'] {
+  --row-h: 2.75rem;          /* single line: title · company · meta, chips hidden */
+  --row-h-table: 2.25rem;
+  --control-h: 2rem;
+  --control-h-sm: 1.5rem;
+  --control-h-lg: 2.5rem;
+  --card-pad: 0.5rem;
+  --cell-px: 0.5rem;
+  --topbar-h: 2.75rem;
+}
+@media (pointer: coarse) {
+  [data-density='compact'] { --control-h: 2.75rem; --control-h-sm: 2.75rem; } /* never below touch size on touch */
+}
+
+/* ───────────────────────────── 7. Reduced motion ─────────────────────────────
+   Movement is removed; opacity fades (--duration-fade) remain. data-motion="full" opts out, "reduced" opts in. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+    --duration-slow: 0.01ms;
+    --stagger: 0ms;
+    --motion-distance-sm: 0px;
+    --motion-distance-md: 0px;
+    --ease-spring: linear;
+  }
+}
+[data-motion='reduced'] {
+  --duration-fast: 0.01ms;
+  --duration-base: 0.01ms;
+  --duration-slow: 0.01ms;
+  --stagger: 0ms;
+  --motion-distance-sm: 0px;
+  --motion-distance-md: 0px;
+  --ease-spring: linear;
+}
+
+/* Increased contrast (OS setting): borders and tertiary text step up one level. */
+@media (prefers-contrast: more) {
+  :root,
+  .light,
+  .dark,
+  [data-theme] {
+    --color-border-subtle: var(--color-border-strong);
+    --color-border: var(--color-border-input);
+    --color-fg-tertiary: var(--color-fg-secondary);
+  }
+}
+
+/* ───────────────────────────── 8. Tailwind v4 registration (ignored by browsers) ───────────────────────────── */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme='dark'], [data-theme='dark'] *));
+@custom-variant light (&:where(.light, .light *, [data-theme='light'], [data-theme='light'] *));
+@custom-variant compact (&:where([data-density='compact'], [data-density='compact'] *));
+
+/* The one focus ring. Use as `focus-visible:focus-ring` (or `focus-ring-inset` inside dense rows/cells). */
+@utility focus-ring {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+@utility focus-ring-inset {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+@theme inline reference {
+  /* Remove Tailwind's default palette so only Beacon colours exist (bg-red-500 etc. will not compile). */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Beacon type scale */
+  --text-display-xl: var(--text-display-xl); --text-display-xl--line-height: var(--text-display-xl--line-height); --text-display-xl--letter-spacing: var(--text-display-xl--letter-spacing); --text-display-xl--font-weight: var(--text-display-xl--font-weight);
+  --text-display: var(--text-display); --text-display--line-height: var(--text-display--line-height); --text-display--letter-spacing: var(--text-display--letter-spacing); --text-display--font-weight: var(--text-display--font-weight);
+  --text-h1: var(--text-h1); --text-h1--line-height: var(--text-h1--line-height); --text-h1--letter-spacing: var(--text-h1--letter-spacing); --text-h1--font-weight: var(--text-h1--font-weight);
+  --text-h2: var(--text-h2); --text-h2--line-height: var(--text-h2--line-height); --text-h2--letter-spacing: var(--text-h2--letter-spacing); --text-h2--font-weight: var(--text-h2--font-weight);
+  --text-h3: var(--text-h3); --text-h3--line-height: var(--text-h3--line-height); --text-h3--letter-spacing: var(--text-h3--letter-spacing); --text-h3--font-weight: var(--text-h3--font-weight);
+  --text-body-lg: var(--text-body-lg); --text-body-lg--line-height: var(--text-body-lg--line-height); --text-body-lg--letter-spacing: var(--text-body-lg--letter-spacing);
+  --text-body: var(--text-body); --text-body--line-height: var(--text-body--line-height); --text-body--letter-spacing: var(--text-body--letter-spacing);
+  --text-small: var(--text-small); --text-small--line-height: var(--text-small--line-height); --text-small--letter-spacing: var(--text-small--letter-spacing);
+  --text-caption: var(--text-caption); --text-caption--line-height: var(--text-caption--line-height); --text-caption--letter-spacing: var(--text-caption--letter-spacing);
+  --text-label: var(--text-label); --text-label--line-height: var(--text-label--line-height); --text-label--letter-spacing: var(--text-label--letter-spacing); --text-label--font-weight: var(--text-label--font-weight);
+  --text-mono-lg: var(--text-mono-lg); --text-mono-lg--line-height: var(--text-mono-lg--line-height); --text-mono-lg--letter-spacing: var(--text-mono-lg--letter-spacing); --text-mono-lg--font-weight: var(--text-mono-lg--font-weight);
+  --text-mono: var(--text-mono); --text-mono--line-height: var(--text-mono--line-height); --text-mono--letter-spacing: var(--text-mono--letter-spacing);
+  --text-mono-sm: var(--text-mono-sm); --text-mono-sm--line-height: var(--text-mono-sm--line-height); --text-mono-sm--letter-spacing: var(--text-mono-sm--letter-spacing);
+  /* Tailwind/shadcn defaults remapped onto the Beacon scale (shadcn components use text-xs/sm/base/lg) */
+  --text-xs: var(--text-caption); --text-xs--line-height: var(--text-caption--line-height);
+  --text-sm: var(--text-body); --text-sm--line-height: var(--text-body--line-height);
+  --text-base: var(--text-body-lg); --text-base--line-height: var(--text-body-lg--line-height);
+  --text-lg: var(--text-h2); --text-lg--line-height: var(--text-h2--line-height);
+
+  --spacing: var(--spacing);
+  --spacing-row: var(--row-h);
+  --spacing-row-table: var(--row-h-table);
+  --spacing-control: var(--control-h);
+  --spacing-control-sm: var(--control-h-sm);
+  --spacing-control-lg: var(--control-h-lg);
+  --spacing-card: var(--card-pad);
+  --spacing-cell: var(--cell-px);
+  --spacing-topbar: var(--topbar-h);
+  --spacing-tabbar: var(--tabbar-h);
+  --spacing-rail: var(--rail-w);
+  --spacing-rail-collapsed: var(--rail-w-collapsed);
+  --spacing-drawer: var(--drawer-w);
+  --spacing-drawer-wide: var(--drawer-w-wide);
+  --spacing-gutter: var(--gutter);
+  --spacing-target: var(--target-min);
+  --spacing-touch: var(--target-touch);
+  --container-content: var(--content-max);
+  --container-prose: var(--prose-max);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  --shadow-xs: var(--shadow-sm); /* shadcn uses shadow-xs on inputs/buttons */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --z-index-base: var(--z-base);
+  --z-index-raised: var(--z-raised);
+  --z-index-sticky: var(--z-sticky);
+  --z-index-rail: var(--z-rail);
+  --z-index-topbar: var(--z-topbar);
+  --z-index-drawer: var(--z-drawer);
+  --z-index-scrim: var(--z-scrim);
+  --z-index-modal: var(--z-modal);
+  --z-index-popover: var(--z-popover);
+  --z-index-palette: var(--z-palette);
+  --z-index-coachmark: var(--z-coachmark);
+  --z-index-toast: var(--z-toast);
+  --z-index-tooltip: var(--z-tooltip);
+
+  --transition-duration-fast: var(--duration-fast);
+  --transition-duration-base: var(--duration-base);
+  --transition-duration-slow: var(--duration-slow);
+  --transition-duration-fade: var(--duration-fade);
+  --ease-out: var(--ease-out);
+  --ease-in: var(--ease-in);
+  --ease-in-out: var(--ease-in-out);
+  --ease-spring: var(--ease-spring);
+
+  /* Breakpoints (literal: media queries cannot read variables) */
+  --breakpoint-sm: 40rem;  /* 640 */
+  --breakpoint-md: 48rem;  /* 768  : tablet — rail becomes a sheet, drawer overlays */
+  --breakpoint-lg: 64rem;  /* 1024 : desktop — rail inline (collapsible), drawer overlays feed */
+  --breakpoint-xl: 80rem;  /* 1280 : three panes — rail + feed + pushed drawer */
+  --breakpoint-2xl: 96rem; /* 1536 : wide drawer */
+
+  /* Colours */
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-active: var(--color-surface-active);
+  --color-overlay: var(--color-overlay);
+  --color-scrim: var(--color-scrim);
+  --color-fg: var(--color-fg);
+  --color-fg-secondary: var(--color-fg-secondary);
+  --color-fg-tertiary: var(--color-fg-tertiary);
+  --color-fg-disabled: var(--color-fg-disabled);
+  --color-fg-inverse: var(--color-fg-inverse);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-input: var(--color-border-input);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-active: var(--color-accent-active);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-subtle: var(--color-accent-subtle);
+  --color-accent-subtle-fg: var(--color-accent-subtle-fg);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-focus-ring: var(--color-focus-ring);
+  --color-success: var(--color-success);
+  --color-success-subtle: var(--color-success-subtle);
+  --color-warning: var(--color-warning);
+  --color-warning-subtle: var(--color-warning-subtle);
+  --color-danger: var(--color-danger);
+  --color-danger-subtle: var(--color-danger-subtle);
+  --color-danger-fg: var(--color-danger-fg);
+  --color-info: var(--color-info);
+  --color-info-subtle: var(--color-info-subtle);
+  --color-fit-low: var(--color-fit-low);
+  --color-fit-low-subtle: var(--color-fit-low-subtle);
+  --color-fit-mid: var(--color-fit-mid);
+  --color-fit-mid-subtle: var(--color-fit-mid-subtle);
+  --color-fit-good: var(--color-fit-good);
+  --color-fit-good-subtle: var(--color-fit-good-subtle);
+  --color-fit-great: var(--color-fit-great);
+  --color-fit-great-subtle: var(--color-fit-great-subtle);
+  --color-fit-track: var(--color-fit-track);
+  --color-ghost-low: var(--color-ghost-low);
+  --color-ghost-low-subtle: var(--color-ghost-low-subtle);
+  --color-ghost-med: var(--color-ghost-med);
+  --color-ghost-med-subtle: var(--color-ghost-med-subtle);
+  --color-ghost-high: var(--color-ghost-high);
+  --color-ghost-high-subtle: var(--color-ghost-high-subtle);
+  --color-tooltip: var(--color-tooltip);
+  --color-tooltip-fg: var(--color-tooltip-fg);
+  --color-avatar-1: var(--color-avatar-1);
+  --color-avatar-2: var(--color-avatar-2);
+  --color-avatar-3: var(--color-avatar-3);
+  --color-avatar-4: var(--color-avatar-4);
+  --color-avatar-5: var(--color-avatar-5);
+  --color-avatar-6: var(--color-avatar-6);
+  --color-deadline-far: var(--color-deadline-far);
+  --color-deadline-near: var(--color-deadline-near);
+  --color-deadline-soon: var(--color-deadline-soon);
+  --color-deadline-today: var(--color-deadline-today);
+  /* shadcn aliases */
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-popover: var(--color-popover);
+  --color-popover-foreground: var(--color-popover-foreground);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-accent-foreground: var(--color-accent-foreground);
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+  --color-sidebar: var(--color-sidebar);
+  --color-sidebar-foreground: var(--color-sidebar-foreground);
+  --color-sidebar-primary: var(--color-sidebar-primary);
+  --color-sidebar-primary-foreground: var(--color-sidebar-primary-foreground);
+  --color-sidebar-accent: var(--color-sidebar-accent);
+  --color-sidebar-accent-foreground: var(--color-sidebar-accent-foreground);
+  --color-sidebar-border: var(--color-sidebar-border);
+  --color-sidebar-ring: var(--color-sidebar-ring);
+  --color-chart-1: var(--color-chart-1);
+  --color-chart-2: var(--color-chart-2);
+  --color-chart-3: var(--color-chart-3);
+  --color-chart-4: var(--color-chart-4);
+  --color-chart-5: var(--color-chart-5);
+}
