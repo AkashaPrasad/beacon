@@ -1,0 +1,63 @@
+{
+  "name": "@kestrel/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Beacon shared domain: zod schemas, taxonomies, normalisers, deadline parser and the explainable fit-scoring library.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./fixtures": {
+      "source": "./src/__fixtures__/index.ts",
+      "import": {
+        "types": "./dist/fixtures.d.ts",
+        "default": "./dist/fixtures.js"
+      },
+      "require": {
+        "types": "./dist/fixtures.d.cts",
+        "default": "./dist/fixtures.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "date-fns": "4.4.0",
+    "date-fns-tz": "3.2.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@kestrel/config": "workspace:*",
+    "@types/node": "26.6.5",
+    "@vitest/coverage-v8": "5.0.5",
+    "eslint": "10.13.0",
+    "tsup": "9.0.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
