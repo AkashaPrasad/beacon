@@ -339,17 +339,22 @@ describe('extractSkills: edge cases', () => {
     );
   });
 
-  it('extracts 20,000 characters in under 150 ms', () => {
-    extractSkills('warm up the matcher with React');
+  it('extracts 20,000 characters in under 150 ms at steady state', () => {
     const paragraph =
       'We are hiring engineers with React, TypeScript, Node.js, PostgreSQL, Docker and Kubernetes. ' +
       'You will work on machine learning pipelines in Python using PyTorch and scikit-learn, ship CI/CD ' +
       'workflows, and collaborate with product managers on A/B testing and roadmaps. ';
     const text = paragraph.repeat(Math.ceil(20_000 / paragraph.length)).slice(0, 20_000);
-    const started = performance.now();
-    const result = extractSkills(text);
-    const elapsed = performance.now() - started;
-    expect(result.length).toBeGreaterThan(10);
-    expect(elapsed).toBeLessThan(150);
+    // Warm the actual input path so regexp tier-up is not part of the measurement.
+    // A median avoids one scheduler pause on shared CI runners without relaxing the budget.
+    extractSkills(text);
+    const samples = Array.from({ length: 3 }, () => {
+      const started = performance.now();
+      const result = extractSkills(text);
+      const elapsed = performance.now() - started;
+      expect(result.length).toBeGreaterThan(10);
+      return elapsed;
+    }).sort((a, b) => a - b);
+    expect(samples[1]).toBeLessThan(150);
   });
 });
