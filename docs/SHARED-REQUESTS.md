@@ -138,7 +138,7 @@ journeys complete end to end; what fails is axe serious/critical and console err
    attributes it is set with (`HttpOnly; SameSite=Lax; Path=/`, plus `Secure` in production).
    `scripts/security-check.sh` asserts the flags on that response, because a real Google token
    is not available in CI.
-5. **API does not boot under Node ESM** (2026-10-27 19:20, blocks `pnpm --filter @kestrel/api dev`,
+5. **[done: `import mongoose, { model, Schema }` + `mongoose.models[...]` in every model; `src/boot.test.ts` boots `src/index.ts` under Node ESM; verified 2026-10-27 with `pnpm --filter @kestrel/api dev` and `node dist/index.js` in the arm64 image]** **API does not boot under Node ESM** (2026-10-27 19:20, blocks `pnpm --filter @kestrel/api dev`,
    `node dist/index.js` and the Docker image; Vitest hides it because it interops CJS):
    `src/models/{user,profile,listing,source,settings,activity}.ts` do
    `import { model, models, Schema } from 'mongoose'`, and mongoose 9's ESM entry has no named
@@ -148,7 +148,7 @@ journeys complete end to end; what fails is axe serious/critical and console err
    `mongoose.models['User'] ?? model(...)`. Please add a boot smoke test (e.g. CI step
    `node dist/index.js` + `curl /healthz`) so it cannot regress. QA ran the API for load,
    security and contract checks through a scratch ESM resolve hook that re-exports `models`.
-6. **`GET /v1/feed` collapses under concurrency** (load test 2026-10-27, local API + docker
+6. **[done (fit path): `services/feed.ts` sorts + applies the keyset on `matches` before the `$lookup` for `sort=fit` (new index `{userId, score:-1, listingId:-1}`), `total` cached 60 s in Redis, `maxTimeMS` 5 s on every feed aggregation; `deadline`/`posted` sorts still join first. Load test not re-run by the api agent]** **`GET /v1/feed` collapses under concurrency** (load test 2026-10-27, local API + docker
    mongo 8, 2,000 match docs for one user; `docs/TESTING.md` "Load"). One request: ~110 ms per
    page plus ~100 ms more on the first page for `total`. Throughput then *falls* with concurrency:
    1 conn 4.5 req/s (p95 234 ms), 4 conns 4 req/s (p95 1,036 ms), 10 conns 2 req/s (p95 3,569 ms),
@@ -164,7 +164,7 @@ journeys complete end to end; what fails is axe serious/critical and console err
    is display-only). Also set `maxTimeMS` (e.g. 5 s) on feed aggregations so abandoned requests
    cannot keep mongod busy. (Seeded with 2,000 synthetic listings from `@kestrel/shared` fixtures
    plus `computeFit` match docs for one user; re-run with `LOAD_TOKEN=… node scripts/load-test.mjs`.)
-7. **OpenAPI vs behaviour** (`pnpm test:contract`, 3 of 10 failing):
+7. **[done: `pnpm test:contract` 10/10 with and without `CONTRACT_TOKEN` (2026-10-27): a. 70/70 operations have an API test, lines 87.6 % (floor 85); b. 503 documented for both routes; c. unknown `/v1/*` → 404 before auth (`AUTHED_PREFIXES`); d. partly: `MeResponse` and `ResumeUploadResponse` are typed, 44 operations still document a generic object]** **OpenAPI vs behaviour** (`pnpm test:contract`, 3 of 10 failing):
    a. Only **12 / 60** operations are exercised by an API test (`src/**/*.test.ts`); the 48
       untested ones are printed by the suite (all of sources, feed, listings, tracker, alerts,
       push, notifications, settings, account). SPEC §8 asks for every route incl. ownership
@@ -180,7 +180,7 @@ journeys complete end to end; what fails is axe serious/critical and console err
    d. **39 / 60** operations document their 2xx body as a bare `{ type: object }`, so
       response validation is vacuous for them. Please give them real response schemas in
       `src/openapi.ts` (the zod DTOs already exist for most).
-8. **Global limiter is per IP** (300 / 15 min, API.md §1.5). Behind a campus or office NAT every
+8. **[done: `middleware/rateLimit.ts` keys the global limiter by user id (1,000 / 15 min) when a validly signed session is present, per IP (300 / 15 min) otherwise]** **Global limiter is per IP** (300 / 15 min, API.md §1.5). Behind a campus or office NAT every
    student shares one bucket, and one active user scrolling a large radar (25 items per page,
    plus prefetch, summary, notifications, me) can spend 300 requests in a few minutes. Suggest
    keying the global limiter by user id once `requireAuth` has run (e.g. 1,000 / 15 min per user)
@@ -247,7 +247,7 @@ Context: `docs/WORKER.md` §1 and §4 are the worker's side of API.md §12–§1
 produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:'profile', userId}`,
 `match {userId, reason}`, `notify {userId, alertRuleId, test:true}`) is accepted as is.
 
-1. **Visibility should use `listings.sourceIds`** (array of every source the listing was seen in,
+1. **[done: `services/visibility.ts` `visibleSourceFilter` / `canSeeListing`, `lib/vector.ts` (memory matrix + Atlas post-filter) and the feed all match `sourceIds` or `sourceId`; test `routes/additions.test.ts`]** **Visibility should use `listings.sourceIds`** (array of every source the listing was seen in,
    worker-maintained). `sourceId` is only the last source that wrote the content. A deduped
    listing seen in a subscribed pack and also in an unsubscribed one may carry the unsubscribed
    `sourceId`, and the cold-start feed (`services/feed.ts`, `services/visibility.ts`
@@ -258,15 +258,15 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    user's matches for listings that are no longer visible, so after pack disable or source
    delete, enqueue `match {userId, reason:'sources'}` as documented (already done) and the warm feed follows.
 3. **`listings.applyCheck`** is written exactly as `ApplyCheck` (plus `error`). `routes/feed.ts` needs no change.
-4. **`SourceDTO.healthCode`** (same as qa → api #1): values `ok | not_modified | auth | notfound |
+4. **[done: `services/serialize.ts` `toSourceDTO` (+ `lastSuccessAt`, `consecutiveFailures`); test `routes/sources.test.ts`]** **`SourceDTO.healthCode`** (same as qa → api #1): values `ok | not_modified | auth | notfound |
    ratelimited | network | parse | blocked | paused:credits`, nullable before the first run. Also
    available: `lastSuccessAt`, `consecutiveFailures`.
-5. **Optional for the credit meter UI:** `crawler:cloud:remaining` (last `/v2/team/credit-usage`
+5. **[done: `GET /v1/sources/credits` and `/v1/admin/overview` return `backendReason` and `cloudRemaining`]** **Optional for the credit meter UI:** `crawler:cloud:remaining` (last `/v2/team/credit-usage`
    result, refreshed hourly) and `crawler:backend:reason` (`payment_required | daily_cap | low_balance:<n>`).
-6. If `QUEUE_PREFIX` is ever set on the worker, the API's `Queue` instances must use the same `prefix`.
+6. **[done: optional `QUEUE_PREFIX` env on the API, passed to every BullMQ `Queue`]** If `QUEUE_PREFIX` is ever set on the worker, the API's `Queue` instances must use the same `prefix`.
 7. **Optional:** add `sourceIds` as a `filter` field to the Atlas index `listings_embedding`.
    Both sides could then filter visibility inside `$vectorSearch` instead of post-filtering.
-8. **For `GET /v1/admin/overview` (BRIEF addendum):** recent source runs come from the
+8. **[done: `services/admin.ts` (sourceRuns last 20 with source name/kind, `getJobCounts` on the 7 queues + `dead`, crawler keys); verified live against `beacon_dev`]** **For `GET /v1/admin/overview` (BRIEF addendum):** recent source runs come from the
    worker-owned `sourceRuns` collection (`{sourceId, reason, status, startedAt, finishedAt,
    durationMs, found, new, updated, unchanged, errors[], backend, creditsUsed}`, index
    `{sourceId, startedAt:-1}`, 30-day retention). Queue depths: `Queue.getJobCounts()` on the 7
@@ -308,3 +308,36 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    is in `@/lib/use-back-navigation`. Keep `ShellSlot name="drawer"` for small tasks only
    (quick peeks, not the main detail view). Lists should link rows to the page with `<Link>`
    (prefetch the detail query on hover/focus so the page paints from cache).
+
+## api → web
+
+1. **Onboarding save and resume** (API.md §4.1): `PATCH /v1/profile/onboarding { step, answers }`
+   on every page and `POST /v1/profile/onboarding/complete { answers? }` at the end. Both return the
+   full `MeResponse`, so `queryClient.setQueryData(queryKeys.me, body)`. `/v1/me.onboarding` now has
+   `completed`, `step` (any slug the flow saved, legacy values still possible), `answers` and
+   `updatedAt`. Answers merge per key and `null` deletes one; ids match
+   `^[A-Za-z][A-Za-z0-9_-]{0,63}$`, step ids `^[a-z][a-z0-9-]{0,39}$`, 32 KB total. `nextPathFor` in
+   `apps/web/src/api/me.ts` maps the legacy enum to `/onboarding/<step>`; once the new flow saves its own
+   step ids, route from `onboarding.step` to your step table instead (and use `onboarding.completed`).
+   MSW handlers for both routes are still to be added in `src/mocks/handlers/`.
+2. **Resume upload accepts PNG and JPEG and reads scans with OCR** (API.md §4): the dropzone `accept`
+   should include `image/png,image/jpeg`; the response has `extraction: 'text' | 'ocr'` and
+   `ocr: { pages, confidence } | null`; for scans the first warning is "We read this from a scan —
+   double-check the details." (show it on the "Here's what we found" step). A scan can take a few
+   seconds (budget up to ~85 s), so keep the "Reading your resume…" state up and do not time the
+   request out client-side before 90 s. `422 RESUME_NO_TEXT` now means "nothing readable even after
+   OCR".
+3. **`POST /v1/settings/ai/test`** reports `provider: 'server'` when it tested Beacon's default LLM.
+
+## ux-spec → api (from docs/UX-RESTRUCTURE.md §6)
+1. Accurate per-option filter counts on `GET /v1/feed/facets` (or embedded in `/v1/feed` as `facets`), scoped to the user's current filters.
+2. Server-side tour/tip state: `GET/PATCH /v1/settings/hints` `{tourDone, tourStep, tips: {[id]: dismissedAt}}`.
+3. `POST /v1/listings/:id/save` also creates/returns the tracker item in stage `saved` (idempotent); unsave removes it if still in `saved`.
+4. Feed items include `tracker: {id, stage} | null`.
+5. `GET /v1/feed/summary` includes `followUpsDue` (tracker items idle ≥ 10 d).
+Each has a client-side fallback documented in the spec; implement server-side where cheap.
+
+## orchestrator → all web agents (binding reconciliation, 2026-10-27 late)
+- Radar default view = **card grid** (owner), list view as a toggle; apply the spec's element budget per CARD (≤ 5 + one state slot). Keep the rail per spec §1 (5 open facets, fit presets, saved views on top). Drop the separate "Tune" popover only if sort + view toggle move into the page header.
+- Save = add to Tracker as Saved (single verb everywhere); `a` = mark applied.
+- Light mode default; muted professional palette as tints; type→colour map from docs/DESIGN.md.

@@ -198,14 +198,35 @@ function describeError(err: unknown): string {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function withRetries<T>(ctx: AppContext, attempt: (signal: AbortSignal) => Promise<T>): Promise<T> {
+/** An attempt with less time left than this before the deadline is not started. */
+const MIN_ATTEMPT_MS = 2_000;
+
+function deadlineError(): Error {
+  const err = new Error('The AI provider timed out');
+  err.name = 'TimeoutError';
+  return err;
+}
+
+/**
+ * Each attempt gets `LLM_TIMEOUT_MS`, or whatever is left before `deadline` (epoch ms) when the
+ * caller has an overall budget (the resume upload keeps OCR + enrichment under 90 s).
+ */
+async function withRetries<T>(
+  ctx: AppContext,
+  attempt: (signal: AbortSignal) => Promise<T>,
+  deadline?: number,
+): Promise<T> {
   const delays = ctx.llmRetryDelaysMs;
   for (let i = 0; ; i += 1) {
+    const left = deadline === undefined ? Infinity : deadline - Date.now();
+    if (left < MIN_ATTEMPT_MS) throw deadlineError();
     try {
-      return await attempt(AbortSignal.timeout(ctx.env.LLM_TIMEOUT_MS));
+      return await attempt(AbortSignal.timeout(Math.min(ctx.env.LLM_TIMEOUT_MS, left)));
     } catch (err) {
       if (i >= delays.length || !isRetryable(err)) throw err;
-      await sleep(delays[i] ?? 0);
+      const delay = delays[i] ?? 0;
+      if (deadline !== undefined && deadline - Date.now() - delay < MIN_ATTEMPT_MS) throw err;
+      await sleep(delay);
     }
   }
 }
@@ -222,13 +243,15 @@ export interface GenerateStructuredInput<S extends z.ZodType> {
   system: string;
   prompt: string;
   config: LlmConfig;
+  /** Epoch ms by which the call (all attempts) must be done. */
+  deadline?: number;
 }
 
 export async function generateStructured<S extends z.ZodType>(
   ctx: AppContext,
   input: GenerateStructuredInput<S>,
 ): Promise<LlmResult<z.output<S>>> {
-  const { userId, purpose, schema, schemaName, system, prompt, config } = input;
+  const { userId, purpose, schema, schemaName, system, prompt, config, deadline } = input;
   if (!(await takeDailySlot(ctx, userId))) {
     return { ok: false, reason: 'cap_reached', message: 'Daily AI limit reached' };
   }
@@ -246,6 +269,7 @@ export async function generateStructured<S extends z.ZodType>(
         abortSignal,
         repairText: ({ text }) => Promise.resolve(stripCodeFences(text)),
       }),
+      deadline,
     );
     await recordUsage(ctx, userId, purpose, config, result.usage, Date.now() - started);
     return { ok: true, object: result.object as z.output<S>, config, usage: result.usage };

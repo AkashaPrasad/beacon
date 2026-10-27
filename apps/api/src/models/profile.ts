@@ -9,6 +9,8 @@ export interface ResumeMeta {
   textChars: number;
   uploadedAt: Date;
   parsedFrom: 'deterministic' | 'llm';
+  /** `ocr` when the text came from OCR of a scanned PDF or an image (absent on older uploads). */
+  extraction?: 'text' | 'ocr';
 }
 
 /** Stored profile: shared `Profile` fields plus hashes, resume metadata and the worker's embedding. */

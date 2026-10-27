@@ -10,6 +10,8 @@ allowBuilds:
   # mongodb-memory-server downloads mongod lazily on first use; skip the install-time download.
   mongodb-memory-server: false
   msgpackr-extract: true
+  # tesseract.js postinstall is an opencollective notice only (api OCR needs no build step).
+  tesseract.js: false
   # msw postinstall only copies the worker script; apps/web runs `msw init` explicitly.
   msw: false
   unrs-resolver: true

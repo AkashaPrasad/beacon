@@ -35,6 +35,8 @@ import {
   mePatchSchema,
   notificationsQuerySchema,
   notificationsReadSchema,
+  onboardingCompleteSchema,
+  onboardingProgressSchema,
   passwordSetSchema,
   pushSubscriptionSchema,
   pushUnsubscribeSchema,
@@ -58,6 +60,58 @@ const errorSchema = z
   .meta({ id: 'Error' });
 
 const json = (schema: z.ZodType) => ({ content: { 'application/json': { schema } } });
+
+const isoDate = z.string().describe('ISO-8601 date-time');
+
+/** GET/PATCH /v1/me and the onboarding endpoints (docs/API.md §3 `MeResponse`). */
+const meResponseSchema = z
+  .object({
+    user: publicUserSchema.extend({
+      role: z.enum(['user', 'admin']),
+      authMethods: z.object({ google: z.boolean(), password: z.boolean() }),
+      lastSeenFeedAt: isoDate.nullable(),
+    }),
+    onboarding: z.object({
+      completed: z.boolean(),
+      step: z.string().describe("Legacy 'consent'|'resume'|'preferences'|'sources'|'done', or a step id saved by PATCH /v1/profile/onboarding"),
+      answers: z.record(z.string(), z.unknown()),
+      updatedAt: isoDate.nullable(),
+      completedAt: isoDate.nullable(),
+      consent: z
+        .object({ version: z.string(), aiMode: z.enum(['beacon', 'byok', 'off']), resumeToAi: z.boolean(), at: isoDate })
+        .nullable(),
+      hasProfile: z.boolean(),
+      hasResume: z.boolean(),
+      personalSources: z.number().int(),
+      enabledPacks: z.array(z.string()),
+    }),
+    settings: z.object({
+      theme: z.string(),
+      density: z.string(),
+      accent: z.string(),
+      fontSize: z.string(),
+      reducedMotion: z.string(),
+      aiEnabled: z.boolean(),
+      aiProvider: z.string(),
+      hasKey: z.boolean(),
+      consentGivenAt: isoDate.nullable(),
+      pushEnabled: z.boolean(),
+      timezone: z.string(),
+    }),
+    unreadNotifications: z.number().int(),
+  })
+  .meta({ id: 'MeResponse' });
+
+const resumeUploadResponseSchema = resumeParseResultSchema
+  .omit({ method: true })
+  .extend({
+    parsedFrom: z.enum(['deterministic', 'llm']),
+    phones: z.array(z.string()),
+    extraction: z.enum(['text', 'ocr']).describe('ocr = read from a scanned PDF or a PNG/JPEG image'),
+    ocr: z.object({ pages: z.number().int(), confidence: z.number() }).nullable(),
+    saved: z.boolean(),
+  })
+  .meta({ id: 'ResumeUploadResponse' });
 const anyJson = z.record(z.string(), z.unknown());
 
 interface RouteSpec {
@@ -87,13 +141,15 @@ const ROUTES: RouteSpec[] = [
   { method: 'post', path: '/v1/auth/login', tag: 'Auth', summary: 'Sign in with email + password', auth: false, body: loginSchema },
   { method: 'post', path: '/v1/auth/password', tag: 'Auth', summary: 'Set or change the password of the signed-in account', body: passwordSetSchema },
   { method: 'post', path: '/v1/auth/logout', tag: 'Auth', summary: 'Clear the session cookie', auth: false, status: 204 },
-  { method: 'get', path: '/v1/me', tag: 'Auth', summary: 'Current user, onboarding state, settings summary' },
-  { method: 'patch', path: '/v1/me', tag: 'Auth', summary: 'Update name, onboarding step or consent', body: mePatchSchema },
+  { method: 'get', path: '/v1/me', tag: 'Auth', summary: 'Current user, onboarding state, settings summary', response: meResponseSchema },
+  { method: 'patch', path: '/v1/me', tag: 'Auth', summary: 'Update name, onboarding step or consent', body: mePatchSchema, response: meResponseSchema },
 
   { method: 'get', path: '/v1/profile', tag: 'Profile', summary: 'Get the profile' },
   { method: 'put', path: '/v1/profile', tag: 'Profile', summary: 'Replace the profile', body: profileInputSchema },
   { method: 'patch', path: '/v1/profile', tag: 'Profile', summary: 'Patch the profile', body: profilePatchSchema },
-  { method: 'post', path: '/v1/profile/resume', tag: 'Profile', summary: 'Upload and parse a resume (multipart field "file")', query: z.object({ save: z.enum(['true', 'false']).optional() }), response: resumeParseResultSchema.omit({ method: true }).extend({ parsedFrom: z.enum(['deterministic', 'llm']), saved: z.boolean() }) },
+  { method: 'post', path: '/v1/profile/resume', tag: 'Profile', summary: 'Upload and parse a resume (multipart field "file": PDF, DOCX, PNG or JPEG; scans are OCR-read)', query: z.object({ save: z.enum(['true', 'false']).optional() }), response: resumeUploadResponseSchema, errors: [413, 415, 422] },
+  { method: 'patch', path: '/v1/profile/onboarding', tag: 'Profile', summary: 'Save onboarding progress: current step plus answers to merge (null removes one)', body: onboardingProgressSchema, response: meResponseSchema, errors: [413] },
+  { method: 'post', path: '/v1/profile/onboarding/complete', tag: 'Profile', summary: 'Finish onboarding (idempotent); queues embed + match when a profile exists', body: onboardingCompleteSchema, response: meResponseSchema },
 
   { method: 'get', path: '/v1/sources', tag: 'Sources', summary: 'List personal sources', response: z.object({ items: z.array(sourceSchema) }) },
   { method: 'post', path: '/v1/sources', tag: 'Sources', summary: 'Add a personal source', body: sourceCreateBodySchema, status: 201 },

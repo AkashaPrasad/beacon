@@ -59,3 +59,44 @@ export async function makeDocx(lines: readonly string[] = SAMPLE_RESUME_LINES): 
   });
   return Packer.toBuffer(doc);
 }
+
+/** Lines rendered into the scan fixtures: enough for name, email, education and skills. */
+export const SCANNED_RESUME_LINES = [
+  'Priya Sharma',
+  'priya.sharma@example.com',
+  'Education',
+  'Indian Institute of Technology Bombay',
+  'B.Tech in Computer Science and Engineering, 2022 - 2026',
+  'Experience',
+  'Software Engineering Intern at Razorpay',
+  'Built a payments dashboard in React and TypeScript',
+  'Skills',
+  'Languages: JavaScript, TypeScript, Python',
+  'Frameworks: React, Express, Node.js',
+  'Tools: Git, Docker, PostgreSQL',
+];
+
+/** The resume as a picture on a white A4 page at 150 dpi (what a phone scan produces). */
+export async function makeResumeImage(
+  lines: readonly string[] = SCANNED_RESUME_LINES,
+  format: 'png' | 'jpeg' = 'png',
+): Promise<Buffer> {
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const canvas = createCanvas(1240, 1754);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#111111';
+  ctx.font = '32px sans-serif';
+  lines.forEach((line, i) => ctx.fillText(line, 90, 140 + i * 56));
+  return format === 'png' ? canvas.encode('png') : canvas.encode('jpeg', 92);
+}
+
+/** Image-only PDF whose page is the rendered resume (no text layer at all). */
+export async function makeScannedResumePdf(): Promise<Buffer> {
+  const pdf = await PDFDocument.create();
+  const image = await pdf.embedPng(await makeResumeImage());
+  const page = pdf.addPage([595, 842]);
+  page.drawImage(image, { x: 0, y: 0, width: 595, height: 842 });
+  return Buffer.from(await pdf.save());
+}

@@ -7,6 +7,7 @@ import { createRedis } from './lib/redis.js';
 import { configureVector } from './lib/vector.js';
 import { createLogger } from './logger.js';
 import { ensureIndexes } from './models/index.js';
+import { shutdownOcr } from './resume/ocr.js';
 import { seedCommunitySources } from './seed/packs.js';
 import { seedAdmin } from './services/admin.js';
 
@@ -14,7 +15,7 @@ const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
 
 const redis = createRedis(env.REDIS_URL, logger);
-const queue = createBullQueue(env.REDIS_URL, logger);
+const queue = createBullQueue(env.REDIS_URL, logger, env.QUEUE_PREFIX);
 configureVector({ mode: env.VECTOR_SEARCH, logger });
 
 if (env.MONGODB_URI) {
@@ -48,7 +49,7 @@ const server = app.listen(env.PORT, () => {
 function shutdown(signal: NodeJS.Signals): void {
   logger.info({ signal }, 'shutting down');
   server.close(() => {
-    void Promise.allSettled([queue.close(), redis.quit(), disconnectMongo()]).finally(() => process.exit(0));
+    void Promise.allSettled([queue.close(), redis.quit(), disconnectMongo(), shutdownOcr()]).finally(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }

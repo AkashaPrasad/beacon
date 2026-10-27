@@ -14,7 +14,7 @@ confirmed green after the concurrent agent work.
 | 0. Discovery | done | BRIEF, SPEC, DESIGN, MOTION, USERFLOW, INFRA written |
 | 1. Monorepo and tooling | done | pnpm, Turborepo, lint, hooks, Dockerfiles |
 | 2. `packages/shared` | done | 850 tests, 99.7% line coverage |
-| 3. API | in progress | routes for auth, profile, sources, feed, tracker, alerts, settings; seed loader; `docs/API.md` |
+| 3. API | done | 70 operations (auth incl. email+password and admin, profile + resume OCR, onboarding save-and-resume, sources, feed, tracker, alerts, push, notifications, settings, admin); 143 tests, 87.6 % lines; contract suite 10/10; arm64 image verified |
 | 4. Worker | in progress | fetchers, pipelines, crawl client, scheduler; integration test present |
 | 5. Web foundation | in progress | shell, theming, auth, data layer, shadcn primitives |
 | 6. Web screens | in progress | radar, deadlines, sources, alerts, tracker, settings, onboarding, notifications, profile |
@@ -162,3 +162,67 @@ docker build -f apps/worker/Dockerfile -t beacon-worker:wave2 .   # bookworm-sli
 - API: use `listings.sourceIds` for visibility; expose `healthCode` (docs/SHARED-REQUESTS.md worker → api).
 - Web: route the notification deep links (docs/SHARED-REQUESTS.md worker → web).
 - First live standby drill (start → ready → scrape → idle stop) when the infra box is up; unit-tested only so far.
+
+## Phase 3: API (`apps/api`, done 2026-10-27)
+
+**Delivered** (contract: `docs/API.md`, 70 operations, also at `GET /openapi.json` and `/docs`)
+- Auth: Google ID token (`{credential}`) and redirect auth code (`{code, redirectUri}`, allowlisted
+  redirect URIs), email + password (bcrypt 12, 8..72 bytes, generic invalid-credentials error,
+  timing-equalised unknown emails), Google takeover of unverified password accounts, password
+  set/change with session revocation, admin seeded from `ADMIN_EMAIL`/`ADMIN_PASSWORD`,
+  `requireRole('admin')`, `beacon_session` cookie (HttpOnly, SameSite=Lax, Secure in prod), CSRF
+  header guard, Redis rate limits (global per user when signed in, per IP otherwise).
+- **This session:**
+  - **Resume OCR** (owner requirement): image-only PDFs (text layer < 200 chars) are rendered
+    (≤ 4 pages, 150 dpi, unpdf + `@napi-rs/canvas`) and read with tesseract.js (vendored English
+    model); PNG/JPEG uploads are OCR-read directly; 422 `RESUME_NO_TEXT` only below 100 chars after
+    OCR; `extraction: 'text'|'ocr'`, `ocr {pages, confidence}` and the scan warning in the response;
+    `resume.extraction` stored; 60 s OCR budget and ~85 s route budget (LLM deadline); one lazily
+    created worker, idle-terminated after 5 min; 40 MP decode cap, 4000 px downscale.
+  - **Onboarding save and resume**: `PATCH /v1/profile/onboarding {step, answers}` (per-key merge,
+    `null` deletes, 32 KB cap), `POST /v1/profile/onboarding/complete` (idempotent, queues embed +
+    match), `/v1/me.onboarding` gains `completed`, `answers`, `updatedAt`; answers in the export.
+  - Feed `sort=fit` keyset applied on `matches` before the listing join (+ index); `QUEUE_PREFIX`;
+    sanitised description links keep `rel`/`target` (bug: the allowlist stripped them);
+    `lastLoginAt` no longer precedes `createdAt` on register; `dist` is cleaned before each build
+    and test helpers are no longer compiled into it; `MeResponse` / `ResumeUploadResponse` typed in
+    OpenAPI; API image on `node:22-bookworm-slim` with a node-fetch HEALTHCHECK.
+  - Tests for the 21 operations the contract suite reported untested (sources CRUD, detect, packs,
+    community paging, credits; warm feed paging/filters/hide/save/cursor errors, vector cold start,
+    feed seen, listing detail; settings, AI key encryption, AI test, weights, account delete;
+    alerts CRUD + test, VAPID key, push subscriptions, notifications; tracker analytics) plus OCR and
+    onboarding.
+
+**Verified (commands run, 2026-10-27)**
+```bash
+pnpm --filter @kestrel/api lint && pnpm --filter @kestrel/api typecheck \
+  && pnpm --filter @kestrel/api test && pnpm --filter @kestrel/api build
+#   15 files, 143 tests passed; lines 87.61 % (floor 85), statements 84.4 %, functions 83.8 %
+docker build -f apps/api/Dockerfile -t beacon-api:final .       # ok, arm64, 143 MB, user node
+docker run … beacon-api:final (NODE_ENV=production, --memory 512m, beacon_dev on Atlas)
+#   /readyz ok; Docker health "healthy"; register → Secure cookie; PNG resume → 200 extraction ocr
+#   (confidence 94, 9 skills); onboarding PATCH ok; admin overview 200, user 403;
+#   memory 92 MiB idle → 224–282 MiB with the OCR worker resident; SIGTERM → exit 0
+docker compose -f docker-compose.dev.yml up -d redis
+VECTOR_SEARCH=memory MONGODB_DB=beacon_dev pnpm --filter @kestrel/api dev   # secrets.env sourced
+#   curl: /healthz, /readyz {mongo up, redis up}, /openapi.json (3.1, 70 ops), /v1/sources/community
+#   (401 signed out, 200 signed in, healthCode exposed), register 201 + login 200 → cookie → /v1/me
+#   (role user), /v1/feed cold start (warmingUp true, total 183, 0.18 s), /v1/feed/summary,
+#   /v1/listings/:id (similar 6, source, applyLinkHealth), POST /v1/sources/detect
+#   boards.greenhouse.io/groww → greenhouse, 10 jobs, valid; admin login → role admin →
+#   /v1/admin/overview 200 (no-store; 183 listings, 338 sources, 8 queues, 2 runs), user → 403;
+#   PATCH /v1/profile/onboarding → /v1/me resumes at the saved step; /complete → completed;
+#   scanned PDF upload → 200 extraction ocr in 1.27 s
+CONTRACT_API_URL=http://localhost:4000 [CONTRACT_TOKEN=…] pnpm test:contract
+#   10/10 with and without a token; 70/70 operations tested; 21 live GET responses schema-valid
+```
+
+**Pending / for other agents**
+- Web (`docs/SHARED-REQUESTS.md` api → web): onboarding endpoints + `onboarding.step` routing,
+  resume dropzone accepting PNG/JPEG and the scan warning, 90 s client timeout on the upload.
+- 44 operations still document a generic object as their 2xx body (informational in the contract
+  suite); the zod DTOs exist, so typing them is mechanical.
+- Feed `deadline`/`posted` sorts on the warm path still join before sorting; the load test
+  (`scripts/load-test.mjs`) was not re-run by the api agent.
+- Infra: the API container now peaks around 280 MiB while the OCR worker is resident (prod
+  `mem_limit: 512m`, heap 384 MB: fits). The image base changed to `node:22-bookworm-slim`.

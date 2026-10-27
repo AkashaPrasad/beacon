@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "start": "node dist/index.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -23,6 +23,8 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.79",
     "@kestrel/shared": "workspace:*",
+    "@napi-rs/canvas": "1.0.11",
+    "@tesseract.js-data/eng": "1.0.0",
     "ai": "7.0.154",
     "bcryptjs": "3.0.3",
     "bullmq": "6.5.0",
@@ -42,6 +44,7 @@
     "pino-http": "11.0.0",
     "rate-limit-redis": "6.0.1",
     "sanitize-html": "2.18.1",
+    "tesseract.js": "7.0.0",
     "unpdf": "1.9.1",
     "zod": "4.6.7",
     "zod-openapi": "6.0.2"

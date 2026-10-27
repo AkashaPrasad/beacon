@@ -29,7 +29,9 @@ const SANITIZE: sanitizeHtml.IOptions = {
     'p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'b', 'em', 'i', 'u', 's', 'blockquote',
     'ul', 'ol', 'li', 'a', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span', 'div',
   ],
-  allowedAttributes: { a: ['href', 'title'] },
+  // rel/target must be allowed or the transform below is stripped again; simpleTransform
+  // overwrites any rel/target the source sent.
+  allowedAttributes: { a: ['href', 'title', 'rel', 'target'] },
   allowedSchemes: ['http', 'https', 'mailto'],
   transformTags: {
     a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer nofollow', target: '_blank' }),

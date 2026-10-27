@@ -200,6 +200,16 @@ function sortStages(
   return stages;
 }
 
+/** Keyset condition for `sort=fit` on the raw match fields (score desc, listingId desc). */
+function fitKeyset(cursor: Record<string, unknown> | null): PipelineStage[] {
+  if (!cursor) return [];
+  const score = cursor['s'];
+  const id = cursor['id'];
+  if (typeof score !== 'number' || typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) throw badCursor();
+  const lid = toObjectId(id);
+  return [{ $match: { $or: [{ score: { $lt: score } }, { score, listingId: { $lt: lid } }] } }];
+}
+
 function cursorFor(kind: SortKind, row: { _sk: unknown; _lid: Types.ObjectId }): string {
   const s = row._sk instanceof Date ? row._sk.getTime() : Number(row._sk);
   return encodeCursor({ k: kind, s, id: row._lid.toString() });
@@ -275,8 +285,8 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
   if (await Match.exists({ userId })) {
     const kind: SortKind = q.sort;
     if (cursor && cursor['k'] !== kind) throw badCursor();
-    const pre: PipelineStage[] = [
-      { $match: { userId, ...(q.minFit !== undefined ? { score: { $gte: q.minFit } } : {}) } },
+    const matchStage: PipelineStage = { $match: { userId, ...(q.minFit !== undefined ? { score: { $gte: q.minFit } } : {}) } };
+    const join: PipelineStage[] = [
       {
         $lookup: {
           from: 'listings',
@@ -290,10 +300,17 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
       { $match: listingFilter(q, now, 'listing.') },
       ...interactionStages(userId, 'listingId', hideHidden, q.savedOnly),
     ];
+    const pre: PipelineStage[] = [matchStage, ...join];
+    // sort=fit orders by fields on `matches` itself, so sort (index {userId, score, listingId})
+    // and apply the cursor first, then join only until `limit + 1` rows pass the listing filters,
+    // instead of joining every match of the user before sorting.
+    const ordered: PipelineStage[] =
+      kind === 'fit'
+        ? [matchStage, ...fitKeyset(cursor), { $sort: { score: -1, listingId: -1 } }, ...join, { $addFields: { _sk: '$score', _lid: '$listingId' } }]
+        : [...pre, ...sortStages(kind, 'score', 'listing.', 'listingId', cursor)];
     const [rows, total] = await Promise.all([
       aggregate<Row & MatchDoc & { listing: ListingDoc }>(Match, [
-        ...pre,
-        ...sortStages(kind, 'score', 'listing.', 'listingId', cursor),
+        ...ordered,
         { $limit: limit + 1 },
         trackerStage(userId, 'listingId'),
       ]),

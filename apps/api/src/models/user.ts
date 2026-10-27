@@ -1,7 +1,16 @@
 import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
 
+/** Legacy step ids accepted by `PATCH /v1/me { onboardingStep }`. */
 export const ONBOARDING_STEPS = ['consent', 'resume', 'preferences', 'sources', 'done'] as const;
-export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+/**
+ * Stored step id: one of `ONBOARDING_STEPS`, or any step id the web flow saves through
+ * `PATCH /v1/profile/onboarding` (`ONBOARDING_STEP_ID`). `'done'` once onboarding is complete.
+ */
+export type OnboardingStep = string;
+/** Step ids for the conversational flow: lower-case slug, 1..40 chars. */
+export const ONBOARDING_STEP_ID = /^[a-z][a-z0-9-]{0,39}$/;
+/** Save-and-resume answers (JSON values keyed by question id). */
+export type OnboardingAnswers = Record<string, unknown>;
 export const AI_MODES = ['beacon', 'byok', 'off'] as const;
 export type AiMode = (typeof AI_MODES)[number];
 
@@ -25,6 +34,9 @@ export interface UserDoc {
   role: 'user' | 'admin';
   onboardingStep: OnboardingStep;
   onboardingCompletedAt: Date | null;
+  /** Answers saved by `PATCH /v1/profile/onboarding` (null/absent before the first save). */
+  onboardingAnswers?: OnboardingAnswers | null;
+  onboardingUpdatedAt?: Date | null;
   lastLoginAt: Date | null;
   lastSeenFeedAt: Date | null;
   consent: UserConsent | null;
@@ -52,8 +64,11 @@ const userSchema = new Schema(
     passwordHash: { type: String, default: null },
     passwordSetAt: { type: Date, default: null },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    onboardingStep: { type: String, enum: ONBOARDING_STEPS, default: 'consent' },
+    onboardingStep: { type: String, match: ONBOARDING_STEP_ID, default: 'consent' },
     onboardingCompletedAt: { type: Date, default: null },
+    // No default: an absent map takes dotted `$set` / `$unset` paths, a stored null would not.
+    onboardingAnswers: { type: Schema.Types.Mixed },
+    onboardingUpdatedAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
     lastSeenFeedAt: { type: Date, default: null },
     consent: { type: consentSchema, default: null },

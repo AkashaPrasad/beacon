@@ -232,7 +232,10 @@ export function createSettingsRouter(ctx: AppContext): Router {
     res.setHeader('Content-Disposition', `attachment; filename="beacon-export-${day}.json"`);
     res.setHeader('Cache-Control', 'no-store');
     await write(res, `{"exportedAt":${JSON.stringify(ctx.now())}`);
-    await write(res, `,"user":${JSON.stringify(toPublicUser(fresh ?? user.doc))}`);
+    const me = fresh ?? user.doc;
+    await write(res, `,"user":${JSON.stringify(toPublicUser(me))}`);
+    const onboarding = { step: me.onboardingStep, completedAt: me.onboardingCompletedAt ?? null, answers: me.onboardingAnswers ?? {} };
+    await write(res, `,"onboarding":${JSON.stringify(onboarding)}`);
     await write(res, `,"profile":${JSON.stringify(profile)}`);
     await write(res, `,"settings":${JSON.stringify(toSettingsDTO(settings))}`);
     await write(res, `,"sources":${JSON.stringify(sources)}`);

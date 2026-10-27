@@ -69,10 +69,10 @@ Validation errors (zod) also carry `issues` at the top of `error`:
 | 403 | `FORBIDDEN` | e.g. trying to modify a community source; `/v1/admin/*` without `role: 'admin'` |
 | 404 | `NOT_FOUND` | unknown route, or object missing or **owned by another user** (never 403, so ids don't leak) |
 | 409 | `CONFLICT` | duplicate (source URL already added, listing already tracked; `details.existingId`), email already registered (`details.reason: 'email_in_use'`), stale tracker move (`details.reason: 'stale'`, `details.item`), refresh refused (`details.reason: 'disabled' \| 'recently_checked'`) |
-| 413 | `PAYLOAD_TOO_LARGE` | resume > 10 MB, JSON body > 1 MB |
-| 415 | `UNSUPPORTED_MEDIA_TYPE` | resume not PDF/DOCX |
-| 422 | `RESUME_NO_TEXT` | scanned or image-only PDF (< 200 chars of text) |
-| 422 | `RESUME_UNREADABLE` | corrupt or encrypted PDF/DOCX |
+| 413 | `PAYLOAD_TOO_LARGE` | resume > 10 MB, JSON body > 1 MB, onboarding answers > 32 KB in total |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | resume not PDF, DOCX, PNG or JPEG |
+| 422 | `RESUME_NO_TEXT` | no readable text even after OCR (< 100 chars from a scanned PDF or image), or a DOCX with < 200 chars |
+| 422 | `RESUME_UNREADABLE` | corrupt or encrypted PDF/DOCX, or an image above 40 megapixels |
 | 422 | `AI_NOT_CONFIGURED` | `/settings/ai/test` with nothing to test |
 | 429 | `RATE_LIMITED` | see §1.5; `Retry-After` header set, `details.retryAfterSeconds` |
 | 502 | `UPSTREAM_ERROR` | detection target unreachable and nothing could be inferred |
@@ -131,7 +131,7 @@ opaque. A cursor from a different `sort` → `400 BAD_CURSOR`. An empty result i
 | POST | `/v1/auth/password` | user | **(api)** `passwordSetSchema` `{ password, currentPassword? }` (`currentPassword` required when the account already has one) | `200 { user: PublicUser }` + a fresh `Set-Cookie`; every other session is signed out | 400, 401 (`INVALID_CREDENTIALS` for a wrong current password), 409, 429 | credentials |
 | POST | `/v1/auth/logout` | public | – | `204`, clears the cookie (`beacon_session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`, plus `Secure` in production) | 403 `CSRF` | global |
 | GET | `/v1/me` | user | – | `MeResponse` (below) | 401 | global |
-| PATCH | `/v1/me` | user | **(api)** `mePatchSchema`: `{ name?, onboardingStep?: 'consent'\|'resume'\|'preferences'\|'sources'\|'done', onboardingCompleted?: boolean, consent?: { version: string, aiMode: 'beacon'\|'byok'\|'off', resumeToAi: boolean } }` | `MeResponse` | 400, 401 | global |
+| PATCH | `/v1/me` | user | **(api)** `mePatchSchema`: `{ name?, onboardingStep?: 'consent'\|'resume'\|'preferences'\|'sources'\|'done', onboardingCompleted?: boolean, consent?: { version: string, aiMode: 'beacon'\|'byok'\|'off', resumeToAi: boolean } }` (the conversational flow saves its own step ids with `PATCH /v1/profile/onboarding`, §4.1) | `MeResponse` | 400, 401 | global |
 
 Google verification: `OAuth2Client.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })`;
 requires `email_verified`. Upsert key is `googleSub`; email, name and picture are refreshed on
@@ -167,7 +167,11 @@ and `resumeToAi` is true (else null), `privacy.sendResumeToAi = resumeToAi`.
 MeResponse = {
   user: PublicUser & { lastSeenFeedAt: Date | null },
   onboarding: {
-    step: 'consent' | 'resume' | 'preferences' | 'sources' | 'done',
+    completed: boolean,                 // = completedAt !== null
+    step: string,                       // legacy 'consent' | 'resume' | 'preferences' | 'sources' | 'done', or a
+                                        // step id saved by PATCH /v1/profile/onboarding; 'done' once completed
+    answers: Record<string, JSON>,      // save-and-resume answers ({} before the first save)
+    updatedAt: Date | null,             // last PATCH /v1/profile/onboarding or /complete
     completedAt: Date | null,
     consent: { version: string, aiMode: 'beacon'|'byok'|'off', resumeToAi: boolean, at: Date } | null,
     hasProfile: boolean, hasResume: boolean,
@@ -191,11 +195,14 @@ MeResponse = {
 | GET | `/v1/profile` | user | – | `ProfileResponse` | 401 | global |
 | PUT | `/v1/profile` | user | `profileInputSchema` (full replace; defaults fill omitted fields) | `ProfileResponse` | 400, 401 | global |
 | PATCH | `/v1/profile` | user | `profilePatchSchema` (omitted = unchanged) | `ProfileResponse` | 400, 401 | global |
-| POST | `/v1/profile/resume` | user | `multipart/form-data`, field **`file`**, ≤ 10 MB, `.pdf` or `.docx`. Query `?save=true` also merges the result into the stored profile (default: draft only). | `ResumeUploadResponse` | 400 (no file), 401, 413, 415, 422 `RESUME_NO_TEXT` / `RESUME_UNREADABLE`, 429 | resume |
+| POST | `/v1/profile/resume` | user | `multipart/form-data`, field **`file`**, ≤ 10 MB: PDF, DOCX, **PNG or JPEG** (scans and photos are read with OCR). Query `?save=true` also merges the result into the stored profile (default: draft only). | `ResumeUploadResponse` | 400 (no file), 401, 413, 415, 422 `RESUME_NO_TEXT` / `RESUME_UNREADABLE`, 429 | resume |
+| PATCH | `/v1/profile/onboarding` | user | **(api)** `onboardingProgressSchema` `{ step?: string, answers?: Record<string, JSON> }` (at least one; see §4.1) | `MeResponse` | 400, 401, 403 `CSRF`, 413 | global |
+| POST | `/v1/profile/onboarding/complete` | user | **(api)** `onboardingCompleteSchema` `{ answers?: Record<string, JSON> }` (optional last answers) | `MeResponse` (`onboarding.completed: true`, `step: 'done'`) | 400, 401, 403 `CSRF`, 413 | global |
 
 ```ts
 ProfileResponse = { profile: Profile, exists: boolean, profileHash: string | null,
-                    resume: { fileName, mimeType, size, textChars, uploadedAt, parsedFrom } | null }
+                    resume: { fileName, mimeType, size, textChars, uploadedAt, parsedFrom,
+                              extraction?: 'text' | 'ocr' /* absent on uploads before OCR existed */ } | null }
 ResumeUploadResponse = {
   profile: ProfileInput,                 // editable draft (complete, defaults applied)
   parsedFrom: 'deterministic' | 'llm',   // 'llm' = deterministic result enriched by the LLM
@@ -204,18 +211,56 @@ ResumeUploadResponse = {
   skills: { canonical, matchedAlias, count }[],
   emails: string[], phones: string[],
   textChars: number,
+  extraction: 'text' | 'ocr',            // 'ocr' = read from a scanned PDF or a PNG/JPEG image
+  ocr: { pages: number, confidence: number /* tesseract mean, 0..100 */ } | null,   // set when extraction = 'ocr'
   saved: boolean,                        // true when ?save=true merged and stored it
 }
 ```
 
 - When `GET /v1/profile` has no stored profile, it returns the defaults with `exists: false`.
-- Detection: magic bytes plus MIME type. PDF via `unpdf`, DOCX via `mammoth`. Anything else,
-  including `.doc` and `.exe`, → 415.
+- Detection: magic bytes plus MIME type. PDF via `unpdf`, DOCX via `mammoth`, PNG and JPEG by
+  signature. Anything else, including `.doc`, HEIC and `.exe`, → 415.
+- **OCR (scans and photos).** When a PDF's text layer has fewer than 200 characters, its first
+  **4 pages** are rendered at **150 dpi** (pdf.js via `unpdf` + `@napi-rs/canvas`, longest side
+  capped at 4000 px) and read with **tesseract.js** (English LSTM model vendored from
+  `@tesseract.js-data/eng`; nothing is downloaded at runtime). PNG/JPEG uploads go straight to OCR
+  (images above 40 MP → 422 `RESUME_UNREADABLE`; larger than 4000 px on the long side are scaled
+  down). The longer of text layer and OCR text wins and goes through the same deterministic
+  parser and LLM enrichment as any resume. `extraction: 'ocr'` adds the first warning
+  **"We read this from a scan — double-check the details."** Only when OCR also yields fewer than
+  100 characters is the answer `422 RESUME_NO_TEXT` (`details: { textChars, minChars: 100, ocr: true,
+  ocrError? }`; a DOCX keeps the 200-character rule with `ocr: false`).
+- **Time budget.** OCR gets 60 s (including time queued behind another upload; one tesseract
+  worker serves the process, created on first use and stopped after 5 idle minutes). The whole
+  upload answers within ~85 s: LLM enrichment only gets what is left of the budget and is skipped
+  with a warning when less than 5 s remain. Typical times: a one-page scan ≈ 1.3 s cold, ≈ 0.5 s warm.
 - LLM enrichment runs only when settings `ai.enabled`, `privacy.sendResumeToAi` and a configured
   provider (server default or BYOK) all hold, and the user is under the daily cap. Any failure
   falls back to the deterministic result plus a warning.
 - **Side effects:** when a save changes `profileHash`, the API enqueues `embed {kind:'profile',userId}`
   and `match {userId, reason:'profile'}` (see §13).
+
+### 4.1 Onboarding save and resume
+
+The conversational onboarding (docs/UX-RESTRUCTURE.md §3) persists every page so a returning user
+lands on the step they left, with their answers filled in. Structured profile data still goes
+through `PUT`/`PATCH /v1/profile`; `answers` is the flow's own UI state (it is in the export).
+
+- `PATCH /v1/profile/onboarding { step?, answers? }`
+  - `step`: lower-case slug `^[a-z][a-z0-9-]{0,39}$` (e.g. `degree`, `role-families`, `review`).
+    Stored as `onboarding.step`. Ignored once onboarding is completed (the step stays `done`).
+  - `answers`: answer id (`^[A-Za-z][A-Za-z0-9_-]{0,63}$`) → any JSON value. **Merged** key by key
+    into the stored answers (atomic per key); a `null` value removes that answer; keys you do not
+    send are kept. At most 100 answers and 32 KB of JSON in total (413 `PAYLOAD_TOO_LARGE`, with
+    `details: { bytes, maxBytes }`). Nested keys may not start with `$` or contain `.` (400).
+  - Answers can still be edited after completion (Profile links back to the questions).
+- `POST /v1/profile/onboarding/complete { answers? }` merges the optional answers, sets
+  `step: 'done'` and `completedAt` (idempotent: a second call keeps the first `completedAt`), and,
+  when a profile exists, enqueues `embed {kind:'profile'}` + `match {reason:'profile'}` so the
+  "Customising your radar" screen can poll `GET /v1/feed/summary` until `warmingUp` is false.
+- Both answer the full `MeResponse` (drop it straight into the `me` query cache).
+- The legacy `PATCH /v1/me { onboardingStep, onboardingCompleted }` still works and shares the same
+  stored step and completion fields.
 
 ---
 
@@ -315,7 +360,8 @@ FeedItemDTO = {
 FeedSummary = { total: number, byType: Record<OpportunityType, number>, deadlinesThisWeek: number,
                 newSinceLastVisit: number, lastSeenFeedAt: Date | null, saved: number, warmingUp: boolean }
 ListingDetail = {
-  listing: ListingPublic, descriptionHtml: string /* markdown → HTML, sanitize-html allowlist */,
+  listing: ListingPublic, descriptionHtml: string /* markdown → HTML, sanitize-html allowlist; links get
+                                                     rel="noopener noreferrer nofollow" target="_blank" */,
   fit: FitResult | null, matchedSkills: string[], missingSkills: string[],
   saved: boolean, hidden: boolean, trackerItemId: string | null,
   source: { id, name, kind, scope } | null,
@@ -411,7 +457,7 @@ A response is the first move from `applied` into `oa`, `interview`, `offer` or `
 | GET | `/v1/settings` | user | – | `Settings` (shared; `ai.hasKey`/`ai.keyLast4`, never the key) | 401 | global |
 | PATCH | `/v1/settings` | user | `settingsPatchSchema` | `Settings` | 400, 401 | global |
 | PUT | `/v1/settings/ai` | user | **(api)** `aiSettingsPutSchema` `{ provider: AiProvider, baseUrl?: url\|null, model?: string\|null, apiKey?: string (8..512), enabled: boolean }` | `{ ai: AiSettings }` | 400, 401 | global |
-| POST | `/v1/settings/ai/test` | user | optional **(api)** `aiTestSchema` `{ provider?, baseUrl?, model?, apiKey? }` (tests these values, else the saved config) | `200 { ok: true, latencyMs, model, provider } \| { ok: false, error: string, latencyMs }` | 400, 401, 422 `AI_NOT_CONFIGURED`, 429 | aitest |
+| POST | `/v1/settings/ai/test` | user | optional **(api)** `aiTestSchema` `{ provider?, baseUrl?, model?, apiKey? }` (tests these values, else the saved config) | `200 { ok: true, latencyMs, model, provider } \| { ok: false, error: string, latencyMs, model, provider }` (`provider: 'server'` for Beacon's default LLM) | 400, 401, 422 `AI_NOT_CONFIGURED`, 429 | aitest |
 | DELETE | `/v1/settings/ai/key` | user | – | `{ ai: AiSettings }` | 401 | global |
 | GET | `/v1/settings/ai/usage` | user | – | `{ date: 'YYYY-MM-DD' /* UTC */, calls, cap /* LLM_DAILY_USER_CAP */, tokens: { prompt, completion, total } }` from `llm:calls:*` / `llm:tokens:*` | 401 | global |
 | PUT | `/v1/settings/weights` | user | `weightsInputSchema` (7 sliders, any scale) | `{ weights: WeightsInput, normalised: Weights }` | 400, 401 | global |
@@ -421,9 +467,9 @@ A response is the first move from `applied` into `oa`, `interview`, `offer` or `
 - PATCH `weights` or `PUT /settings/weights` → `match {userId, reason:'weights'}`. `provider:'default'`
   uses the server LLM (`LLM_*` env). A BYOK key is AES-256-GCM encrypted (§14) and only
   `keyLast4` and `hasKey` are ever returned.
-- Export contains `{ exportedAt, user, profile, settings (no ciphertext), sources (personal),
-  subscriptions, interactions, matches, tracker, alerts, notifications, pushSubscriptions
-  (endpoint only), explanations }`.
+- Export contains `{ exportedAt, user, onboarding { step, completedAt, answers }, profile, settings
+  (no ciphertext), sources (personal), subscriptions, interactions, matches, tracker, alerts,
+  notifications, pushSubscriptions (endpoint only), explanations }`.
 - Account delete cascade: profile, settings, personal sources, subscriptions, interactions,
   matches, explanations, tracker, alerts, notifications, push subscriptions, then the user.
   Listings ingested from deleted personal sources are left for the worker's cleanup.
@@ -477,13 +523,13 @@ The api and worker share these collections. Field names are camelCase and `_id` 
 
 | Collection | Writer | Shape (beyond `_id`, `createdAt`, `updatedAt`) | Indexes |
 |---|---|---|---|
-| `users` | **api** | `email, name, avatarUrl, googleSub (null for password-only accounts), passwordHash (bcrypt, null for Google-only; never returned), passwordSetAt, role ('user'\|'admin'), onboardingStep, onboardingCompletedAt, lastLoginAt, lastSeenFeedAt, consent{version,aiMode,resumeToAi,at}, sessionVersion` | `googleSub_partial_unique` (unique, partial: string), `email`, `email_password_unique` (unique, partial: `passwordHash` string). Boot drops the legacy non-partial `googleSub_1`. |
+| `users` | **api** | `email, name, avatarUrl, googleSub (null for password-only accounts), passwordHash (bcrypt, null for Google-only; never returned), passwordSetAt, role ('user'\|'admin'), onboardingStep (string, §4.1), onboardingCompletedAt, onboardingAnswers (object, absent until the first save), onboardingUpdatedAt, lastLoginAt, lastSeenFeedAt, consent{version,aiMode,resumeToAi,at}, sessionVersion` | `googleSub_partial_unique` (unique, partial: string), `email`, `email_password_unique` (unique, partial: `passwordHash` string). Boot drops the legacy non-partial `googleSub_1`. |
 | `profiles` | **api** (worker writes `embedding`, `embeddingHash`, `embeddedAt` only) | shared `Profile` fields + `userId, profileHash, resume{fileName,mimeType,size,textChars,uploadedAt,parsedFrom}, resumeText (≤ 50k chars), embedding: number[384], embeddingHash, embeddedAt` | `userId` unique |
 | `settings` | **api** | shared `Settings` + `ai.keyCiphertext` (string, never returned) | `userId` unique |
 | `sources` | **api** creates and edits; **worker** writes `health, lastCheckedAt, listingsFound, errorReason, etag, lastModified` | shared `Source` + `packIds: string[]` (every pack containing it; `packId` is the first), `companyDomain, country, tags, seedKey` (community only: normalised URL), `config.apiUrl, config.method ('GET'\|'POST'), config.body, config.headers, config.tenant, config.site, config.wdHost` | `ownerId`, `{scope, packIds}`, `{ownerId, url}` unique (partial: personal), `seedKey` unique (partial: string) |
 | `subscriptions` | **api** | `userId, sourceId, packId` (user ↔ community source) | `{userId, sourceId}` unique, `sourceId` |
 | `listings` | **worker** | shared `Listing` + `sourceIds[]` (every source it was seen in; **visibility checks match `sourceIds` or `sourceId`**) + `applyCheck{status:'ok'\|'dead'\|'redirect_home'\|'error', httpStatus, finalUrl, checkedAt}` | `canonicalKey` unique, `sourceId`, `{archived, type, deadlineAt}`, `{postedAt:-1}`, `company`, Atlas vector index (see `apps/api/src/models/indexes.md`) |
-| `matches` | **worker** | `userId, listingId, score, rawScore, components, contributions, weights, caps, ghostPenalty, hardFails, semanticAvailable, details, explain, computedAt, profileHash` (every `FitResult` field at top level) | `{userId, score:-1}`, `{userId, listingId}` unique |
+| `matches` | **worker** | `userId, listingId, score, rawScore, components, contributions, weights, caps, ghostPenalty, hardFails, semanticAvailable, details, explain, computedAt, profileHash` (every `FitResult` field at top level) | `{userId, score:-1}`, `{userId, listingId}` unique, `{userId, score:-1, listingId:-1}` (api: the `sort=fit` keyset) |
 | `interactions` | **api** | `userId, listingId, saved, savedAt, hidden, hiddenAt` | `{userId, listingId}` unique, `{userId, saved}` |
 | `explanations` | **api** | `userId, listingId, profileHash, whyFit[], gaps[], tailoringTips[], model, source` | `{userId, listingId, profileHash}` unique |
 | `tracker_items` | **api** (worker writes `nudges[].sentAt`) | shared `TrackerItem` + `history[{stage,at}]` | `{userId, stage, position}`, `{userId, listingId}` |
@@ -498,13 +544,14 @@ overwritten, so worker-written health is kept.
 ## 13. Queues (BullMQ, `REDIS_URL`; names = `apps/worker/src/queues.ts` `QUEUE_NAMES`)
 
 The API only produces jobs. Job name = queue name. Default options come from the worker's
-`DEFAULT_JOB_OPTIONS` (3 attempts, exponential backoff).
+`DEFAULT_JOB_OPTIONS` (3 attempts, exponential backoff). The BullMQ key prefix is `bull`, or
+`QUEUE_PREFIX` when set (it must equal the worker's `QUEUE_PREFIX`).
 
 | Queue | Payload | Producer trigger | Dedup |
 |---|---|---|---|
 | `ingest` | `{ sourceId: string, reason: 'created'\|'enabled'\|'pack'\|'manual' }` | source create / enable / pack enable / `POST /v1/sources/:id/refresh` | `deduplication.id = ingest:<sourceId>` (ttl 60 s) |
-| `embed` | `{ kind: 'profile', userId: string }` | profile hash changed | `embed:profile:<userId>` (ttl 10 s) |
-| `match` | `{ userId: string, reason: 'profile'\|'weights'\|'sources'\|'manual' }` | profile/weights/source changes | `match:<userId>` (ttl 10 s) |
+| `embed` | `{ kind: 'profile', userId: string }` | profile hash changed; `POST /v1/profile/onboarding/complete` with a profile | `embed:profile:<userId>` (ttl 10 s) |
+| `match` | `{ userId: string, reason: 'profile'\|'weights'\|'sources'\|'manual' }` | profile/weights/source changes; onboarding complete | `match:<userId>` (ttl 10 s) |
 | `notify` | `{ userId: string, alertRuleId?: string, test: true }` | `POST /v1/alerts/:id/test` (with `alertRuleId`), `POST /v1/push/test` (without) | none |
 
 ## 14. Redis keys and crypto (shared with the worker)

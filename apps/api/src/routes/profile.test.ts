@@ -1,11 +1,19 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { SCAN_WARNING } from './profile.js';
 import { DEFAULT_RATE_LIMITS } from '../middleware/rateLimit.js';
 import { Profile } from '../models/profile.js';
 import { Settings } from '../models/settings.js';
+import { imageSize, ocrImage, OcrError, shutdownOcr } from '../resume/ocr.js';
 import { as, buildTestApp, createUser, resetDb } from '../test/helpers.js';
 import { mockLlm } from '../test/llm-mock.js';
-import { makeDocx, makePdf, makeScannedPdf } from '../test/resume-fixtures.js';
+import {
+  makeDocx,
+  makePdf,
+  makeResumeImage,
+  makeScannedPdf,
+  makeScannedResumePdf,
+} from '../test/resume-fixtures.js';
 
 const fullProfile = {
   headline: 'Backend developer',
@@ -166,7 +174,7 @@ describe('POST /v1/profile/resume', () => {
     expect(res.body.warnings.join(' ')).toMatch(/Daily AI limit/);
   });
 
-  it('scanned PDF → 422 RESUME_NO_TEXT with a clear message', async () => {
+  it('a scan with no readable text even after OCR → 422 RESUME_NO_TEXT with a clear message', async () => {
     const { app } = buildTestApp();
     const user = await createUser();
     const res = await as(app, user)
@@ -174,7 +182,8 @@ describe('POST /v1/profile/resume', () => {
       .attach('file', await makeScannedPdf(), { filename: 'scan.pdf', contentType: 'application/pdf' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('RESUME_NO_TEXT');
-    expect(res.body.error.message).toMatch(/scanned/);
+    expect(res.body.error.message).toMatch(/even after scanning/);
+    expect(res.body.error.details).toMatchObject({ ocr: true, minChars: 100 });
   });
 
   it('corrupt PDF → 422 RESUME_UNREADABLE', async () => {
@@ -223,5 +232,104 @@ describe('POST /v1/profile/resume', () => {
     const second = await as(app, user).post('/v1/profile/resume').attach('file', pdf, 'r.pdf');
     expect(second.status).toBe(429);
     expect(await Settings.countDocuments()).toBe(1);
+  });
+});
+
+describe('POST /v1/profile/resume (OCR for scans and photos)', () => {
+  beforeEach(resetDb);
+  afterAll(shutdownOcr);
+
+  it('reads an image-only PDF with OCR and parses it like text', async () => {
+    const { app } = buildTestApp();
+    const user = await createUser();
+    const res = await as(app, user)
+      .post('/v1/profile/resume?save=true')
+      .attach('file', await makeScannedResumePdf(), { filename: 'scan.pdf', contentType: 'application/pdf' });
+    expect(res.status).toBe(200);
+    expect(res.body.extraction).toBe('ocr');
+    expect(res.body.ocr).toMatchObject({ pages: 1 });
+    expect(res.body.ocr.confidence).toBeGreaterThan(60);
+    expect(res.body.warnings[0]).toBe(SCAN_WARNING);
+    expect(res.body.emails).toContain('priya.sharma@example.com');
+    const skills = res.body.profile.skills.map((s: { name: string }) => s.name);
+    expect(skills).toEqual(expect.arrayContaining(['React', 'TypeScript', 'Python', 'Docker']));
+    expect(res.body.profile.education[0]).toMatchObject({ gradYear: 2026 });
+    const stored = await Profile.findOne({ userId: user._id }).lean();
+    expect(stored?.resume).toMatchObject({ fileName: 'scan.pdf', extraction: 'ocr' });
+  });
+
+  it('reads PNG and JPEG uploads directly', async () => {
+    const { app } = buildTestApp();
+    const user = await createUser();
+    const png = await as(app, user)
+      .post('/v1/profile/resume')
+      .attach('file', await makeResumeImage(), { filename: 'resume.png', contentType: 'image/png' });
+    expect(png.status).toBe(200);
+    expect(png.body.extraction).toBe('ocr');
+    expect(png.body.profile.skills.map((s: { name: string }) => s.name)).toContain('PostgreSQL');
+
+    const jpeg = await as(app, user)
+      .post('/v1/profile/resume')
+      .attach('file', await makeResumeImage(undefined, 'jpeg'), { filename: 'resume.jpg', contentType: 'image/jpeg' });
+    expect(jpeg.status).toBe(200);
+    expect(jpeg.body.extraction).toBe('ocr');
+    expect(jpeg.body.emails).toContain('priya.sharma@example.com');
+  });
+
+  it('text PDFs skip OCR (extraction: text, no scan warning)', async () => {
+    const { app } = buildTestApp();
+    const user = await createUser();
+    const res = await as(app, user)
+      .post('/v1/profile/resume')
+      .attach('file', await makePdf(), { filename: 'resume.pdf', contentType: 'application/pdf' });
+    expect(res.status).toBe(200);
+    expect(res.body.extraction).toBe('text');
+    expect(res.body.ocr).toBeNull();
+    expect(res.body.warnings).not.toContain(SCAN_WARNING);
+  });
+
+  it('OCR text goes through the LLM enrichment too', async () => {
+    const { app } = buildTestApp();
+    const user = await createUser();
+    await as(app, user).patch('/v1/me').send({ consent: { version: '1', aiMode: 'beacon', resumeToAi: true } });
+    const bodies = mockLlm({ headline: 'Full-stack engineer', skills: ['GraphQL'] });
+    const res = await as(app, user)
+      .post('/v1/profile/resume')
+      .attach('file', await makeResumeImage(), { filename: 'resume.png', contentType: 'image/png' });
+    expect(res.status).toBe(200);
+    expect(res.body.parsedFrom).toBe('llm');
+    expect(res.body.extraction).toBe('ocr');
+    expect(res.body.profile.headline).toBe('Full-stack engineer');
+    expect(String((bodies[0]?.['messages'] as { content: string }[]).at(-1)?.content)).toContain('Razorpay');
+  });
+
+  it('a blank photo → 422 RESUME_NO_TEXT; a decompression-bomb PNG header → 422 RESUME_UNREADABLE', async () => {
+    const { app } = buildTestApp();
+    const user = await createUser();
+    const blank = await as(app, user)
+      .post('/v1/profile/resume')
+      .attach('file', await makeResumeImage([]), { filename: 'blank.png', contentType: 'image/png' });
+    expect(blank.status).toBe(422);
+    expect(blank.body.error.code).toBe('RESUME_NO_TEXT');
+
+    const bomb = await makeResumeImage(['x']);
+    bomb.writeUInt32BE(20_000, 16);
+    bomb.writeUInt32BE(20_000, 20);
+    const huge = await as(app, user).post('/v1/profile/resume').attach('file', bomb, { filename: 'huge.png' });
+    expect(huge.status).toBe(422);
+    expect(huge.body.error.code).toBe('RESUME_UNREADABLE');
+    expect(huge.body.error.message).toMatch(/too large/);
+  });
+
+  it('imageSize reads PNG and JPEG headers; OCR past its budget fails with a timeout', async () => {
+    const png = await makeResumeImage(['x']);
+    expect(imageSize(png, 'png')).toEqual({ width: 1240, height: 1754 });
+    expect(imageSize(await makeResumeImage(['x'], 'jpeg'), 'jpeg')).toEqual({ width: 1240, height: 1754 });
+    expect(imageSize(Buffer.from([0xff, 0xd8, 0xff, 0xe0]), 'jpeg')).toBeNull();
+    const err = await ocrImage(png, 'png', 1).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(OcrError);
+    expect((err as OcrError).reason).toBe('timeout');
+    // The worker was terminated; the next call starts a fresh one.
+    expect((await ocrImage(await makeResumeImage(), 'png')).text).toMatch(/Razorpay/);
   });
 });

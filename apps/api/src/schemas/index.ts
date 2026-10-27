@@ -26,7 +26,7 @@ import {
 } from '@kestrel/shared';
 
 import { passwordSchema } from '../lib/password.js';
-import { AI_MODES, ONBOARDING_STEPS } from '../models/user.js';
+import { AI_MODES, ONBOARDING_STEP_ID, ONBOARDING_STEPS } from '../models/user.js';
 
 const objectIdString = z.string().regex(/^[a-f0-9]{24}$/i, 'Expected a 24-character id');
 
@@ -66,6 +66,42 @@ export const mePatchSchema = z
       .optional(),
   })
   .strict();
+
+// ── Onboarding (save and resume) ─────────────────────────────────────────────
+
+/** Serialised size cap for all stored answers together (bytes of JSON). */
+export const ONBOARDING_ANSWERS_MAX_BYTES = 32 * 1024;
+export const ONBOARDING_ANSWERS_MAX_KEYS = 100;
+
+/** Mongo-safe at every depth: no key starting with `$` or containing `.`. */
+function mongoSafeKeys(value: unknown, depth = 0): boolean {
+  if (depth > 8) return false;
+  if (Array.isArray(value)) return value.every((v) => mongoSafeKeys(v, depth + 1));
+  if (value && typeof value === 'object') {
+    return Object.entries(value).every(([k, v]) => !k.startsWith('$') && !k.includes('.') && mongoSafeKeys(v, depth + 1));
+  }
+  return true;
+}
+
+const onboardingAnswersSchema = z
+  .record(
+    z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, 'Answer ids are 1..64 letters, digits, _ or -, starting with a letter'),
+    z.json(),
+  )
+  .refine((a) => Object.keys(a).length <= ONBOARDING_ANSWERS_MAX_KEYS, `At most ${ONBOARDING_ANSWERS_MAX_KEYS} answers`)
+  .refine((a) => mongoSafeKeys(a), 'Nested keys may not start with "$" or contain "."; nesting is limited to 8 levels');
+
+/** PATCH /v1/profile/onboarding: the step the user is on plus answers to merge (`null` removes one). */
+export const onboardingProgressSchema = z
+  .object({
+    step: z.string().regex(ONBOARDING_STEP_ID, 'Step ids are lower-case slugs (a-z, 0-9, -), 1..40 chars').optional(),
+    answers: onboardingAnswersSchema.optional(),
+  })
+  .strict()
+  .refine((b) => b.step !== undefined || b.answers !== undefined, 'Send a step, answers, or both');
+
+/** POST /v1/profile/onboarding/complete: optional last answers to merge first. */
+export const onboardingCompleteSchema = z.object({ answers: onboardingAnswersSchema.optional() }).strict().default({});
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 

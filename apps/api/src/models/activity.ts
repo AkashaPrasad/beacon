@@ -40,6 +40,8 @@ const matchSchema = new Schema(
   { collection: 'matches', minimize: false },
 );
 matchSchema.index({ userId: 1, score: -1 });
+// Feed `sort=fit`: keyset order (score, listingId) served by the index, before the listing join.
+matchSchema.index({ userId: 1, score: -1, listingId: -1 });
 matchSchema.index({ userId: 1, listingId: 1 }, { unique: true });
 export const Match = getModel<MatchDoc>('Match', matchSchema);
 

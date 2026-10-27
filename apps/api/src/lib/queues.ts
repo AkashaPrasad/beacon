@@ -63,7 +63,7 @@ const DEFAULT_JOB_OPTIONS = {
   removeOnFail: { age: 7 * 24 * 3600, count: 5_000 },
 } as const;
 
-export function createBullQueue(redisUrl: string, logger: Logger): JobQueue {
+export function createBullQueue(redisUrl: string, logger: Logger, prefix?: string): JobQueue {
   const connection = new Redis(redisUrl, { maxRetriesPerRequest: null, enableOfflineQueue: true });
   connection.on('error', () => {
     /* logged by the main redis client */
@@ -72,7 +72,7 @@ export function createBullQueue(redisUrl: string, logger: Logger): JobQueue {
   const get = (name: string): Queue => {
     let queue = queues.get(name);
     if (!queue) {
-      queue = new Queue(name, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
+      queue = new Queue(name, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS, ...(prefix ? { prefix } : {}) });
       queue.on('error', (err: Error) => logger.warn({ err: err.message, queue: name }, 'queue error'));
       queues.set(name, queue);
     }

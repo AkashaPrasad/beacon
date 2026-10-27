@@ -126,8 +126,10 @@ export async function enrichResume(
   userId: string,
   config: LlmConfig,
   text: string,
+  deadline?: number,
 ): Promise<LlmResult<LlmResume>> {
   return generateStructured(ctx, {
+    ...(deadline === undefined ? {} : { deadline }),
     userId,
     purpose: 'resume',
     schema: llmResumeSchema,

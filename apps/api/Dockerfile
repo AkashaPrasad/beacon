@@ -2,7 +2,9 @@
 # Beacon API production image (linux/arm64 + linux/amd64).
 # Build context is the REPO ROOT:
 #   docker build -f apps/api/Dockerfile -t beacon-api .
-ARG NODE_IMAGE=node:22-alpine
+# Debian slim (glibc), like the worker: resume OCR uses @napi-rs/canvas (prebuilt glibc binaries,
+# no apt packages needed) and tesseract.js (WASM, English model vendored in node_modules).
+ARG NODE_IMAGE=node:22-bookworm-slim
 ARG PNPM_VERSION=12.8.1
 
 # ── base: node + pinned pnpm ──────────────────────────────────────────────────
@@ -42,6 +44,7 @@ COPY --from=build --chown=node:node /out/node_modules ./node_modules
 COPY --from=build --chown=node:node /out/dist ./dist
 USER node
 EXPOSE 4000
+# node fetch, not wget: Debian slim has no wget.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/healthz" || exit 1
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 CMD ["node", "dist/index.js"]

@@ -8,12 +8,10 @@ import { burnPasswordCheck, hashPassword, verifyPassword } from '../lib/password
 import { parse } from '../lib/validate.js';
 import { clearSessionCookie, currentUser, requireAuth, setSessionCookie } from '../middleware/auth.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
-import { Notification, Subscription } from '../models/activity.js';
-import { Profile } from '../models/profile.js';
 import { Settings } from '../models/settings.js';
-import { Source } from '../models/source.js';
 import { User, type UserDoc } from '../models/user.js';
 import { googleAuthSchema, loginSchema, mePatchSchema, passwordSetSchema, registerSchema } from '../schemas/index.js';
+import { buildMe } from '../services/me.js';
 import { toPublicUser } from '../services/serialize.js';
 import { getSettings } from '../services/settings.js';
 
@@ -89,42 +87,6 @@ async function linkGoogleByEmail(identity: GoogleIdentity): Promise<boolean> {
   return true;
 }
 
-export async function buildMe(ctx: AppContext, user: UserDoc) {
-  const [profile, settings, personalSources, packIds, unread] = await Promise.all([
-    Profile.findOne({ userId: user._id }, { resume: 1 }).lean<{ resume?: unknown }>(),
-    getSettings(user._id),
-    Source.countDocuments({ scope: 'personal', ownerId: user._id }),
-    Subscription.find({ userId: user._id, packId: { $ne: null } }).distinct('packId'),
-    Notification.countDocuments({ userId: user._id, readAt: null }),
-  ]);
-  return {
-    user: toPublicUser(user),
-    onboarding: {
-      step: user.onboardingStep ?? 'consent',
-      completedAt: user.onboardingCompletedAt ?? null,
-      consent: user.consent ?? null,
-      hasProfile: Boolean(profile),
-      hasResume: Boolean(profile?.resume),
-      personalSources,
-      enabledPacks: (packIds).filter(Boolean).sort(),
-    },
-    settings: {
-      theme: settings.appearance.theme,
-      density: settings.appearance.density,
-      accent: settings.appearance.accent,
-      fontSize: settings.appearance.fontSize,
-      reducedMotion: settings.appearance.reducedMotion,
-      aiEnabled: settings.ai.enabled,
-      aiProvider: settings.ai.provider,
-      hasKey: Boolean(settings.ai.keyCiphertext),
-      consentGivenAt: settings.ai.consentGivenAt ?? null,
-      pushEnabled: settings.notifications.push,
-      timezone: settings.notifications.timezone,
-    },
-    unreadNotifications: unread,
-  };
-}
-
 export function createAuthRouter(ctx: AppContext): Router {
   const router = Router();
   const authLimiter = createRateLimiter('auth', ctx.rateLimits.auth, ctx.redis, 'ip');
@@ -162,8 +124,8 @@ export function createAuthRouter(ctx: AppContext): Router {
         { reason: 'email_in_use' },
       );
     }
-    const now = ctx.now();
     const passwordHash = await hashPassword(body.password, ctx.passwordCost);
+    const now = ctx.now();
     let created: UserDoc;
     try {
       const doc = await User.create({

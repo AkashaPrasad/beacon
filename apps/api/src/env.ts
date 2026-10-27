@@ -16,6 +16,8 @@ const envSchema = z
     MONGODB_URI: z.string().optional(),
     MONGODB_DB: z.string().min(1).default('beacon'),
     REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+    /** BullMQ key prefix; must equal the worker's `QUEUE_PREFIX` (default `bull`). */
+    QUEUE_PREFIX: z.string().regex(/^[\w:-]{1,64}$/).optional(),
 
     // Auth
     GOOGLE_CLIENT_ID: z.string().optional(),
