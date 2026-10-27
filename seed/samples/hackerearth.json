@@ -1,0 +1,48 @@
+{
+  "response": [
+    {
+      "title": "MKS AI/ML Hackathon",
+      "description": "The MKS AI &amp; Data Hackathon is an opportunity for student developers, early-career professionals..",
+      "url": "https://www.hackerearth.com/challenges/competitive/mks-inc-hackathon/",
+      "subscribe": "https://www.hackerearth.com/challenges/competitive/mks-inc-hackathon/",
+      "status": "UPCOMING",
+      "college": false,
+      "date": "Wednesday, Oct 28, 2026",
+      "time": "06:00 PM IST (Asia/Kolkata)",
+      "end_date": "Nov 06, 2026",
+      "end_time": "11:59 PM IST (Asia/Kolkata)",
+      "start_timestamp": "Oct 28, 2026 06:00 PM IST (Asia/Kolkata)",
+      "end_timestamp": "Nov 06, 2026 11:59 PM IST (Asia/Kolkata)",
+      "start_tz": "2026-10-28 18:00:00+05:30",
+      "end_tz": "2026-11-06 23:59:00+05:30",
+      "start_utc_tz": "2026-10-28 12:30:00+00:00",
+      "end_utc_tz": "2026-11-06 18:29:00+00:00",
+      "cover_image": "https://media.hackerearth.com/media/hackathon/mks-inc-hackathon/images/0ba2bf68cb-Add_a_heading_4.png",
+      "thumbnail": "https://media.hackerearth.com/media/hackathon/mks-inc-hackathon/images/784b6f95cb-AI__Data_1_1.jpg",
+      "is_hackerearth": true,
+      "challenge_type": "Monthly Challenges"
+    },
+    {
+      "title": "GoDaddy Inclusive Innovation Hackathon 2026",
+      "description": "Unlock the Creator: A Hackathon for Women in Tech\nGoDaddy is inviting female developers and technolo..",
+      "url": "https://www.hackerearth.com/challenges/competitive/godaddy-inclusive-innovation-challenge-2026/",
+      "subscribe": "https://www.hackerearth.com/challenges/competitive/godaddy-inclusive-innovation-challenge-2026/",
+      "status": "UPCOMING",
+      "college": false,
+      "date": "Saturday, Oct 31, 2026",
+      "time": "01:00 PM IST (Asia/Kolkata)",
+      "end_date": "Nov 01, 2026",
+      "end_time": "01:00 PM IST (Asia/Kolkata)",
+      "start_timestamp": "Oct 31, 2026 01:00 PM IST (Asia/Kolkata)",
+      "end_timestamp": "Nov 01, 2026 01:00 PM IST (Asia/Kolkata)",
+      "start_tz": "2026-10-31 13:00:00+05:30",
+      "end_tz": "2026-11-01 13:00:00+05:30",
+      "start_utc_tz": "2026-10-31 07:30:00+00:00",
+      "end_utc_tz": "2026-11-01 07:30:00+00:00",
+      "cover_image": "https://media.hackerearth.com/media/hackathon/godaddy-inclusive-innovation-challenge-2026/images/96a97a6dc0-GoDaddy_Inclusive_Innovation_Hackathon_2026_-_HackerEarth_-_Final_2.png",
+      "thumbnail": "https://media.hackerearth.com/media/hackathon/godaddy-inclusive-innovation-challenge-2026/images/4233b3f0c0-Unlock_the_Creator_Hackathon_Banner.jpg",
+      "is_hackerearth": true,
+      "challenge_type": "Monthly Challenges"
+    }
+  ]
+}

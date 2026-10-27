@@ -1,0 +1,365 @@
+{
+  "generatedAt": "2026-10-27",
+  "apis": [
+    {
+      "id": "themuse",
+      "name": "The Muse",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://www.themuse.com/api/public/jobs?page=1&category=Software%20Engineering&level=Internship&location=India",
+      "method": "GET",
+      "headers": {},
+      "auth": "none (optional api_key param raises limits)",
+      "pagination": "page=1..page_count (20 per page; response has page_count,total)",
+      "rateLimit": "500 req/hour unauthenticated (x-ratelimit-limit/remaining/reset headers: 500 / 3600s)",
+      "filters": {
+        "category": "repeatable, URL-encoded e.g. Software Engineering, Data Science",
+        "level": "Internship | Entry Level | Mid Level | Senior Level",
+        "location": "e.g. India, 'Bengaluru, India' (location=India returned 70 internships on verify date)"
+      },
+      "responseShape": "{page,page_count,items_per_page,took,timed_out,total,results[],aggregations}",
+      "fields": {
+        "id": "results[].id",
+        "title": "results[].name",
+        "company": "results[].company.name",
+        "location": "results[].locations[].name (array)",
+        "url": "results[].refs.landing_page",
+        "date": "results[].publication_date (ISO 8601)",
+        "description": "results[].contents (HTML)",
+        "salary": "none",
+        "level": "results[].levels[].name",
+        "category": "results[].categories[].name"
+      },
+      "sample": "samples/themuse.json",
+      "notes": "Company short_name in results[].company.short_name. No apply URL other than landing page."
+    },
+    {
+      "id": "remotive",
+      "name": "Remotive",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://remotive.com/api/remote-jobs?category=software-dev",
+      "method": "GET",
+      "headers": {},
+      "auth": "none",
+      "pagination": "none (single response); filters: category, company_name, search, limit (limit param appeared ignored on verify)",
+      "rateLimit": "Documented in legal notice: poll max ~4 times/day; jobs are delayed 24h; excessive requests blocked. Must link back + credit Remotive. Do not redistribute to third-party job boards.",
+      "responseShape": "{00-warning,0-legal-notice,job-count,total-job-count,jobs[]}",
+      "fields": {
+        "id": "jobs[].id (string)",
+        "title": "jobs[].title",
+        "company": "jobs[].company_name",
+        "location": "jobs[].candidate_required_location",
+        "url": "jobs[].url",
+        "date": "jobs[].publication_date (no tz)",
+        "description": "jobs[].description (HTML)",
+        "salary": "jobs[].salary (free text e.g. '70K-80K', may be empty)",
+        "jobType": "jobs[].job_type (full_time|contract|freelance|part_time|internship)",
+        "category": "jobs[].category",
+        "tags": "jobs[].tags (array)"
+      },
+      "sample": "samples/remotive.json",
+      "notes": "Category slugs via https://remotive.com/api/remote-jobs/categories"
+    },
+    {
+      "id": "arbeitnow",
+      "name": "Arbeitnow",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://www.arbeitnow.com/api/job-board-api",
+      "method": "GET",
+      "headers": {},
+      "auth": "none",
+      "pagination": "?page=N (300 per page; links.next, meta.current_page)",
+      "rateLimit": "x-ratelimit-limit: 50 (per window); updated hourly; credit/link back requested in meta.terms",
+      "responseShape": "{data[],links{first,last,prev,next},meta{...}}",
+      "fields": {
+        "id": "data[].slug",
+        "title": "data[].title",
+        "company": "data[].company_name",
+        "location": "data[].location",
+        "url": "data[].url",
+        "date": "data[].created_at (unix seconds)",
+        "description": "data[].description (HTML)",
+        "salary": "none",
+        "remote": "data[].remote (bool)",
+        "jobType": "data[].job_types (array)",
+        "tags": "data[].tags (array)"
+      },
+      "sample": "samples/arbeitnow.json",
+      "notes": "Mostly Germany/EU; low relevance for India interns. Many German-language titles."
+    },
+    {
+      "id": "remoteok",
+      "name": "RemoteOK",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://remoteok.com/api",
+      "method": "GET",
+      "headers": {
+        "User-Agent": "required in practice (use a descriptive UA); verified 200 with curl default and custom UA"
+      },
+      "auth": "none",
+      "pagination": "none; optional ?tag=<tag>; full list returned (~100)",
+      "rateLimit": "Undocumented; cached (cf-cache-status DYNAMIC); poll at most a few times/day. ToS: link back with follow to the Remote OK URL and credit as source.",
+      "responseShape": "JSON array; element [0] is a legal/metadata object (has 'legal' and 'last_updated'), jobs start at index 1",
+      "fields": {
+        "id": "[i].id (string)",
+        "title": "[i].position",
+        "company": "[i].company",
+        "location": "[i].location (often empty = worldwide)",
+        "url": "[i].url (also apply_url)",
+        "date": "[i].date (ISO 8601) and [i].epoch (unix s)",
+        "description": "[i].description (HTML)",
+        "salary": "[i].salary_min / [i].salary_max (USD; '0' when unknown)",
+        "tags": "[i].tags (array)"
+      },
+      "sample": "samples/remoteok.json (legal object + first 2 jobs)",
+      "notes": "Skip element 0 when parsing."
+    },
+    {
+      "id": "jobicy",
+      "name": "Jobicy",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://jobicy.com/api/v2/remote-jobs?count=50&tag=developer",
+      "method": "GET",
+      "headers": {},
+      "auth": "none",
+      "pagination": "count (max 100), geo, industry, tag; response has hasMore/nextCursor",
+      "rateLimit": "Undocumented; docs ask for caching (hourly updates) and credit/link-back with application links going to source",
+      "responseShape": "{apiVersion,documentationUrl,friendlyNotice,jobCount,lastUpdate,nextCursor,hasMore,appliedFilters,jobs[],statusCode,success}",
+      "fields": {
+        "id": "jobs[].id",
+        "title": "jobs[].jobTitle",
+        "company": "jobs[].companyName",
+        "location": "jobs[].jobGeo (free text)",
+        "url": "jobs[].url",
+        "date": "jobs[].pubDate (ISO 8601)",
+        "description": "jobs[].jobDescription (HTML) / jobExcerpt (plain)",
+        "salary": "jobs[].salaryMin/salaryMax/salaryCurrency/salaryPeriod only present when disclosed",
+        "level": "jobs[].jobLevel",
+        "jobType": "jobs[].jobType (array-like string)",
+        "industry": "jobs[].jobIndustry"
+      },
+      "sample": "samples/jobicy.json",
+      "notes": "geo must be a predefined geoSlug (see ?get=locations); geo=india returned 400 Invalid geo."
+    },
+    {
+      "id": "adzuna",
+      "name": "Adzuna",
+      "verifiedAt": "2026-10-27",
+      "status": "endpoint-reachable-needs-keys (401 AUTH_FAIL with dummy keys); fields from Adzuna public docs, NOT fetched live",
+      "url": "https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=APP_ID&app_key=APP_KEY&results_per_page=50&what=intern&content-type=application/json",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "auth": "app_id + app_key (free dev signup at developer.adzuna.com)",
+      "pagination": "page number in path (/search/{page}); results_per_page up to 50; country code path segment (in, gb, us, ...)",
+      "rateLimit": "Free tier documented around 250 calls/day / 25 per minute (check dashboard; unverified)",
+      "responseShape": "{count,mean,results[]}",
+      "fields": {
+        "id": "results[].id",
+        "title": "results[].title",
+        "company": "results[].company.display_name",
+        "location": "results[].location.display_name (+ location.area[])",
+        "url": "results[].redirect_url",
+        "date": "results[].created (ISO 8601)",
+        "description": "results[].description (snippet only)",
+        "salary": "results[].salary_min / salary_max / salary_is_predicted",
+        "contractType": "results[].contract_type / contract_time",
+        "category": "results[].category.label"
+      },
+      "sample": null,
+      "notes": "No sample saved: cannot fetch without keys. Keys must come from env, never committed. Verified live response for bad key: {\"doc\":\"https://api.adzuna.com/v1/doc\",\"__CLASS__\":\"Adzuna::API::Response::Exception\",\"exception\":\"AUTH_FAIL\",\"display\":\"Authorisation failed\"}"
+    },
+    {
+      "id": "devpost",
+      "name": "Devpost hackathons",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://devpost.com/api/hackathons?status[]=upcoming&status[]=open&page=1",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "auth": "none (unofficial but public, used by the site)",
+      "pagination": "page=N, 9 per page (meta.per_page=9, meta.total_count=173/174 on verify date); extras: order_by=deadline|recently-added|prize-amount, challenge_type[]=online|in-person, search=<text>, themes[]",
+      "rateLimit": "Undocumented; be gentle (<=1 req/s, cache 1h)",
+      "responseShape": "{hackathons[],meta{total_count,per_page,fuzzy}}",
+      "fields": {
+        "id": "hackathons[].id",
+        "title": "hackathons[].title",
+        "company": "hackathons[].organization_name",
+        "location": "hackathons[].displayed_location.location (+ .icon: globe=online)",
+        "url": "hackathons[].url",
+        "date": "hackathons[].submission_period_dates (display string 'Aug 26 - Oct 30, 2026'); time_left_to_submission string; no ISO date in payload",
+        "description": "none in list (tagline absent); themes[].name",
+        "prize": "hackathons[].prize_amount (HTML string with currency span)",
+        "state": "hackathons[].open_state (open|upcoming|ended)",
+        "participants": "hackathons[].registrations_count"
+      },
+      "allKeys": [
+        "id",
+        "title",
+        "displayed_location",
+        "open_state",
+        "thumbnail_url",
+        "analytics_identifier",
+        "url",
+        "time_left_to_submission",
+        "submission_period_dates",
+        "themes",
+        "prize_amount",
+        "prizes_counts",
+        "registrations_count",
+        "featured",
+        "organization_name",
+        "winners_announced",
+        "submission_gallery_url",
+        "start_a_submission_url",
+        "invite_only",
+        "eligibility_requirement_invite_only_description",
+        "managed_by_devpost_badge"
+      ],
+      "sample": "samples/devpost.json",
+      "notes": "Dates must be parsed from submission_period_dates text (parser needed). Open the hackathon url for details (firecrawl) if description is required."
+    },
+    {
+      "id": "kaggle",
+      "name": "Kaggle competitions (internal JSON)",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200 (POST)",
+      "url": "https://www.kaggle.com/api/i/competitions.CompetitionService/ListCompetitions",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "BeaconSeed/1.0 (a browser-like Chrome UA returned an HTML page instead of JSON; GET returns only {totalResults})"
+      },
+      "body": {
+        "selector": {
+          "competitionIds": [],
+          "listOption": "LIST_OPTION_ACTIVE",
+          "sortOption": "SORT_OPTION_NEWEST",
+          "hostSegmentIdFilter": 0,
+          "searchQuery": "",
+          "prestigeFilter": "PRESTIGE_FILTER_UNSPECIFIED",
+          "participationFilter": "PARTICIPATION_FILTER_UNSPECIFIED",
+          "tagIds": [],
+          "requireSimulations": false
+        },
+        "pageSize": 20
+      },
+      "auth": "none",
+      "pagination": "pageSize + nextPageToken in response (totalResults=23 active on verify date)",
+      "rateLimit": "Undocumented internal endpoint; may change without notice. Official API (https://www.kaggle.com/api/v1/competitions/list) returns 401 without credentials.",
+      "responseShape": "{competitions[],nextPageToken,totalResults,thumbnailImageUrls,headerImageUrls,competitionUsers}",
+      "fields": {
+        "id": "competitions[].id",
+        "title": "competitions[].title",
+        "company": "competitions[].organization.name / hostName",
+        "location": "none (online)",
+        "url": "https://www.kaggle.com/competitions/{competitions[].competitionName}",
+        "date": "competitions[].deadline (ISO) ; dateEnabled start",
+        "description": "competitions[].briefDescription",
+        "prize": "competitions[].reward (string e.g. '$100,000') and numPrizes",
+        "teamSize": "competitions[].maxTeamSize",
+        "category": "competitions[].categories[].name"
+      },
+      "sample": "samples/kaggle.json",
+      "notes": "Treat as best-effort; fall back to firecrawl of /competitions."
+    },
+    {
+      "id": "devfolio",
+      "name": "Devfolio hackathons (search API)",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200 (POST). GET /api/hackathons?filter=open returns 422 'page is required' (not the right route)",
+      "url": "https://api.devfolio.co/api/search/hackathons",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "body": {
+        "type": "application_open",
+        "from": 0,
+        "size": 20
+      },
+      "auth": "none",
+      "pagination": "from/size; hits.total.value=12 open-application hackathons on verify date. other type values seen on site: upcoming, open, past",
+      "rateLimit": "Undocumented",
+      "responseShape": "Elasticsearch-style {hits:{total:{value},hits:[{_source:{...}}]}}",
+      "fields": {
+        "id": "hits[]._source.uuid",
+        "title": "_source.name",
+        "company": "_source.hosted_by / org",
+        "location": "_source.city + country (is_online flag)",
+        "url": "https://{_source.slug}.devfolio.co/",
+        "date": "_source.starts_at / ends_at (ISO); _source.hackathon_setting.reg_starts_at / reg_ends_at",
+        "description": "_source.tagline / desc",
+        "prize": "_source.prizes",
+        "teamSize": "_source.team_min / team_size",
+        "themes": "_source.themes[].name",
+        "participants": "_source.participants_count"
+      },
+      "sample": "samples/devfolio.json",
+      "notes": "URL pattern https://<slug>.devfolio.co/ is the standard hackathon microsite (not fetched per item)."
+    },
+    {
+      "id": "unstop",
+      "name": "Unstop opportunities (public search)",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&per_page=20&oppstatus=open",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "auth": "none",
+      "pagination": "page=N&per_page=N (Laravel paginator in data: current_page,last_page,next_page_url,total=209 on verify date). opportunity= hackathons|competitions|internships|jobs|scholarships",
+      "rateLimit": "Undocumented",
+      "responseShape": "{data:{current_page,data[],first_page_url,last_page,total,...}}",
+      "fields": {
+        "id": "data.data[].id",
+        "title": "data.data[].title",
+        "company": "data.data[].organisation.name",
+        "location": "data.data[].region (online|offline) + address_with_country_logo",
+        "url": "data.data[].seo_url",
+        "date": "data.data[].end_date (ISO +05:30); regnRequirements.start_regn_dt / end_regn_dt",
+        "description": "data.data[].details (HTML)",
+        "prize": "data.data[].prizes[]",
+        "skills": "data.data[].required_skills[].skill_name",
+        "status": "data.data[].status (LIVE) and regn_open"
+      },
+      "sample": "samples/unstop.json",
+      "notes": "Not in the original request list but verified; cheaper than Firecrawl for Unstop."
+    },
+    {
+      "id": "hackerearth",
+      "name": "HackerEarth events (chrome-extension feed)",
+      "verifiedAt": "2026-10-27",
+      "status": "verified-200",
+      "url": "https://www.hackerearth.com/chrome-extension/events/",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "auth": "none",
+      "pagination": "none; returns only a handful of current/upcoming events (2 on verify date)",
+      "rateLimit": "Undocumented",
+      "responseShape": "{response:[...]}",
+      "fields": {
+        "title": "response[].title",
+        "url": "response[].url",
+        "date": "response[].start_utc_tz / end_utc_tz (ISO) and start_tz/end_tz",
+        "description": "response[].description",
+        "status": "response[].status (UPCOMING|ONGOING)",
+        "type": "response[].challenge_type"
+      },
+      "sample": "samples/hackerearth.json",
+      "notes": "Small; pair with firecrawl of /challenges/hackathon/ for completeness."
+    }
+  ]
+}

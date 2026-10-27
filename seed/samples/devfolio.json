@@ -1,0 +1,213 @@
+{
+  "hits": {
+    "total": {
+      "value": 12
+    },
+    "hits": [
+      {
+        "_source": {
+          "country": "India",
+          "devfolio_official": null,
+          "featured": null,
+          "private": false,
+          "starts_at": "2026-11-01T00:30:00+00:00",
+          "hosted_by": null,
+          "hashtags": [],
+          "apply_mode": "both",
+          "city": "Surat",
+          "timezone": "Asia/Calcutta",
+          "rating": 0,
+          "type": "HACKATHON",
+          "uuid": "0ad8f867250d46bd987623adb920028f",
+          "sponsor_tiers": [],
+          "themes": [
+            {
+              "name": "AI",
+              "verified": true,
+              "uuid": "9d287d0c0870485a838efa02d5ecc06b"
+            }
+          ],
+          "hackathon_setting": {
+            "winner_announce_at": null,
+            "reg_starts_at": "2026-10-21T23:30:00+00:00",
+            "winner_announced": false,
+            "women_only": false,
+            "reg_ends_at": "2026-10-28T18:30:00+00:00",
+            "facebook": null,
+            "telegram": null,
+            "medium": null,
+            "instagram": null,
+            "linkedin": null,
+            "external_apply_url": null,
+            "primary_color": "#2563eb",
+            "uuid": "61e0edad573f49c4ab90213264bf9be9",
+            "contact_email": "nirmal.work.27@gmail.com",
+            "twitter": null,
+            "site": null,
+            "discord": null,
+            "review": false,
+            "slack": null,
+            "logo": "https://assets.devfolio.co/hackathons/0ad8f867250d46bd987623adb920028f/assets/logo/244.png",
+            "subdomain": "surat-hack-2026",
+            "farcaster": null
+          },
+          "ends_at": "2026-11-01T18:30:00+00:00",
+          "is_online": false,
+          "state": "Gujarat",
+          "slug": "surat-hack-2026",
+          "team_min": 1,
+          "themed": false,
+          "discover": false,
+          "participants_count": 62,
+          "hackathon_faqs": [],
+          "participants_details": [
+            {
+              "profile_image": "https://assets.devfolio.co/users/7997a3992c034498861f8f12a8d75dc5/avatar-d4453fda-b30a-46cf-87a4-89ed82d54e0f.jpeg",
+              "last_name": "Roy",
+              "first_name": "Gunjan",
+              "uuid": "7997a3992c034498861f8f12a8d75dc5",
+              "username": "gunjan1523"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/407384e20db34024a8c6cb00f7cfedf9/avatar-90d832e3-7138-48e4-a6b3-dac4d456905e.jpeg",
+              "last_name": "khan",
+              "first_name": "Sharyar",
+              "uuid": "407384e20db34024a8c6cb00f7cfedf9",
+              "username": "Sharchyn_1416"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/bc1b5fde1645496fa770c6b80e22f70b/avatar-036d6a91-5bdc-41ee-9989-d0f03e12995b.jpeg",
+              "last_name": "Kumar",
+              "first_name": "Sumit",
+              "uuid": "bc1b5fde1645496fa770c6b80e22f70b",
+              "username": "J_P_S"
+            }
+          ],
+          "team_size": 4,
+          "verified": true,
+          "prizes": [
+            {
+              "parent_prize_uuid": null,
+              "name": "First Place",
+              "is_sponsor_prize": false,
+              "uuid": "7dc8e4e10a6d42d9905aee947c187c76",
+              "desc": ""
+            },
+            {
+              "parent_prize_uuid": null,
+              "name": "Second Place",
+              "is_sponsor_prize": false,
+              "uuid": "f37231bfee67418c9a841202e37a17ad",
+              "desc": ""
+            },
+            {
+              "parent_prize_uuid": null,
+              "name": "Third Place",
+              "is_sponsor_prize": false,
+              "uuid": "79a56f8b0c6c4713ac9cb07de4a8571c",
+              "desc": ""
+            }
+          ],
+          "projects_submitted": 0,
+          "name": "Surat Hack 2026",
+          "tagline": "Build AI Agents. Solve Real Problems. Create What's Next.",
+          "location": "India Accelerator | IA Spaces - Coworking Space, Udhana - Magdalla Road, Piplod, Surat, Gujarat, India",
+          "judges": [],
+          "cover_img": "https://assets.devfolio.co/hackathons/0ad8f867250d46bd987623adb920028f/assets/cover/666.png",
+          "desc": "# Welcome to Surat Hack 2026 🚀\n\n**100+ Builders. One City. Endless Possibilities.**\n\nSurat Hack 2026 is an AI-focused hackathon bringing together talented developers, students, entrepreneurs, and technology enthusiasts to build innovative solutions to real-world problems.\n\nWhether you're an experienced developer, an AI enthusiast, or a student looking to turn your ideas into reality, this is your opportunity to collaborate, experiment, and build something meaningful.\n\n## The Challenge\n\n**Build an AI-powered application or agent that solves a real problem.**\n\nFrom intelligent personal assistants and business automation to productivity tools and entirely new AI-native products, the possibilities are open.\n\nWe encourage participants to think creatively, experiment with emerging technologies, and develop working prototypes that demonstrate real-world value.\n\n## What to Expect\n\n- **18–24 hours of building:** Turn an idea into a working prototype.\n- **100+ aspiring participants:** Connect with developers, students, and innovators from Surat and beyond.\n- **Hands-on innovation:** Work with modern AI tools, APIs, and development frameworks.\n- **Collaboration:** Build alongside talented people, exchange ideas, and learn from one another.\n- **Project demonstrations:** Present your solution to a panel of industry professionals and experienced builders.\n- **Networking:** Meet like-minded developers, entrepreneurs, and members of the local technology ecosystem.\n\n## Who Can Participate?\n\nStudents, software developers, AI enthusiasts, working professionals, and aspiring founders are welcome.\n\nYou don't need to have founded a startup or built an AI product before. Bring your skills, curiosity, and willingness to create.\n\n## Our Mission\n\nSurat has an incredible community of ambitious students, developers, and entrepreneurs.\n\nOur goal is to bring that community together, encourage practical AI innovation, and create opportunities for talented builders to showcase what they're capable of.\n\n**Come with an idea. Leave with something you've built.**\n\nJoin us at Surat Hack 2026!",
+          "status": "publish",
+          "user_hackathon": null,
+          "user_hackathon_reminder": null
+        }
+      },
+      {
+        "_source": {
+          "country": "United Kingdom",
+          "devfolio_official": null,
+          "featured": null,
+          "private": false,
+          "starts_at": "2026-11-07T09:00:00+00:00",
+          "hosted_by": null,
+          "hashtags": [],
+          "apply_mode": "both",
+          "city": null,
+          "timezone": "Europe/London",
+          "rating": 0,
+          "type": "HACKATHON",
+          "uuid": "4c311506be0e4a6e9299199c09efe290",
+          "sponsor_tiers": [],
+          "themes": [],
+          "hackathon_setting": {
+            "winner_announce_at": null,
+            "reg_starts_at": "2026-10-16T19:00:00+00:00",
+            "winner_announced": false,
+            "women_only": false,
+            "reg_ends_at": "2026-10-29T00:00:00+00:00",
+            "facebook": null,
+            "telegram": null,
+            "medium": null,
+            "instagram": null,
+            "linkedin": null,
+            "external_apply_url": null,
+            "primary_color": "#9900ef",
+            "uuid": "31b689991dc943b980fa22a2f9cd7367",
+            "contact_email": "events@uclai.co.uk",
+            "twitter": null,
+            "site": "https://agentverse.uclai.co.uk",
+            "discord": null,
+            "review": false,
+            "slack": null,
+            "logo": "https://assets.devfolio.co/hackathons/4c311506be0e4a6e9299199c09efe290/assets/logo/630.png",
+            "subdomain": "agentverse",
+            "farcaster": null
+          },
+          "ends_at": "2026-11-08T13:00:00+00:00",
+          "is_online": false,
+          "state": "England",
+          "slug": "agentverse",
+          "team_min": 2,
+          "themed": false,
+          "discover": false,
+          "participants_count": 115,
+          "hackathon_faqs": [],
+          "participants_details": [
+            {
+              "profile_image": "https://assets.devfolio.co/users/25512fd4bd044efda7775238b5d1fb62/avatar-e53bb208-9baf-4f75-bf72-d494056e1a2a.jpeg",
+              "last_name": "Choksi",
+              "first_name": "Manas",
+              "uuid": "25512fd4bd044efda7775238b5d1fb62",
+              "username": "manas2212"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/ecd40d510ec94d199c1173b73d5a16d6/avatar-dc8fb325-85d3-4842-9d01-7833c4e79b7f.jpeg",
+              "last_name": "Nikam",
+              "first_name": "Shreyas",
+              "uuid": "ecd40d510ec94d199c1173b73d5a16d6",
+              "username": "Shreyas578"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/07ebdcd3533f4b8ebb0a683de4b28571/avatar-951aa88c-b682-4a25-9f84-3ac10d4a487a.jpeg",
+              "last_name": "Vishwakarma",
+              "first_name": "Aman",
+              "uuid": "07ebdcd3533f4b8ebb0a683de4b28571",
+              "username": "aman882"
+            }
+          ],
+          "team_size": 4,
+          "verified": true,
+          "prizes": [],
+          "projects_submitted": 0,
+          "name": "AgentVerse",
+          "tagline": "UCL's Premier AI Hackathon",
+          "location": "UCL East - Marshgate, Sidings Street, London, UK",
+          "judges": [],
+          "cover_img": "https://assets.devfolio.co/hackathons/4c311506be0e4a6e9299199c09efe290/assets/cover/39.png",
+          "desc": "Welcome to AgentVerse, UCL's premier AI-centric  Hackathon",
+          "status": "publish",
+          "user_hackathon": null,
+          "user_hackathon_reminder": null
+        }
+      }
+    ]
+  }
+}

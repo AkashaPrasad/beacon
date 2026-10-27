@@ -1,0 +1,93 @@
+{
+  "hackathons": [
+    {
+      "id": 30790,
+      "title": "Nebius x NVIDIA Global AI Hackathon",
+      "displayed_location": {
+        "icon": "globe",
+        "location": "Online"
+      },
+      "open_state": "open",
+      "thumbnail_url": "//d112y698adiu2z.cloudfront.net/photos/production/challenge_thumbnails/005/173/025/datas/medium_square.png",
+      "analytics_identifier": "Nebius x NVIDIA Global AI Hackathon (30790)",
+      "url": "https://nebiusglobalaihackathon.devpost.com/",
+      "time_left_to_submission": "3 days left",
+      "submission_period_dates": "Aug 26 - Oct 30, 2026",
+      "themes": [
+        {
+          "id": 6,
+          "name": "Machine Learning/AI"
+        },
+        {
+          "id": 23,
+          "name": "Beginner Friendly"
+        },
+        {
+          "id": 27,
+          "name": "Robotic Process Automation"
+        }
+      ],
+      "prize_amount": "$<span data-currency-value>50,000</span>",
+      "prizes_counts": {
+        "cash": 1,
+        "other": 0
+      },
+      "registrations_count": 28122,
+      "featured": false,
+      "organization_name": "nebius",
+      "winners_announced": false,
+      "submission_gallery_url": "https://nebiusglobalaihackathon.devpost.com/project-gallery",
+      "start_a_submission_url": "https://nebiusglobalaihackathon.devpost.com/challenges/start_a_submission",
+      "invite_only": false,
+      "eligibility_requirement_invite_only_description": null,
+      "managed_by_devpost_badge": true
+    },
+    {
+      "id": 31302,
+      "title": "PayPal AI Hackathon",
+      "displayed_location": {
+        "icon": "globe",
+        "location": "Online"
+      },
+      "open_state": "open",
+      "thumbnail_url": "//d112y698adiu2z.cloudfront.net/photos/production/challenge_thumbnails/005/288/985/datas/medium_square.png",
+      "analytics_identifier": "PayPal AI Hackathon (31302)",
+      "url": "https://paypalaihackathon.devpost.com/",
+      "time_left_to_submission": "16 days left",
+      "submission_period_dates": "Oct 01 - Nov 12, 2026",
+      "themes": [
+        {
+          "id": 17,
+          "name": "Low/No Code"
+        },
+        {
+          "id": 6,
+          "name": "Machine Learning/AI"
+        },
+        {
+          "id": 25,
+          "name": "Web"
+        }
+      ],
+      "prize_amount": "$<span data-currency-value>67,500</span>",
+      "prizes_counts": {
+        "cash": 1,
+        "other": 0
+      },
+      "registrations_count": 22468,
+      "featured": false,
+      "organization_name": "PayPal",
+      "winners_announced": false,
+      "submission_gallery_url": "https://paypalaihackathon.devpost.com/project-gallery",
+      "start_a_submission_url": "https://paypalaihackathon.devpost.com/challenges/start_a_submission",
+      "invite_only": false,
+      "eligibility_requirement_invite_only_description": null,
+      "managed_by_devpost_badge": true
+    }
+  ],
+  "meta": {
+    "total_count": 174,
+    "per_page": 9,
+    "fuzzy": false
+  }
+}

@@ -1,0 +1,541 @@
+{
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1778597,
+        "public_url": "hackathons/hacksprint-30-karpagam-academy-of-higher-education-1778597",
+        "title": "Hacksprint 3.0",
+        "organization_id": 101955,
+        "type": "hackathons",
+        "subtype": "online_coding_challenge",
+        "regn_open": 1,
+        "updated_at": "2026-10-27T15:06:07+05:30",
+        "region": "online",
+        "visibility": "public",
+        "details": "<p><strong>HackSprint 3.0 &mdash; Build Bold. Ride Beyond.</strong></p>\n<p><strong>About the Event</strong></p>\n<p>HackSprint 3.0 is a national-level, 36-hour hackathon organized by the Department of Computer Science and Engineering, Karpagam Academy of Higher Education (KAHE), Coimbatore, in collaboration with the Metaverse Association.</p>\n<p>HackSprint 3.0 brings together passionate developers, designers, problem-solvers, and innovators from across India to transform creative ideas into impactful, technology-driven solutions. It provides a platform to experiment with emerging technologies, collaborate with like-minded innovators, and tackle real-world challenges.</p>\n<ul>\n<li>\n<div>Mode: Online Preliminary Round + Offline Final Round</div>\n</li>\n<li>\n<div>Final Venue: Karpagam Academy of Higher Education (KAHE), Coimbatore, Tamil Nadu</div>\n</li>\n<li>\n<div>Final Hackathon Duration: 36 hours</div>\n</li>\n<li>\n<div>Application Deadline: 28 December 2026</div>\n</li>\n<li>\n<div>PPT Submission Template: Will be announced soon!</div>\n</li>\n</ul>\n<p><strong>How It Works</strong></p>\n<p><strong>Round 1: Online Idea Submission &amp; Screening</strong></p>\n<p>The first round will be conducted online. Interested teams must submit a PowerPoint presentation (PPT) outlining their proposed project idea before the application deadline.</p>\n<p>The presentation should explain:</p>\n<ul>\n<li>\n<div>Problem Statement: What real-world problem are you addressing?</div>\n</li>\n<li>\n<div>Proposed Solution: How will your idea solve the problem?</div>\n</li>\n<li>\n<div>Innovation: What makes your approach unique?</div>\n</li>\n<li>\n<div>Feasibility: How can the solution be implemented?</div>\n</li>\n<li>\n<div>Expected Impact: Who will benefit from your solution?</div>\n</li>\n<li>\n<div>Team Portfolio: Relevant projects, technical skills, and previous work, where available.</div>\n</li>\n</ul>\n<p>The organizing team will evaluate submissions based on innovation, problem relevance, feasibility, technical approach, potential impact, and relevant portfolio experience.</p>\n<p>Following the evaluation, selected teams will be shortlisted for the final round.</p>\n<p>Important: Submitting an application does not guarantee participation in the final hackathon. Only shortlisted teams will be invited to the offline round.</p>\n<p><strong>Round 2: Offline Final Hackathon</strong></p>\n<p>Shortlisted teams will participate in the 36-hour offline hackathon at Karpagam Academy of Higher Education, Coimbatore.</p>\n<p>Participants will develop their proposed solutions, build prototypes, test their implementations, and present their projects to the judging panel.</p>\n<p>Final evaluation will focus on innovation, technical implementation, functionality, feasibility, problem-solving, and overall impact.</p>\n<p>Final-round dates will be announced once confirmed.</p>\n<p><strong>HackSprint 3.0 Tracks</strong></p>\n<p>1. Agrotech</p>\n<p>Leverage technology to address agricultural challenges through smart irrigation, precision farming, AI-enabled agriculture, resource optimization, and sustainable farming solutions.</p>\n<p>2. MedTech</p>\n<p>Develop technology-driven healthcare solutions focused on diagnostics, remote healthcare, medical accessibility, patient monitoring, and improved healthcare delivery.</p>\n<p>3. EduTech</p>\n<p>Reimagine education through digital learning platforms, adaptive learning systems, skill-development tools, inclusive education, and innovative teaching technologies.</p>\n<p>4. WildVisionTech</p>\n<p>Explore AI- and ML-powered solutions for wildlife conservation, anti-poaching intelligence, environmental monitoring, and biodiversity protection.</p>\n<p>5. Open Innovation</p>\n<p>Think without boundaries. Build creative, technology-driven solutions to meaningful real-world problems across any domain.</p>\n<p><strong>What Awaits You?</strong></p>\n<ul>\n<li>\n<div>An opportunity to showcase your creativity and technical skills.</div>\n</li>\n<li>\n<div>A platform to transform ideas into practical solutions.</div>\n</li>\n<li>\n<div>Collaboration with passionate developers, designers, and innovators.</div>\n</li>\n<li>\n<div>An opportunity to present your work and receive feedback from the judging panel.</div>\n</li>\n<li>\n<div>Recognition for outstanding innovation and problem-solving.</div>\n</li>\n</ul>\n<p>Prize details, partners, and additional opportunities will be announced through official HackSprint 3.0 communication channels.</p>\n<p><strong>Rules &amp; Regulations</strong></p>\n<ul>\n<li>\n<div>Idea Submission: Teams must submit their project proposal as a PPT before the first-round deadline.</div>\n</li>\n<li>\n<div>Screening: Teams will be shortlisted based on their ideas and relevant portfolios.</div>\n</li>\n<li>\n<div>Final-Round Eligibility: Only shortlisted teams may participate in the offline final.</div>\n</li>\n<li>\n<div>Originality: All submissions must comply with the originality guidelines issued by the organizers.</div>\n</li>\n<li>\n<div>Project Development: Final-round participants must follow the event's development, submission, and judging guidelines.</div>\n</li>\n<li>\n<div>Team Size and Eligibility: Requirements will be communicated by the organizing team through official channels.</div>\n</li>\n<li>\n<div>Event Updates: Participants should follow official communications for selection results, final-round dates, and further instructions.</div>\n</li>\n</ul>",
+        "short_id": "fqnoUmw",
+        "logoUrl2": "https://d8it4huxumps7.cloudfront.net/uploads/images/150x150/uploadedManual-6adf521b38e8c_screenshot_2026-10-26_184342.png",
+        "organisation": {
+          "id": 101955,
+          "name": "Karpagam Academy of Higher Education",
+          "public_url": "c/karpagam-academy-of-higher-education-recruiter-career-interview-selection-process-job-profile-articles-videos-101955",
+          "logoUrl": "",
+          "logoUrl2": "",
+          "show_evaluator_login_link": false,
+          "official_email_domains": null,
+          "tier": null
+        },
+        "seo_url": "https://unstop.com/hackathons/hacksprint-30-karpagam-academy-of-higher-education-1778597",
+        "status": "LIVE",
+        "tags": [],
+        "thumb": null,
+        "isPaid": false,
+        "festival": null,
+        "prizes": [],
+        "address_with_country_logo": {
+          "id": 1877236,
+          "address": "",
+          "city": "",
+          "state": "",
+          "country": null,
+          "zip": null,
+          "lat": null,
+          "lng": null,
+          "addressable_id": 1778597,
+          "addressable_type": "App\\Model\\Opportunity",
+          "created_at": "2026-10-26T18:44:14+05:30",
+          "updated_at": "2026-10-26T19:19:25+05:30",
+          "deleted_at": null,
+          "address_title": "event_location",
+          "city_id": null,
+          "sort_order": 1,
+          "state_code": null,
+          "country_code": null
+        },
+        "short_url": "https://unstop.com/o/fqnoUmw",
+        "workfunction": [
+          {
+            "id": 2004,
+            "name": "Software Development",
+            "description": "",
+            "created_at": "2026-02-06T23:31:46+05:30",
+            "updated_at": "2026-02-06T23:31:46+05:30",
+            "work_function_name": null,
+            "batch_id": 11,
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 2004,
+              "id": 6673986,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 2106,
+            "name": "Artificial Intelligence",
+            "description": "",
+            "created_at": "2026-04-09T00:17:10+05:30",
+            "updated_at": "2026-04-09T00:17:10+05:30",
+            "work_function_name": null,
+            "batch_id": 11,
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 2106,
+              "id": 6673987,
+              "ai_generated": true
+            }
+          }
+        ],
+        "assignedTag": {
+          "tag": null
+        },
+        "opportunity_config": {
+          "id": 1471539,
+          "opportunity_id": 1778597,
+          "banner_config": "{\"color\":\"color-bg2\",\"text\":\"Hacksprint 3.0\",\"type\":2,\"banner_data\":[3]}",
+          "show_registrations_count": 1,
+          "show_impressions": 1,
+          "show_team_size": 1,
+          "show_region": 1
+        },
+        "payment_services": [],
+        "filters": [
+          {
+            "id": 422,
+            "name": "Engineering Students",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "engineering",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/engineering.svg"
+          },
+          {
+            "id": 424,
+            "name": "Postgraduate",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "postgraduate",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/postgraduate.svg"
+          },
+          {
+            "id": 426,
+            "name": "Undergraduate",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "undergraduate",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/undergraduate.svg"
+          },
+          {
+            "id": 4022,
+            "name": "Management",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": null,
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/.svg"
+          },
+          {
+            "id": 4025,
+            "name": "Arts, Commerce, Sciences & Others",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": null,
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/.svg"
+          }
+        ],
+        "required_skills": [
+          {
+            "id": 668375,
+            "skill": "PowerPoint",
+            "skill_name": "PowerPoint",
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 668375,
+              "id": 6673981,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 1373,
+            "skill": "Problem Solving",
+            "skill_name": "Problem Solving",
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 1373,
+              "id": 6673982,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 645189,
+            "skill": "Technical Skills",
+            "skill_name": "Technical Skills",
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 645189,
+              "id": 6673983,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 647051,
+            "skill": "Project proposal",
+            "skill_name": "Project proposal",
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 647051,
+              "id": 6673984,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 647511,
+            "skill": "Teamwork and Collaboration",
+            "skill_name": "Teamwork and Collaboration",
+            "pivot": {
+              "entity_id": 1778597,
+              "subject_id": 647511,
+              "id": 6673985,
+              "ai_generated": true
+            }
+          }
+        ],
+        "locations": [],
+        "end_date": "2026-12-28T23:59:05+05:30",
+        "approved_date": "2026-10-26 19:19:56 GMT+0530",
+        "viewsCount": 2570,
+        "registerCount": 19,
+        "regnRequirements": {
+          "opportunity_id": 1778597,
+          "start_regn_dt": "2026-10-26T00:00:00+05:30",
+          "end_regn_dt": "2026-12-28T23:59:05+05:30",
+          "show_deadline": 1,
+          "min_team_size": 2,
+          "max_team_size": 4,
+          "work_location_type": "city",
+          "eligibility": "{\"sector\":[\"students\"],\"engineering\":[\"allCourses\",{\"course\":\"btech\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4},{\"course\":\"mtech\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"integrated\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":5},{\"course\":\"engOthers\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"bca\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"mca\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"mca1\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"mcm\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"phdEng\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":5},{\"course\":\"diploma\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":0}],\"bSchools\":[\"allCourses\",{\"course\":\"mba1\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":1},{\"course\":\"mba2\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bba\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"bSchoolOthers\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"bcom\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"mcom\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bhm\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"ca\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"cs\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"pgdm\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"execMba\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":1},{\"course\":\"ipm\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":5},{\"course\":\"phdManagement\",\"type\":\"bSchools\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3}],\"arts\":[\"allCourses\",{\"course\":\"bsc\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"msc\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"ba\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"ma\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"artsOthers\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"mdes\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"march\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bdes\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"barch\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":5},{\"course\":\"bftech\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4},{\"course\":\"bplan\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4},{\"course\":\"mplan\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"phdArts\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":5},{\"course\":\"mftech\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bfa\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4},{\"course\":\"mfa\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bs\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":3},{\"course\":\"ms\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"bed\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"med\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2},{\"course\":\"beled\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4},{\"course\":\"bped\",\"type\":\"arts\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":2}],\"medicine\":[],\"law\":[],\"others\":[\"all\"],\"experience\":[\"all\"],\"studentPassoutYearsSelected\":[\"all\"],\"fresherPassoutYearsSelected\":[\"all\"],\"schoolFilteredClasses\":[\"all\"],\"minMarks\":{\"high_school_perc\":0,\"high_school_cgpa\":0},\"locations\":[],\"location_type\":\"all\",\"professionalEligibility\":null,\"fresherEligibility\":null}",
+          "reg_status": "STARTED",
+          "remainingDaysArray": {
+            "durations": "2",
+            "text": "months left"
+          },
+          "remain_days": "2 months left",
+          "remaining_time": 5378474
+        }
+      },
+      {
+        "id": 1778599,
+        "public_url": "hackathons/srujana-ai-2026-hackathon-biorad-medisys-private-limited-1778599",
+        "title": "Srujana AI 2026 Hackathon",
+        "organization_id": 504636,
+        "type": "hackathons",
+        "subtype": "online_coding_challenge",
+        "regn_open": 1,
+        "updated_at": "2026-10-27T17:40:49+05:30",
+        "region": "offline",
+        "visibility": "public",
+        "details": "<p><strong>Srujana Hackathon&nbsp; Batch 2</strong></p>\n<p><strong>About the Hackathon</strong></p>\n<p>Srujana Hackathon Series 2026 &ndash; Batch 2 is an innovation-driven initiative designed to bring together students, aspiring developers, and creative problem-solvers to explore real-world challenges and develop impactful solutions.</p>\n<p>Organized at <strong>Biorad Medisys, Prabhavee Tech Park, Pune</strong>, the event will introduce participants to the Srujana initiative, provide insights into Ethosh&rsquo;s projects and Biorad&rsquo;s AI initiatives, and present problem statements that encourage innovative thinking and practical problem-solving.</p>\n<p>Participants will gain an understanding of the challenges, proposed solution expectations, and judging criteria before beginning their ideation and development journey. The event offers an opportunity to learn, collaborate, think creatively, and explore how technology can address real-world problems.</p>\n<p>Whether you are passionate about software development, Artificial Intelligence, or innovation, Srujana is an opportunity to turn your ideas into meaningful solutions.</p>\n<p><strong>Event Details</strong></p>\n<p><strong>Date:</strong> 31 October 2026<br /><strong>Venue:</strong> Prabhavee Tech Park, Pune, Maharashtra <span data-teams=\"true\"><a id=\"menur4lp\" class=\"fui-Link ___1q1shib f2hkw1w f3rmtva f1ewtqcl fyind8e f1k6fduh f1w7gpdv fk6fouc fjoy568 figsok6 f1s184ao f1mk8lai fnbmjn9 f1o700av f13mvf36 f1cmlufx f9n3di6 f1ids18y f1tx3yz7 f1deo86v f1eh06m1 f1iescvh fhgqx19 f1olyrje f1p93eir f1nev41a f1h8hb77 f1lqvz6u f10aw75t fsle3fq f17ae5zn\" title=\"https://maps.app.goo.gl/stykmpjuhuxgevub8\" href=\"https://maps.app.goo.gl/StYkMPJUhUxGEvuB8\" target=\"_blank\" rel=\"noreferrer noopener\" aria-label=\"Link https://maps.app.goo.gl/StYkMPJUhUxGEvuB8\">https://maps.app.goo.gl/StYkMPJUhUxGEvuB8</a></span><br /><strong>Registration Time:</strong> 9:00 AM &ndash; 9:30 AM<br /><strong>Session Begins:</strong> 9:30 AM sharp</p>\n<p><span data-teams=\"true\">fill this google form&nbsp;</span></p>\n<p><span data-teams=\"true\"><a id=\"menur5cq\" class=\"fui-Link ___1q1shib f2hkw1w f3rmtva f1ewtqcl fyind8e f1k6fduh f1w7gpdv fk6fouc fjoy568 figsok6 f1s184ao f1mk8lai fnbmjn9 f1o700av f13mvf36 f1cmlufx f9n3di6 f1ids18y f1tx3yz7 f1deo86v f1eh06m1 f1iescvh fhgqx19 f1olyrje f1p93eir f1nev41a f1h8hb77 f1lqvz6u f10aw75t fsle3fq f17ae5zn\" title=\"https://forms.gle/hpiwhdj8yafaeeq27\" href=\"https://forms.gle/HpiWHdj8YAfaeEQ27\" target=\"_blank\" rel=\"noreferrer noopener\" aria-label=\"Link https://forms.gle/HpiWHdj8YAfaeEQ27\">https://forms.gle/HpiWHdj8YAfaeEQ27</a></span></p>\n<p>&nbsp;</p>\n<p><strong>Event Schedule</strong></p>\n<ul>\n<li><strong>9:00 AM &ndash; 9:30 AM:</strong> Participant Registration</li>\n<li><strong>9:30 AM onwards:</strong> Introduction to Srujana</li>\n<li>Overview of Ethosh&rsquo;s Projects and Bio-Rad&rsquo;s AI Initiatives</li>\n<li>Introduction to Hackathon Problem Statements</li>\n<li>Explanation of Problem Statements and Judging Rubrics</li>\n<li>Ideation and Solution Development</li>\n</ul>\n<p>Further details regarding subsequent sessions and solution presentations will be communicated to participants by the organizing team.</p>\n<p><strong>What to Expect</strong></p>\n<ul>\n<li>Insights into real-world industry challenges and AI initiatives.</li>\n<li>An introduction to problem statements and evaluation criteria.</li>\n<li>Opportunities to brainstorm, ideate, and develop innovative solutions.</li>\n<li>A collaborative environment that encourages creativity and technical thinking.</li>\n<li>Exposure to industry-oriented problem-solving approaches.</li>\n</ul>\n<p><strong>Important Instructions</strong></p>\n<ul>\n<li>Participants must arrive at the venue by <strong>9:00 AM</strong> to complete registration.</li>\n<li>Carry a valid <strong>Aadhaar Card and College ID Card</strong> for verification.</li>\n<li>Bringing a laptop is optional, but participants may carry one if they wish.</li>\n<li>Please arrive on time and follow the instructions provided by the organizing team.</li>\n</ul>",
+        "short_id": "PIJ3OU2",
+        "logoUrl2": "https://d8it4huxumps7.cloudfront.net/uploads/images/150x150/uploadedManual-6adf462148ed3_screenshot_2026-08-17_171709.png",
+        "organisation": {
+          "id": 504636,
+          "name": "Biorad Medisys Private Limited",
+          "public_url": "c/biorad-medisys-504636",
+          "logoUrl": "",
+          "logoUrl2": "",
+          "show_evaluator_login_link": false,
+          "official_email_domains": null,
+          "tier": null
+        },
+        "seo_url": "https://unstop.com/hackathons/srujana-ai-2026-hackathon-biorad-medisys-private-limited-1778599",
+        "status": "LIVE",
+        "tags": [],
+        "thumb": null,
+        "isPaid": false,
+        "festival": null,
+        "prizes": [],
+        "address_with_country_logo": {
+          "id": 1877197,
+          "address": "Biorad Medisys, Prabhavee Tech Park, Baner",
+          "city": "Pune",
+          "state": "Maharashtra",
+          "country": {
+            "id": 94,
+            "name": "India",
+            "alpha_2": "in",
+            "alpha_3": "ind",
+            "iso": "IN",
+            "iso3": "IND",
+            "numcode": 356,
+            "phonecode": "+91   ",
+            "logos": {
+              "very_small": "https://d8it4huxumps7.cloudfront.net/images/flags/16x16/in.png",
+              "small": "https://d8it4huxumps7.cloudfront.net/images/flags/24x24/in.png",
+              "medium": "https://d8it4huxumps7.cloudfront.net/images/flags/32x32/in.png",
+              "large": "https://d8it4huxumps7.cloudfront.net/images/flags/48x48/in.png",
+              "xlarge": "https://d8it4huxumps7.cloudfront.net/images/flags/64x64/in.png",
+              "xxlarge": "https://d8it4huxumps7.cloudfront.net/images/flags/128x128/in.png"
+            }
+          },
+          "zip": null,
+          "lat": null,
+          "lng": null,
+          "addressable_id": 1778599,
+          "addressable_type": "App\\Model\\Opportunity",
+          "created_at": "2026-10-26T17:55:30+05:30",
+          "updated_at": "2026-10-27T17:40:54+05:30",
+          "deleted_at": null,
+          "address_title": "event_location",
+          "city_id": 133504,
+          "sort_order": 1,
+          "state_code": null,
+          "country_code": null
+        },
+        "short_url": "https://unstop.com/o/PIJ3OU2",
+        "workfunction": [
+          {
+            "id": 2106,
+            "name": "Artificial Intelligence",
+            "description": "",
+            "created_at": "2026-04-09T00:17:10+05:30",
+            "updated_at": "2026-04-09T00:17:10+05:30",
+            "work_function_name": null,
+            "batch_id": 11,
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 2106,
+              "id": 6686821,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 2107,
+            "name": "AI Engineering",
+            "description": "",
+            "created_at": "2026-04-09T00:17:10+05:30",
+            "updated_at": "2026-04-09T00:17:10+05:30",
+            "work_function_name": null,
+            "batch_id": 11,
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 2107,
+              "id": 6686822,
+              "ai_generated": true
+            }
+          }
+        ],
+        "assignedTag": {
+          "tag": null
+        },
+        "opportunity_config": {
+          "id": 1471457,
+          "opportunity_id": 1778599,
+          "banner_config": "{\"color\":\"color-bg2\",\"text\":\"Srujana AI 2026 Hackathon\",\"type\":1,\"banner_data\":[8]}",
+          "show_registrations_count": 1,
+          "show_impressions": 1,
+          "show_team_size": 1,
+          "show_region": 1
+        },
+        "payment_services": [],
+        "filters": [
+          {
+            "id": 422,
+            "name": "Engineering Students",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "engineering",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/engineering.svg"
+          },
+          {
+            "id": 426,
+            "name": "Undergraduate",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "undergraduate",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/undergraduate.svg"
+          },
+          {
+            "id": 679,
+            "name": "Fresher",
+            "type": "eligible",
+            "subtype": null,
+            "file_name": "fresher",
+            "domain_id": 0,
+            "icon_url": "https://d8it4huxumps7.cloudfront.net/images/icons/color_icons/fresher.svg"
+          }
+        ],
+        "required_skills": [
+          {
+            "id": 645580,
+            "skill": "Artificial Intelligence (AI)",
+            "skill_name": "Artificial Intelligence (AI)",
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 645580,
+              "id": 6686816,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 1373,
+            "skill": "Problem Solving",
+            "skill_name": "Problem Solving",
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 1373,
+              "id": 6686817,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 646358,
+            "skill": "Ideation",
+            "skill_name": "Ideation",
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 646358,
+              "id": 6686818,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 645879,
+            "skill": "Creative Thinking",
+            "skill_name": "Creative Thinking",
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 645879,
+              "id": 6686819,
+              "ai_generated": true
+            }
+          },
+          {
+            "id": 647511,
+            "skill": "Teamwork and Collaboration",
+            "skill_name": "Teamwork and Collaboration",
+            "pivot": {
+              "entity_id": 1778599,
+              "subject_id": 647511,
+              "id": 6686820,
+              "ai_generated": true
+            }
+          }
+        ],
+        "locations": [],
+        "end_date": "2026-10-28T11:59:00+05:30",
+        "approved_date": "2026-10-26 19:15:34 GMT+0530",
+        "viewsCount": 723,
+        "registerCount": 8,
+        "regnRequirements": {
+          "opportunity_id": 1778599,
+          "start_regn_dt": "2026-10-26T00:00:00+05:30",
+          "end_regn_dt": "2026-10-28T11:59:00+05:30",
+          "show_deadline": 1,
+          "min_team_size": 3,
+          "max_team_size": 4,
+          "work_location_type": "city",
+          "eligibility": "{\"sector\":[\"students\",\"fresher\"],\"engineering\":[{\"course\":\"btech\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4}],\"bSchools\":[],\"arts\":[],\"medicine\":[],\"law\":[],\"others\":[\"all\"],\"experience\":[\"all\"],\"studentPassoutYearsSelected\":[\"all\"],\"fresherPassoutYearsSelected\":[2026],\"schoolFilteredClasses\":[\"all\"],\"minMarks\":{\"high_school_perc\":0,\"high_school_cgpa\":0},\"locations\":[],\"location_type\":\"all\",\"professionalEligibility\":null,\"fresherEligibility\":{\"engineering\":[{\"course\":\"btech\",\"type\":\"engineering\",\"programme\":[\"all\"],\"passoutYear\":[\"all\"],\"specialization\":[\"all\"],\"duration\":4}],\"bSchools\":[],\"arts\":[],\"medicine\":[],\"law\":[]}}",
+          "reg_status": "STARTED",
+          "remainingDaysArray": {
+            "durations": "17",
+            "text": "hours left"
+          },
+          "remain_days": "17 hours left",
+          "remaining_time": 64767
+        }
+      }
+    ],
+    "first_page_url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=1",
+    "from": 1,
+    "last_page": 105,
+    "last_page_url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=105",
+    "links": [
+      {
+        "url": null,
+        "label": "&laquo; Previous",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=1",
+        "label": "1",
+        "active": true
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=2",
+        "label": "2",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=3",
+        "label": "3",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=4",
+        "label": "4",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=5",
+        "label": "5",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=6",
+        "label": "6",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=7",
+        "label": "7",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=8",
+        "label": "8",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=9",
+        "label": "9",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=10",
+        "label": "10",
+        "active": false
+      },
+      {
+        "url": null,
+        "label": "...",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=104",
+        "label": "104",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=105",
+        "label": "105",
+        "active": false
+      },
+      {
+        "url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=2",
+        "label": "Next &raquo;",
+        "active": false
+      }
+    ],
+    "next_page_url": "https://unstop.com/api/public/opportunity/search-result?&opportunity=hackathons&per_page=2&oppstatus=open&page=2",
+    "path": "https://unstop.com/api/public/opportunity/search-result?",
+    "per_page": 2,
+    "prev_page_url": null,
+    "to": 2,
+    "total": 209
+  }
+}

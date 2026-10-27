@@ -1,0 +1,160 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://job-boards.greenhouse.io/razorpaysoftwareprivatelimited/jobs/4744950005",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "employment": "employment_required",
+      "internal_job_id": 4459724005,
+      "location": {
+        "name": "Bengaluru"
+      },
+      "metadata": [
+        {
+          "id": 4731492005,
+          "name": "Job Location",
+          "value": [
+            "Bengaluru"
+          ],
+          "value_type": "multi_select"
+        },
+        {
+          "id": 9708137005,
+          "name": "Job Location ( Base Location )",
+          "value": "Bengaluru",
+          "value_type": "single_select"
+        }
+      ],
+      "id": 4744950005,
+      "updated_at": "2026-10-27T02:10:42-04:00",
+      "requisition_id": "14859",
+      "title": "AI Builder",
+      "company_name": "Razorpay Software Private Limited",
+      "first_published": "2026-10-27T02:10:42-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;Razorpay is one of India’s leading full-stack financial technology companies, powering the way businesses move, manage, and grow money. Founded in 2014 by Harshil Mathur and Shashank Kumar with a simple vision - to simplify payments for Indian businesses - we’ve since grown into a fintech powerhouse driving India’s digital payment revolution.&lt;/p&gt;\n&lt;p&gt;Razorpay powers millions of businesses with a smarter, scalable stack that goes beyond transactions to help them truly build and grow.&lt;/p&gt;\n&lt;p&gt;From building AI-native agentic payments, to AI-assisted fraud detection and real-time risk intelligence to automated reconciliation, smart payouts, and predictive financial insights, we are embedding intelligence across our stack to make money movement faster, safer, and more efficient. In close collaboration with ecosystem partners - including banks, networks, regulators - we are pioneering industry-first solutions that are shaping the next era of fintech&lt;/p&gt;\n&lt;p&gt;Across India, Singapore and Malaysia, our products span everything from seamless checkouts to payroll automation - powering a fintech ecosystem that’s redefining how money moves across Asia.&lt;/p&gt;\n&lt;p&gt;Today, that ecosystem supports everyone from early-stage startups to some of India’s largest enterprises, enabling them to accept, process, and disburse payments at scale while expanding into new ways of managing money more efficiently.&lt;/p&gt;\n&lt;p&gt;Our scale speaks volumes: Razorpay processes $180+ billion in annualized transactions, powering leading businesses like Airbnb, Facebook, WhatsApp, Airtel, CRED, BookmyShow, Zomato, Swiggy, Lenskart, Mirae Asset Capital markets, Indian Oil, National Pension Scheme - and over 100 of India’s unicorns. With strong roots in India and growing operations in Southeast Asia, we are shaping the next chapter of financial technology across the region.&lt;/p&gt;\n&lt;p&gt;We are backed by global investors including GIC, Peak XV Partners (formerly Sequoia Capital India &amp;amp; SEA), Tiger Global, Ribbit Capital, Matrix Partners, MasterCard, and Salesforce Ventures, having raised over $740 million to date. Strategic acquisitions - including Ezetap (POS and offline payments), Curlec (Malaysia expansion), BillMe (digital invoicing), and POP (rewards-first UPI) - along with earlier moves in fraud prevention, payroll, and lending, have further strengthened our platform and widened our footprint across Asia.&lt;/p&gt;\n&lt;p&gt;But what truly sets Razorpay apart is our culture. At Razorpay, ownership is our oxygen - you own what you build, with no micromanagement or red tape, just the runway to make your ideas fly. Learning is a lifestyle - if you’re curious, you’ll feel at home here. People &amp;gt; Pedigree - we hire for attitude, hustle, and hunger more than degrees. Transparency thrives over titles - this is where interns question CXOs and CXOs say “thank you.” Guided by our values of Customer First, Autonomy &amp;amp; Ownership, Agility with Integrity, Transparency, Challenging the status quo and a strong belief that Razorpay grows with Razors,&amp;nbsp; you’ll be part of a 3000+ strong team building not just products, but the financial infrastructure of the future.&lt;/p&gt;&lt;/div&gt;&lt;p class=&quot;p2&quot;&gt;&lt;span class=&quot;s3&quot; style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;About the role :&lt;/strong&gt;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;We&#39;re hiring AI Builders: AI-first people from product, data or business backgrounds who find a real business problem, ship a working AI solution themselves, and get it adopted. Think an early-career founder, founding PM or analyst who already builds with AI on the side or full-time, not an engineer who waits for a spec. You won&#39;t own one layer of a system. You&#39;ll own an outcome: talk to the team with the problem, decide what to build, put together a v1 with modern AI tools (code, no-code or agents, whatever is fastest), and drive it until people actually use it.&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span class=&quot;s3&quot;&gt;&lt;strong&gt;What you&#39;ll do:&lt;/strong&gt;&lt;/span&gt;&amp;nbsp;Work AI-first: use AI by default to research, prototype, analyse and automate, and help the teams you work with do the same • Sit with business and ops teams, find the problems worth solving, and size them in time, money or risk • Ship a working v1 yourself in days, using AI coding tools, agents, no-code or whatever gets there fastest • Get it adopted: onboard the first users, measure usage and impact, and iterate until it sticks • Decide fast what to scale, change or kill, and say why • Stay ahead of new models and tools, and know quickly which ones matter for your problems &lt;/span&gt;&lt;/p&gt;\n&lt;p&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span class=&quot;s3&quot;&gt;&lt;strong&gt;Who you are: &lt;/strong&gt;&lt;/span&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You&#39;re AI-first.&amp;nbsp;&lt;/strong&gt;AI is your default way to research, build and ship, not an add-on. You try new models and tools early and have a view on what&#39;s useful and what&#39;s hype.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You&#39;ve built something from zero. &lt;/strong&gt;You founded something, joined a founding team or launched your own side product, and can say what happened to it.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You start from the problem. &lt;/strong&gt;You can explain who had it, how you knew it was real and what metric moved.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You build with your own hands. &lt;/strong&gt;You&#39;ve shipped AI-powered products or workflows yourself, with code, agents or no-code, and can show them.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You get things adopted. &lt;/strong&gt;You&#39;ve taken something from launch to real users, inside a company or in the market.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You communicate crisply. &lt;/strong&gt;You can explain a messy problem and your call on it in five minutes.&lt;/span&gt;&lt;/li&gt;\n&lt;li style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;You own outcomes. &lt;/strong&gt;No spec, no owner, no problem: you make the call and move.&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/span&gt;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span class=&quot;s3&quot; style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;strong&gt;Good to have: &lt;/strong&gt;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;• A startup or side venture you started that got real users, revenue or funding&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;• Product or GTM experience in fintech, payments or consumer &lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;• Founding-team experience in go-to-market: positioning, first customers, pricing&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;• A data science, analytics or engineering background, enough to debate trade-offs with engineers&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;• A public trail: a blog, talks, open-source work or products people can try&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/span&gt;&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span id=&quot;m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3a65a3c2-7fff-88ff-9e94-8ab11a050d04&quot;&gt;Razorpay believes in and follows an equal employment opportunity policy that doesn&#39;t discriminate on gender, religion, sexual orientation, colour, nationality, age, etc. We welcome interests and applications from all groups and communities across the globe. &lt;/span&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;\n&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;\n&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span id=&quot;m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3d0a9248-7fff-a2fd-6fa3-5026f85768d7&quot;&gt;Follow us on &lt;a href=&quot;https://www.linkedin.com/company/razorpay/mycompany/&quot; target=&quot;_blank&quot; data-saferedirecturl=&quot;https://www.google.com/url?q=https://www.linkedin.com/company/razorpay/mycompany/&amp;amp;source=gmail&amp;amp;ust=1660290870959000&amp;amp;usg=AOvVaw0f6sCrv8Ce3IHBvN2Sev8Z&quot;&gt;LinkedIn&lt;/a&gt; &amp;amp; &lt;a href=&quot;https://twitter.com/Razorpay&quot; target=&quot;_blank&quot; data-saferedirecturl=&quot;https://www.google.com/url?q=https://twitter.com/Razorpay&amp;amp;source=gmail&amp;amp;ust=1660290870959000&amp;amp;usg=AOvVaw0ViuP9uutFg1qFCm2nHeh1&quot;&gt;Twitter&lt;/a&gt;&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4024806005,
+          "name": "Engineering",
+          "child_ids": [
+            4024813005,
+            4134592005,
+            4040417005,
+            4024815005,
+            4037762005,
+            4037761005,
+            4024821005,
+            4024807005,
+            4024808005,
+            4024809005,
+            4024810005,
+            4024812005,
+            4024818005,
+            4024811005,
+            4024814005,
+            4024816005,
+            4024820005,
+            4024817005,
+            4024819005
+          ],
+          "parent_id": null
+        }
+      ],
+      "offices": [
+        {
+          "id": 4009556005,
+          "name": "Platforms",
+          "location": null,
+          "child_ids": [],
+          "parent_id": null
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": null,
+      "ai_opt_out_request_url": null
+    },
+    {
+      "absolute_url": "https://job-boards.greenhouse.io/razorpaysoftwareprivatelimited/jobs/4740728005",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "employment": "employment_required",
+      "internal_job_id": 4457905005,
+      "location": {
+        "name": "Bengaluru"
+      },
+      "metadata": [
+        {
+          "id": 4731492005,
+          "name": "Job Location",
+          "value": [
+            "Hyderabad"
+          ],
+          "value_type": "multi_select"
+        },
+        {
+          "id": 9708137005,
+          "name": "Job Location ( Base Location )",
+          "value": "Bengaluru",
+          "value_type": "single_select"
+        }
+      ],
+      "id": 4740728005,
+      "updated_at": "2026-10-09T06:43:46-04:00",
+      "requisition_id": "14797",
+      "title": " Analyst, Banking Alliances ",
+      "company_name": "Razorpay Software Private Limited",
+      "first_published": "2026-10-09T06:43:46-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;Razorpay is one of India’s leading full-stack financial technology companies, powering the way businesses move, manage, and grow money. Founded in 2014 by Harshil Mathur and Shashank Kumar with a simple vision - to simplify payments for Indian businesses - we’ve since grown into a fintech powerhouse driving India’s digital payment revolution.&lt;/p&gt;\n&lt;p&gt;Razorpay powers millions of businesses with a smarter, scalable stack that goes beyond transactions to help them truly build and grow.&lt;/p&gt;\n&lt;p&gt;From building AI-native agentic payments, to AI-assisted fraud detection and real-time risk intelligence to automated reconciliation, smart payouts, and predictive financial insights, we are embedding intelligence across our stack to make money movement faster, safer, and more efficient. In close collaboration with ecosystem partners - including banks, networks, regulators - we are pioneering industry-first solutions that are shaping the next era of fintech&lt;/p&gt;\n&lt;p&gt;Across India, Singapore and Malaysia, our products span everything from seamless checkouts to payroll automation - powering a fintech ecosystem that’s redefining how money moves across Asia.&lt;/p&gt;\n&lt;p&gt;Today, that ecosystem supports everyone from early-stage startups to some of India’s largest enterprises, enabling them to accept, process, and disburse payments at scale while expanding into new ways of managing money more efficiently.&lt;/p&gt;\n&lt;p&gt;Our scale speaks volumes: Razorpay processes $180+ billion in annualized transactions, powering leading businesses like Airbnb, Facebook, WhatsApp, Airtel, CRED, BookmyShow, Zomato, Swiggy, Lenskart, Mirae Asset Capital markets, Indian Oil, National Pension Scheme - and over 100 of India’s unicorns. With strong roots in India and growing operations in Southeast Asia, we are shaping the next chapter of financial technology across the region.&lt;/p&gt;\n&lt;p&gt;We are backed by global investors including GIC, Peak XV Partners (formerly Sequoia Capital India &amp;amp; SEA), Tiger Global, Ribbit Capital, Matrix Partners, MasterCard, and Salesforce Ventures, having raised over $740 million to date. Strategic acquisitions - including Ezetap (POS and offline payments), Curlec (Malaysia expansion), BillMe (digital invoicing), and POP (rewards-first UPI) - along with earlier moves in fraud prevention, payroll, and lending, have further strengthened our platform and widened our footprint across Asia.&lt;/p&gt;\n&lt;p&gt;But what truly sets Razorpay apart is our culture. At Razorpay, ownership is our oxygen - you own what you build, with no micromanagement or red tape, just the runway to make your ideas fly. Learning is a lifestyle - if you’re curious, you’ll feel at home here. People &amp;gt; Pedigree - we hire for attitude, hustle, and hunger more than degrees. Transparency thrives over titles - this is where interns question CXOs and CXOs say “thank you.” Guided by our values of Customer First, Autonomy &amp;amp; Ownership, Agility with Integrity, Transparency, Challenging the status quo and a strong belief that Razorpay grows with Razors,&amp;nbsp; you’ll be part of a 3000+ strong team building not just products, but the financial infrastructure of the future.&lt;/p&gt;&lt;/div&gt;&lt;p class=&quot;p1&quot;&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;span class=&quot;s1&quot;&gt;&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/span&gt;&lt;strong&gt;About the Role&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;We are looking for a driven and knowledgeable Sales Manager to lead Payment Gateway (PG) business growth across strategic high potential locations. The ideal candidate will have a strong grasp of the payments ecosystem, hands-on experience working with banks and financial institutions, and the ability to build and leverage government relationships to drive adoption and revenue.&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;strong&gt;Key Responsibilities&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Payment Gateway Sales &amp;amp; Business Development&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Own end-to-end sales of PG solutions to merchants, enterprises, and institutions in the assigned strategic location&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Identify, prospect, and close high-value merchants across sectors such as retail, education, healthcare, and government&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Drive acquisition of new accounts while growing revenue from existing merchant partnerships&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Pitch and position PG products including payment links, UPI, cards, EMI, and BNPL solutions based on merchant needs&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Bank &amp;amp; Financial Institution Management&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Build and maintain strong relationships with regional and cooperative banks, NBFCs, and nodal banking partners&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Lead commercial negotiations including MDR, settlement cycles, credit limits, and partnership terms&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Coordinate with bank partners for faster onboarding, issue resolution, and co-selling opportunities&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Stay updated on RBI guidelines, banking circulars, and compliance requirements affecting PG operations&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Government &amp;amp; Institutional Relationships&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Develop and manage relationships with state and local government bodies, PSUs, and municipalities for PG adoption in public services&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Identify and pursue opportunities in government collections — utility payments, tax portals, welfare disbursements, and e-governance projects&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Represent the company in government tenders, RFPs, and empanelment processes&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Liaise with government officials and decision-makers to position the company as a preferred payments partner&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Commercial Negotiation &amp;amp; Deal Structuring&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Lead pricing discussions and commercial structuring for large and strategic deals&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Collaborate with internal product, risk, and finance teams to create customized proposals&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Ensure deal profitability while maintaining competitive positioning in the market&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Market Intelligence &amp;amp; Reporting&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Track competitor activity, pricing trends, and emerging merchant needs across assigned strategic locations&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Provide regular pipeline reports, forecasts, and market insights to regional leadership&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Represent ground-level feedback to product teams for localization and feature improvements&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p2&quot;&gt;&lt;strong&gt;What We&#39;re Looking For&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Must-Have Skills &amp;amp; Experience&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• 4–8 years of experience in Payment Gateway, Fintech, or Banking sales&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Deep understanding of PG infrastructure — acquiring banks, payment networks, settlement flows, risk &amp;amp; compliance&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Proven track record of commercial negotiation with banks or financial institutions&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Experience managing or engaging with government bodies or PSUs for payments/fintech solutions&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Strong hunter mentality with a consultative sales approach&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Excellent communication, relationship management, and stakeholder influence skills&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p4&quot;&gt;&lt;strong&gt;Good to Have&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Prior experience working in or extensively covering the assigned strategic location&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Existing network of merchants, bank officials, or government contacts in Chandigarh, Lucknow, Chennai, Hyderabad, or Kolkata&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Familiarity with RBI payment regulations, PCI-DSS, and digital payment policies&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;\n&lt;p class=&quot;p3&quot;&gt;• Understanding of GST, e-invoicing, or government payment use cases&lt;span class=&quot;Apple-converted-space&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span id=&quot;m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3a65a3c2-7fff-88ff-9e94-8ab11a050d04&quot;&gt;Razorpay believes in and follows an equal employment opportunity policy that doesn&#39;t discriminate on gender, religion, sexual orientation, colour, nationality, age, etc. We welcome interests and applications from all groups and communities across the globe. &lt;/span&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;\n&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;\n&lt;div class=&quot;gmail_default&quot;&gt;&lt;span style=&quot;font-family: arial, helvetica, sans-serif; font-size: 12pt;&quot;&gt;&lt;span id=&quot;m_2989597180337834284gmail-m_4972969247898306296gmail-docs-internal-guid-3d0a9248-7fff-a2fd-6fa3-5026f85768d7&quot;&gt;Follow us on &lt;a href=&quot;https://www.linkedin.com/company/razorpay/mycompany/&quot; target=&quot;_blank&quot; data-saferedirecturl=&quot;https://www.google.com/url?q=https://www.linkedin.com/company/razorpay/mycompany/&amp;amp;source=gmail&amp;amp;ust=1660290870959000&amp;amp;usg=AOvVaw0f6sCrv8Ce3IHBvN2Sev8Z&quot;&gt;LinkedIn&lt;/a&gt; &amp;amp; &lt;a href=&quot;https://twitter.com/Razorpay&quot; target=&quot;_blank&quot; data-saferedirecturl=&quot;https://www.google.com/url?q=https://twitter.com/Razorpay&amp;amp;source=gmail&amp;amp;ust=1660290870959000&amp;amp;usg=AOvVaw0ViuP9uutFg1qFCm2nHeh1&quot;&gt;Twitter&lt;/a&gt;&lt;/span&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4021993005,
+          "name": "Banking",
+          "child_ids": [
+            4147065005,
+            4021994005,
+            4021995005,
+            4021996005,
+            4021997005,
+            4021998005
+          ],
+          "parent_id": 4021992005
+        }
+      ],
+      "offices": [
+        {
+          "id": 4009555005,
+          "name": "Payments",
+          "location": null,
+          "child_ids": [],
+          "parent_id": null
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": null,
+      "ai_opt_out_request_url": null
+    }
+  ],
+  "meta": {
+    "total": 27
+  }
+}
