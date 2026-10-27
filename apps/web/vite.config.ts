@@ -170,6 +170,22 @@ export default defineConfig(({ mode, isSsrBuild }) => {
       sourcemap: true,
       // Inline nothing large; fonts and brand images stay cacheable files.
       assetsInlineLimit: 2048,
+      rollupOptions: {
+        output: {
+          // Ad blockers drop any script whose name looks like analytics ("tracker-*.js", "beacon*.js"),
+          // which left the app stuck on its skeleton for anyone running one. Keep chunk names
+          // readable but free of those words.
+          chunkFileNames: (chunk) => {
+            const swap = (word: string, to: string) =>
+              /^[A-Z]/.test(word) ? to[0]!.toUpperCase() + to.slice(1) : to;
+            const safe = chunk.name
+              .replace(/tracker/gi, (w) => swap(w, 'board'))
+              .replace(/beacon/gi, (w) => swap(w, 'lamp'))
+              .replace(/analytics|pixel|advert/gi, (w) => swap(w, 'stats'));
+            return `assets/${safe}-[hash].js`;
+          },
+        },
+      },
     },
   };
 });
