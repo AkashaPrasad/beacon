@@ -1,0 +1,356 @@
+/*
+ * Beacon web stylesheet. Order matters:
+ *   1. Tailwind v4 core
+ *   2. Design tokens (packages/ui/tokens.css, owned by design; never edit values here)
+ *   3. tw-animate-css (enter/exit keyframes used by the shadcn/Radix primitives)
+ *   4. Web-only extensions below (font fallbacks, base layer, a few utilities)
+ */
+@import 'tailwindcss';
+@import '@kestrel/ui/tokens.css';
+@import 'tw-animate-css';
+
+/* Shared primitives live outside this package; let Tailwind see their class names. */
+@source '../../../../packages/ui/src';
+
+/* ── Fonts ──────────────────────────────────────────────────────────────────────
+   Faces are self-hosted via @fontsource (imported in src/styles/fonts.ts).
+   Metric-matched local fallbacks (capsize) keep CLS at 0 while the webfont swaps in. */
+@font-face {
+  font-family: 'Instrument Serif Fallback';
+  src: local('Georgia');
+  ascent-override: 129.426%;
+  descent-override: 40.5273%;
+  line-gap-override: 0%;
+  size-adjust: 76.4916%;
+}
+@font-face {
+  font-family: 'Instrument Serif Fallback';
+  src: local('Times New Roman'), local('TimesNewRomanPSMT');
+  ascent-override: 117.9435%;
+  descent-override: 36.9318%;
+  line-gap-override: 0%;
+  size-adjust: 83.9385%;
+}
+@font-face {
+  font-family: 'Geist Fallback';
+  src: local('Arial'), local('ArialMT');
+  ascent-override: 95.9379%;
+  descent-override: 28.1609%;
+  line-gap-override: 0%;
+  size-adjust: 104.7553%;
+}
+
+:root {
+  --font-display: 'Instrument Serif', 'Instrument Serif Fallback', Georgia, serif;
+  --font-sans:
+    'Geist Variable', 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+  /* Safe-area insets (iOS notch / home indicator) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Base layer ──────────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+  ::selection {
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent-subtle-fg);
+  }
+  /* One focus ring everywhere (DESIGN §9). Components may switch to focus-ring-inset. */
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  /* Numbers are tabular wherever mono is used */
+  .font-mono,
+  code,
+  kbd {
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: default;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────────────── */
+@utility pt-safe {
+  padding-top: var(--safe-top);
+}
+@utility pb-safe {
+  padding-bottom: var(--safe-bottom);
+}
+@utility pl-safe {
+  padding-left: var(--safe-left);
+}
+@utility pr-safe {
+  padding-right: var(--safe-right);
+}
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+/* Expands the hit area of a small control to at least 32px (DESIGN §9 targets) */
+@utility hit-area {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: max(100%, 2rem);
+    height: max(100%, 2rem);
+    transform: translate(-50%, -50%);
+  }
+}
+@utility text-balance {
+  text-wrap: balance;
+}
+
+/* Skeleton shimmer (static under reduced motion: the token durations collapse, and we stop the loop) */
+@keyframes beacon-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@utility skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--color-skeleton-shine), transparent);
+    animation: beacon-shimmer 1.2s linear infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .skeleton-shimmer::after {
+    animation: none;
+    display: none;
+  }
+}
+[data-motion='reduced'] .skeleton-shimmer::after {
+  animation: none;
+  display: none;
+}
+
+/* Under reduced motion, tw-animate-css enter/exit keyframes become instant (opacity stays honest via durations) */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) *,
+  :root:not([data-motion='full']) *::before,
+  :root:not([data-motion='full']) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+[data-motion='reduced'] *,
+[data-motion='reduced'] *::before,
+[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── Interaction physics (docs/MOTION.md §4, §5.1, §7) ─────────────────────────────
+   Press starts on pointer-down (:active), springs back on release (`--ease-spring`).
+   Colour tints are 120 ms; only transform-like properties and colours ever transition. */
+@utility press {
+  transition-property: scale, background-color, border-color, color, opacity;
+  transition-duration: var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+    var(--duration-fast);
+  transition-timing-function: var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
+  touch-action: manipulation;
+  &:active:not(:disabled, [aria-disabled='true']),
+  &[data-pressed] {
+    scale: 0.97;
+    transition-duration: var(--duration-fast), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+      var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+}
+@utility press-icon {
+  transition-property: scale, background-color, border-color, color, opacity;
+  transition-duration: var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+    var(--duration-fast);
+  transition-timing-function: var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
+  touch-action: manipulation;
+  &:active:not(:disabled, [aria-disabled='true']),
+  &[data-pressed] {
+    scale: 0.92;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+}
+@utility press-card {
+  transition-property: scale, translate, border-color, background-color;
+  transition-duration: var(--duration-base), var(--duration-base), var(--duration-fast), var(--duration-fast);
+  transition-timing-function: var(--ease-spring);
+  &:active {
+    scale: 0.985;
+  }
+}
+@utility press-none {
+  &:active {
+    scale: none;
+  }
+}
+/* Card hover lift: y −2 px + a composited shadow fade on ::after (never animate box-shadow). */
+@utility lift {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    transition: opacity var(--duration-fade) var(--ease-out);
+    pointer-events: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      translate: 0 -2px;
+    }
+    &:hover::after {
+      opacity: 1;
+    }
+  }
+  &[data-dragging]::after {
+    opacity: 1;
+  }
+}
+/* SVG mark that draws in (checkbox): pathLength 0 → 1, 120 ms ease-out. */
+@keyframes beacon-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@utility draw-in {
+  stroke-dasharray: 1;
+  animation: beacon-draw var(--duration-fast) var(--ease-out) both;
+}
+/* Invalid paste shake (the only shake in the product): x ±3 px, 2 cycles, 240 ms. */
+@keyframes beacon-shake {
+  0%, 100% { translate: 0; }
+  12.5%, 62.5% { translate: -3px; }
+  37.5%, 87.5% { translate: 3px; }
+}
+@utility shake {
+  animation: beacon-shake var(--duration-slow) linear;
+}
+
+/* Reduced motion: presses become tints only, lifts become shadow fades only. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) :is(.press, .press-icon, .press-card):active,
+  :root:not([data-motion='full']) :is(.press, .press-icon):is([data-pressed]),
+  :root:not([data-motion='full']) .lift:hover {
+    scale: none;
+    translate: none;
+  }
+}
+[data-motion='reduced'] :is(.press, .press-icon, .press-card):active,
+[data-motion='reduced'] :is(.press, .press-icon)[data-pressed],
+[data-motion='reduced'] .lift:hover {
+  scale: none;
+  translate: none;
+}
+
+/* ── Third-party timing overrides (MOTION §5.4 Vaul, §5.11 Sonner) ─────────────── */
+[data-vaul-drawer] {
+  transition-duration: var(--duration-slow) !important;
+  animation-duration: var(--duration-slow) !important;
+  transition-timing-function: var(--ease-spring) !important;
+}
+[data-vaul-overlay] {
+  transition-duration: var(--duration-fade) !important;
+}
+[data-sonner-toast] {
+  transition:
+    transform var(--duration-slow) var(--ease-spring),
+    opacity var(--duration-fade),
+    height var(--duration-base) var(--ease-spring) !important;
+}
+
+/* ── View Transitions: theme crossfade (§5.14) and route fade (§5.15) ─────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+html[data-vt='theme']::view-transition-old(root),
+html[data-vt='theme']::view-transition-new(root) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-in-out);
+}
+html[data-vt='theme']::view-transition-old(root) {
+  animation-name: -ua-view-transition-fade-out;
+}
+html[data-vt='theme']::view-transition-new(root) {
+  animation-name: -ua-view-transition-fade-in;
+}
+@keyframes beacon-main-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes beacon-main-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--motion-distance-sm);
+  }
+}
+::view-transition-old(main) {
+  animation: beacon-main-out 80ms var(--ease-in) both;
+}
+::view-transition-new(main) {
+  animation: beacon-main-in var(--duration-fade) var(--ease-out) both;
+}
+::view-transition-group(topbar),
+::view-transition-group(tabbar),
+::view-transition-old(topbar),
+::view-transition-new(topbar),
+::view-transition-old(tabbar),
+::view-transition-new(tabbar) {
+  animation: none;
+}
+::view-transition-group(*) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-spring);
+}

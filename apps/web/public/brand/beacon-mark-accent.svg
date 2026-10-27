@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="beacon-app-title">
+  <title id="beacon-app-title">Beacon</title>
+  <!-- App tile: signal amber #F5A524, radius 112 (~22%). Mark: lamp-black #1F1505 at 72% scale, bbox centred. -->
+  <rect width="512" height="512" rx="112" fill="#F5A524"/>
+  <g transform="translate(256 256) scale(0.72) translate(-264 -248)">
+    <path d="M396.7 260.7A160 160 0 1 1 251.3 115.3" fill="none" stroke="#1F1505" stroke-width="30" stroke-linecap="round"/>
+    <path d="M334.3 46.4A248 248 0 0 1 465.6 177.7L322 238.7A92 92 0 0 0 273.3 190Z" fill="#1F1505"/>
+    <circle cx="237.4" cy="274.6" r="62" fill="#1F1505"/>
+  </g>
+</svg>

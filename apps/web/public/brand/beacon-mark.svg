@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" role="img" aria-labelledby="beacon-mark-title">
+  <title id="beacon-mark-title">Beacon</title>
+  <!-- Construction: every part is concentric with the source at (237.4, 274.6).
+       Field ring r 160, stroke 30, round caps, open ±40° around the 45° axis.
+       Beam: annular sector r 92 → 248, ±22° on the same axis, leaving the field through the gap. -->
+  <path d="M396.7 260.7A160 160 0 1 1 251.3 115.3" fill="none" stroke="currentColor" stroke-width="30" stroke-linecap="round"/>
+  <path d="M334.3 46.4A248 248 0 0 1 465.6 177.7L322 238.7A92 92 0 0 0 273.3 190Z"/>
+  <circle cx="237.4" cy="274.6" r="62"/>
+</svg>
