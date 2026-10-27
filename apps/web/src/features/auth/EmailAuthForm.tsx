@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 
 import { queryKeys } from '@/api/keys';
@@ -65,6 +65,13 @@ export function EmailAuthForm({ next }: { next: string | null }) {
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const focusOnModeChange = useRef<'name' | 'email' | null>(null);
+  useLayoutEffect(() => {
+    const field = focusOnModeChange.current;
+    if (!field) return;
+    focusOnModeChange.current = null;
+    (field === 'name' ? nameRef : emailRef).current?.focus();
+  }, [mode]);
   const focusField = (field: Field) =>
     (field === 'name' ? nameRef : field === 'email' ? emailRef : passwordRef).current?.focus();
   const login = useEmailLogin();
@@ -121,10 +128,10 @@ export function EmailAuthForm({ next }: { next: string | null }) {
 
   const switchMode = () => {
     const nextMode: Mode = registering ? 'signin' : 'register';
+    focusOnModeChange.current = nextMode === 'register' ? 'name' : 'email';
     setMode(nextMode);
     setErrors({});
     setFormError(null);
-    requestAnimationFrame(() => focusField(nextMode === 'register' ? 'name' : 'email'));
   };
 
   const describe = (field: Field, extra?: string) =>

@@ -777,6 +777,7 @@ test.describe('tracker', () => {
     }
 
     await test.step('item page', async () => {
+      await expect(page.getByTestId('tracker-board')).not.toHaveAttribute('data-dragging', /.+/);
       await visit(page, '/tracker');
       await page.getByTestId('tracker-card').first().click();
       await expect(page).toHaveURL(/\/tracker\/[^/]+$/);

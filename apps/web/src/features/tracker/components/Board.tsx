@@ -554,7 +554,7 @@ export function Board({
           role="region"
           aria-label="Board"
           data-testid="tracker-board"
-          data-dragging={pointer ? 'pointer' : kbd ? 'keyboard' : undefined}
+          data-dragging={pointer ? 'pointer' : kbd ? 'keyboard' : settling ? 'settling' : undefined}
           className="flex snap-x snap-mandatory scroll-px-gutter gap-3 overflow-x-auto overscroll-x-contain px-gutter pt-1 pb-4 [scrollbar-width:thin] md:snap-none"
         >
           {COLUMNS.map((column) => {

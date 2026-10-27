@@ -50,8 +50,9 @@ fallback reviewer instructions. Review screenshots and axe results are local und
 
 - Lint: passes (three non-blocking React/TanStack advisory warnings).
 - Type checking: passes across all workspace packages.
-- Unit/integration: 1,351 passed in the standard suite; the opt-in real embedding-model test also passed (1,352 distinct tests verified).
+- Unit/integration: 1,354 passed in the standard suite; the opt-in real embedding-model test also passed (1,355 distinct tests verified).
 - Build: API, worker, shared package and prerendered web production builds pass.
+- Focus and drag regressions: form/onboarding arrival focus settles before typing or tabbing; tracker checks wait for the actual drop to finish.
 - Interaction smoke: 87/87 passed across Chromium desktop, Safari desktop and iPhone WebKit, with no skips.
 - Dependency audit: zero vulnerabilities. Secret scans: zero findings in the committable tree,
   Git history, and built assets checked against local secret values.

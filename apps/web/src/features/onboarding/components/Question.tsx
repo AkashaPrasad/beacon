@@ -1,6 +1,14 @@
 import { ArrowLeft, ChevronDown, CornerDownLeft, Loader2 } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useOnboarding } from '@/features/onboarding/flow/context';
@@ -91,21 +99,18 @@ export function Question({
   });
   const fits = useLiveFits(liveDraft ?? null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = root.current;
-    if (!el) return undefined;
-    const raf = requestAnimationFrame(() => {
-      const target =
-        (autoFocusSelector ? el.querySelector<HTMLElement>(autoFocusSelector) : null) ??
-        el.querySelector<HTMLElement>('[data-autofocus]') ??
-        el.querySelector<HTMLElement>(
-          'input:not([type="hidden"]):not([tabindex="-1"]),[role="radio"][tabindex="0"],[role="checkbox"][tabindex="0"],button[aria-pressed][tabindex="0"]',
-        ) ??
-        el.querySelector<HTMLElement>('h1');
-      target?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(raf);
-    // Arrival only.
+    if (!el) return;
+    const target =
+      (autoFocusSelector ? el.querySelector<HTMLElement>(autoFocusSelector) : null) ??
+      el.querySelector<HTMLElement>('[data-autofocus]') ??
+      el.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([tabindex="-1"]),[role="radio"][tabindex="0"],[role="checkbox"][tabindex="0"],button[aria-pressed][tabindex="0"]',
+      ) ??
+      el.querySelector<HTMLElement>('h1');
+    target?.focus({ preventScroll: true });
+    // Arrival only; focus must settle before the user can start tabbing or typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
