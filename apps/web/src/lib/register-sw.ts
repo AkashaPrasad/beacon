@@ -1,10 +1,9 @@
-import { toast } from 'sonner';
-
 import { NAVIGATE_EVENT } from './push-url';
 
 /**
  * Registers the PWA service worker (src/sw.ts → /sw.js) after load, production only, never in mock mode
- * (MSW owns the worker scope there). When an update is waiting, offer a reload instead of forcing one.
+ * (MSW owns the worker scope there). A waiting update is activated straight away and the page reloads
+ * once it takes control, so a deploy never leaves a tab running a stale shell against new chunks.
  */
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
@@ -16,13 +15,7 @@ export function registerServiceWorker(): void {
           const worker = registration.installing;
           worker?.addEventListener('statechange', () => {
             if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-              toast('A new version of Beacon is ready.', {
-                duration: Infinity,
-                action: {
-                  label: 'Reload',
-                  onClick: () => worker.postMessage({ type: 'SKIP_WAITING' }),
-                },
-              });
+              worker.postMessage({ type: 'SKIP_WAITING' });
             }
           });
         });

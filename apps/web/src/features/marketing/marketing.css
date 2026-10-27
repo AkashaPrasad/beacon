@@ -22,15 +22,15 @@
 }
 
 /* ── Bands ─────────────────────────────────────────────────────────────────────────────────────
-   A band is a full-bleed section with its own atmosphere. `.dark` on the band forces the dark tokens
-   (the hero and the finale are always night, so the lamp reads as a lamp). */
+   A band is a full-bleed section with its own atmosphere. Bands follow the page theme: in light mode
+   every band is paper, in dark mode the night bands sink a shade deeper so the lamp reads as a lamp. */
 .mk-band {
   position: relative;
   isolation: isolate;
   overflow: clip;
   background-color: var(--color-bg);
 }
-.mk-band-night {
+[data-theme='dark'] .mk-band-night {
   background-color: #0e0f12;
   --color-bg: #0e0f12;
   --color-surface: #15171b;
@@ -401,11 +401,14 @@
 
 /* ── Additional bands ────────────────────────────────────────────────────────────────────────── */
 /* Cobalt-tinted night: the ink carries a little of the lamp everywhere. */
-.mk-band-tint {
+[data-theme='light'] .mk-band-tint {
   background-color: #f3f3f0;
 }
+[data-theme='dark'] .mk-band-tint {
+  background-color: #121317;
+}
 /* Paper: the one light band (honesty, FAQ). */
-.mk-band-paper {
+[data-theme='light'] .mk-band-paper {
   background-color: #fafaf9;
 }
 .mk-band-paper .mk-grain {
@@ -474,7 +477,12 @@
 .mk-cta-card {
   position: relative;
   border-radius: var(--radius-xl);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+  box-shadow: 0 24px 48px -24px rgb(17 19 24 / 0.18);
+}
+[data-theme='dark'] .mk-cta-card {
+  border-color: rgb(255 255 255 / 0.1);
   background: #15171b;
   box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.6);
 }
@@ -551,7 +559,8 @@
    Hues map to opportunity types and feature roles. Until the design tokens expose these, they are
    defined here; values are AA-checked for text-on-subtle and fill-with-white. */
 :root,
-.light {
+:root,
+[data-theme='light'] {
   --mk-violet: #6b4f7a;
   --mk-violet-soft: rgb(107 79 122 / 0.09); /* plum */
   --mk-teal: #3e7474;
@@ -569,7 +578,8 @@
   --mk-cobalt: #1e6b4f;
   --mk-cobalt-soft: rgb(30 107 79 / 0.09); /* evergreen (primary accent) */
 }
-.dark {
+.dark,
+[data-theme='dark'] {
   --mk-violet: #b9a6c6;
   --mk-violet-soft: rgb(185 166 198 / 0.12);
   --mk-teal: #8fbdbd;
@@ -589,7 +599,7 @@
 }
 
 /* A luminous light band: tinted white canvas with soft coloured radial washes and grain. */
-.mk-band-wash {
+[data-theme='light'] .mk-band-wash {
   background-color: #fafaf9;
 }
 .mk-band-wash .mk-grain,
@@ -598,11 +608,14 @@
   opacity: 0.025;
 }
 /* Wash variants rotate the hues so adjacent sections never look the same. */
-.mk-band-wash[data-wash='b'] {
+[data-theme='light'] .mk-band-wash[data-wash='b'] {
   background-color: #f3f3f0;
 }
-.mk-band-wash[data-wash='c'] {
+[data-theme='light'] .mk-band-wash[data-wash='c'] {
   background-color: #fafaf9;
+}
+[data-theme='dark'] .mk-band-wash[data-wash='b'] {
+  background-color: #121317;
 }
 
 /* A tile or card that carries a role colour: `--mk-hue` and `--mk-hue-soft` set inline or by class. */
@@ -652,8 +665,8 @@
 }
 
 /* White e2 cards on the light canvas: layered shadow, top highlight. */
-.light .mk-tile,
-.light .mk-panel {
+[data-theme='light'] .mk-tile,
+[data-theme='light'] .mk-panel {
   background: var(--color-surface-raised);
   border-color: #e6e6e3;
   box-shadow:
@@ -661,23 +674,23 @@
     0 12px 32px -20px rgb(17 19 24 / 0.14);
 }
 
-/* ── Buttons on the dark hero and finale: white with graphite text ─────────────────────────── */
-.mk-btn-light {
+/* ── Buttons on the night hero and finale (dark theme only): white with graphite text ──────── */
+[data-theme='dark'] .mk-btn-light {
   background: #f2f2f0 !important;
   color: #111318 !important;
   box-shadow: none !important;
 }
-.mk-btn-light:hover {
+[data-theme='dark'] .mk-btn-light:hover {
   background: #ffffff !important;
 }
-.mk-btn-ghost-dark {
+[data-theme='dark'] .mk-btn-ghost-dark {
   color: #c7c9cf !important;
 }
-.mk-btn-ghost-dark:hover {
+[data-theme='dark'] .mk-btn-ghost-dark:hover {
   color: #f2f2f0 !important;
   background: rgb(255 255 255 / 0.06) !important;
 }
-.mk-band-night .mk-panel {
+[data-theme='dark'] .mk-band-night .mk-panel {
   background: #15171b;
   border-color: rgb(255 255 255 / 0.08);
   box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.7);

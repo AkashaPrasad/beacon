@@ -78,10 +78,10 @@ export function Band({
       data-wash={tone === 'wash' ? wash : undefined}
       className={cn(
         'mk-band',
-        tone === 'night' && 'dark mk-band-night bg-bg text-fg',
-        tone === 'tint' && 'dark mk-band-tint bg-bg text-fg',
-        tone === 'paper' && 'light mk-band-paper bg-bg text-fg',
-        tone === 'wash' && 'light mk-band-wash bg-bg text-fg',
+        tone === 'night' && 'mk-band-night bg-bg text-fg',
+        tone === 'tint' && 'mk-band-tint bg-bg text-fg',
+        tone === 'paper' && 'mk-band-paper bg-bg text-fg',
+        tone === 'wash' && 'mk-band-wash bg-bg text-fg',
         className,
       )}
       {...rest}

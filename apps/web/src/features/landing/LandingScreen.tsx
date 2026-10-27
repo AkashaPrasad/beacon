@@ -111,7 +111,7 @@ function Hero() {
           <h1 id="hero-title" className="mk-display-hero text-balance text-fg">
             <span className="block">{HERO.headline}</span>
             <span className="block text-fg-secondary">
-              <em className="text-[#c7c9cf]">{HERO.headlineTail.em}</em>
+              <em className="text-fg-secondary">{HERO.headlineTail.em}</em>
               {HERO.headlineTail.after}
             </span>
           </h1>
@@ -359,7 +359,7 @@ function Finale() {
         className="mx-auto grid min-h-svh max-w-content items-center gap-12 px-gutter py-24 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-16"
       >
         <div className="relative mx-auto size-36 md:mx-0 md:size-56 md:justify-self-center lg:size-64">
-          <BeaconMark className="relative size-full text-[#f2f2f0]" />
+          <BeaconMark className="relative size-full text-fg" />
         </div>
         <m.div
           data-lit={lit || undefined}
