@@ -530,10 +530,10 @@ test.describe('radar', () => {
     });
 
     await test.step('open a listing (full page) and come back', async () => {
-      await expect(rows.nth(6)).toBeVisible({ timeout: 15_000 });
-      const target = rows.nth(6);
+      // A below-fold card makes the restoration meaningful without synthetic wheel inertia.
+      await expect(rows.nth(12)).toBeVisible({ timeout: 15_000 });
+      const target = rows.nth(12);
       await target.scrollIntoViewIfNeeded();
-      if (!isMobileWidth(page)) await page.mouse.wheel(0, 300);
       await page.waitForTimeout(300);
       const id = await target.getAttribute('data-listing-id');
       const scrolled = await scrollOf(

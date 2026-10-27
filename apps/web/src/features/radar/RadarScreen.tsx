@@ -286,14 +286,18 @@ function RadarScreen() {
   useLayoutEffect(() => {
     if (wasReading.current && !reading) {
       const context = getListingContext();
-      window.scrollTo({ top: context?.scrollY ?? 0 });
+      const scrollY = context?.scrollY ?? 0;
+      window.scrollTo({ top: scrollY, behavior: 'instant' });
       const id = navState.cursorId;
-      if (id) {
-        requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (id) {
           if (view === 'list') feedRef.current?.focusRow(id);
           else rowElement(id)?.focus({ preventScroll: true });
-        });
-      }
+        }
+        // Router restoration and Safari's focus scroll happen after layout effects.
+        // Restore once more after focus so the originating list retains its position.
+        window.scrollTo({ top: scrollY, behavior: 'instant' });
+      });
     }
     wasReading.current = reading;
   }, [reading, navState.cursorId, view]);
