@@ -383,6 +383,17 @@ export async function matchListings(
   ).lean<ScoredListing[]>();
   if (listings.length === 0) return { users: 0, written: 0, alerts: 0, continued: false };
 
+  if (!afterUserId) {
+    // Profiles still without a vector never enter the incremental loop below. Queue each a full
+    // recompute (which builds the vector itself), so a user whose embed job was lost or is still
+    // queued behind listing embeds gets a real feed on the next ingest instead of never.
+    const pending = await ProfileModel.find({ 'embedding.0': { $exists: false } }, { userId: 1 })
+      .limit(100)
+      .lean<Pick<ProfileDoc, 'userId'>[]>();
+    for (const p of pending)
+      await deps.enqueue.match({ userId: String(p.userId), reason: 'embedding' });
+  }
+
   const limit = deps.env.MATCH_USERS_PER_JOB;
   const filter: Record<string, unknown> = { 'embedding.0': { $exists: true } };
   if (afterUserId) filter.userId = { $gt: new Types.ObjectId(afterUserId) };

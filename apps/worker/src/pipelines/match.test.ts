@@ -367,6 +367,16 @@ describe('match', () => {
     ]);
   });
 
+  it('incremental: a profile with no vector is queued for a full recompute instead of being skipped', async () => {
+    const deps = testDeps();
+    const id = await listing();
+    await embedListing(deps, id);
+    const userId = await user();
+    await matchListings(deps, [id]);
+    expect(deps.enqueue.matches).toEqual([{ userId, reason: 'embedding' }]);
+    expect(await MatchModel.countDocuments({ userId: new Types.ObjectId(userId) })).toBe(0);
+  });
+
   it('chunks users and enqueues a continuation', async () => {
     const deps = testDeps({ env: loadEnv({ NODE_ENV: 'test', MATCH_USERS_PER_JOB: '1' }) });
     const u1 = await user();
