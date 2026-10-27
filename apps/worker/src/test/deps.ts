@@ -1,4 +1,6 @@
 import { loadEnv } from '../env.js';
+import { MemoryRedis } from './memory-redis.js';
+import { TEST_NOW } from './samples.js';
 import { HashEmbedder } from '../lib/embeddings.js';
 import type { ListingLlm } from '../lib/llm.js';
 import { Metrics } from '../lib/metrics.js';
@@ -7,8 +9,6 @@ import { MemoryVectorIndex } from '../lib/vector.js';
 import { nullLogger } from '../logger.js';
 import { type PipelineDeps, RecordingEnqueuer } from '../pipelines/deps.js';
 
-import { MemoryRedis } from './memory-redis.js';
-import { TEST_NOW } from './samples.js';
 
 export class FakePush implements PushSender {
   enabled = true;

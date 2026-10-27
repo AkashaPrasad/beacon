@@ -1,3 +1,5 @@
+import { Types } from 'mongoose';
+
 import {
   type AlertChannel,
   DAY_MS,
@@ -8,8 +10,8 @@ import {
   type QuietHours,
   TERMINAL_TRACKER_STAGES,
 } from '@kestrel/shared';
-import { Types } from 'mongoose';
 
+import type { PipelineDeps } from './deps.js';
 import { matchesConditions } from '../lib/alerts.js';
 import { utcDay } from '../lib/dates.js';
 import type { PushPayload } from '../lib/push.js';
@@ -17,6 +19,7 @@ import { inQuietHours, isLocalHour, localParts, quietHoursEnd } from '../lib/tim
 import {
   AlertRuleModel,
   type AlertRuleDoc,
+  InteractionModel,
   type ListingDoc,
   ListingModel,
   MatchModel,
@@ -29,7 +32,6 @@ import {
 } from '../models/index.js';
 import type { NotifyJob } from '../queues.js';
 
-import type { PipelineDeps } from './deps.js';
 
 const APP = 'Beacon';
 const PER_LISTING_PUSH_TTL = 30 * 24 * 3600;
@@ -148,7 +150,7 @@ export async function deliver(deps: PipelineDeps, input: DeliverInput): Promise<
     { upsert: true },
   );
   if (!res.upsertedId) return 'duplicate';
-  const id = res.upsertedId as Types.ObjectId;
+  const id = res.upsertedId;
   deps.metrics.inc('beacon_worker_notifications_total', { kind: input.kind }, 1, 'In-app notifications created');
   if (!wantsPush) return 'inapp';
 
@@ -328,40 +330,88 @@ async function notifyDigest(deps: PipelineDeps, job: NotifyJob): Promise<number>
 
 // ── deadline reminders (daily 08:00 IST) ─────────────────────────────────────────────
 
+interface ReminderTarget {
+  userId: Types.ObjectId;
+  title: string;
+  company: string;
+  deadline: Date;
+  url: string;
+  /** Stable per tracked item / saved listing, so 7/3/1 d each fire once. */
+  key: string;
+  trackerItemId: Types.ObjectId | null;
+  listingId: Types.ObjectId | null;
+}
+
+/** Tracked items (not in a terminal stage) plus saved listings that are not tracked. */
+async function reminderTargets(job: NotifyJob, now: Date, horizon: Date): Promise<ReminderTarget[]> {
+  const userFilter = job.userId ? { userId: new Types.ObjectId(job.userId) } : {};
+  const items = await TrackerItemModel.find({ ...userFilter, stage: { $nin: [...TERMINAL_TRACKER_STAGES] } }).lean<TrackerItemDoc[]>();
+  const saved = await InteractionModel.find({ ...userFilter, saved: true }, { userId: 1, listingId: 1 }).lean();
+  const tracked = new Set(items.flatMap((i) => (i.listingId ? [`${String(i.userId)}:${String(i.listingId)}`] : [])));
+  const savedOnly = saved.filter((s) => !tracked.has(`${String(s.userId)}:${String(s.listingId)}`));
+  const listingIds = [...items.filter((i) => !i.deadlineAt && i.listingId).map((i) => i.listingId), ...savedOnly.map((s) => s.listingId)];
+  const listings = new Map(
+    (
+      await ListingModel.find({ _id: { $in: listingIds }, deadlineAt: { $gt: now, $lt: horizon } }, { title: 1, company: 1, deadlineAt: 1 }).lean<
+        Pick<ListingDoc, '_id' | 'title' | 'company' | 'deadlineAt'>[]
+      >()
+    ).map((l) => [String(l._id), l]),
+  );
+  const out: ReminderTarget[] = [];
+  for (const item of items) {
+    const deadline = item.deadlineAt ? new Date(item.deadlineAt) : item.listingId ? (listings.get(String(item.listingId))?.deadlineAt ?? null) : null;
+    if (!deadline) continue;
+    out.push({
+      userId: item.userId,
+      title: item.title,
+      company: item.company,
+      deadline,
+      url: `/tracker?item=${String(item._id)}`,
+      key: String(item._id),
+      trackerItemId: item._id,
+      listingId: null,
+    });
+  }
+  for (const s of savedOnly) {
+    const l = listings.get(String(s.listingId));
+    if (!l?.deadlineAt) continue;
+    out.push({
+      userId: s.userId,
+      title: l.title,
+      company: l.company,
+      deadline: new Date(l.deadlineAt),
+      url: `/radar?listing=${String(l._id)}`,
+      key: `l:${String(l._id)}`,
+      trackerItemId: null,
+      listingId: l._id,
+    });
+  }
+  return out;
+}
+
 async function notifyDeadlines(deps: PipelineDeps, job: NotifyJob): Promise<number> {
   const now = deps.now();
   const horizon = new Date(now.getTime() + 31 * DAY_MS);
-  const filter: Record<string, unknown> = { stage: { $nin: [...TERMINAL_TRACKER_STAGES] } };
-  if (job.userId) filter.userId = new Types.ObjectId(job.userId);
-  const items = await TrackerItemModel.find(filter).lean<TrackerItemDoc[]>();
-  const listingDeadlines = new Map(
-    (
-      await ListingModel.find(
-        { _id: { $in: items.filter((i) => !i.deadlineAt && i.listingId).map((i) => i.listingId) }, deadlineAt: { $gt: now, $lt: horizon } },
-        { deadlineAt: 1 },
-      ).lean()
-    ).map((l) => [String(l._id), l.deadlineAt]),
-  );
   let sent = 0;
   const prefsCache = new Map<string, UserPrefs>();
-  for (const item of items) {
-    const deadline = item.deadlineAt ? new Date(item.deadlineAt) : item.listingId ? (listingDeadlines.get(String(item.listingId)) ?? null) : null;
-    if (!deadline || deadline <= now || deadline > horizon) continue;
-    const key = String(item.userId);
-    const prefs = prefsCache.get(key) ?? (await prefsFor(item.userId));
+  for (const t of await reminderTargets(job, now, horizon)) {
+    if (t.deadline <= now || t.deadline > horizon) continue;
+    const key = String(t.userId);
+    const prefs = prefsCache.get(key) ?? (await prefsFor(t.userId));
     prefsCache.set(key, prefs);
-    const left = daysUntil(deadline, now);
+    const left = daysUntil(t.deadline, now);
     const target = [...prefs.deadlineReminders].sort((a, b) => a - b).find((d) => left <= d);
     if (target === undefined) continue;
     const result = await deliver(deps, {
-      userId: item.userId,
+      userId: t.userId,
       kind: 'deadline',
-      title: `${left <= 1 ? 'Last day' : `${left} days left`}: ${item.title}`,
-      body: `${item.company} · closes ${localParts(deadline, prefs.timezone).date}`,
-      url: `/tracker?item=${String(item._id)}`,
-      dedupeKey: `deadline:${String(item._id)}:${target}:${deadline.toISOString().slice(0, 10)}`,
+      title: `${left <= 1 ? 'Last day' : `${left} days left`}: ${t.title}`,
+      body: `${t.company} · closes ${localParts(t.deadline, prefs.timezone).date}`,
+      url: t.url,
+      dedupeKey: `deadline:${t.key}:${target}:${t.deadline.toISOString().slice(0, 10)}`,
       channels: ['inapp', 'push'],
-      trackerItemId: item._id,
+      trackerItemId: t.trackerItemId,
+      // Not the listing id: the per-listing push limit is for new-match alerts.
       listingId: null,
     });
     if (result !== 'duplicate') sent++;
@@ -422,22 +472,30 @@ async function notifyNudges(deps: PipelineDeps, job: NotifyJob): Promise<number>
 
 async function notifyTest(deps: PipelineDeps, job: NotifyJob): Promise<number> {
   if (!job.userId) return 0;
+  const userId = new Types.ObjectId(job.userId);
+  const ruleId = job.ruleId ?? job.alertRuleId;
+  const rule = ruleId && Types.ObjectId.isValid(ruleId)
+    ? await AlertRuleModel.findOne({ _id: new Types.ObjectId(ruleId), userId }).lean<AlertRuleDoc>()
+    : null;
   const result = await deliver(deps, {
-    userId: new Types.ObjectId(job.userId),
+    userId,
     kind: 'system',
-    title: `${APP} test notification`,
-    body: 'Push and in-app notifications are working.',
-    url: '/settings/notifications',
-    dedupeKey: `test:${deps.now().getTime()}`,
-    channels: ['inapp', 'push'],
+    title: rule ? `Test: “${rule.name}”` : `${APP} test notification`,
+    body: rule ? 'This is how a match for this rule will look.' : 'Push and in-app notifications are working.',
+    url: rule ? `/alerts?rule=${String(rule._id)}` : '/settings/notifications',
+    dedupeKey: `test:${String(rule?._id ?? 'settings')}:${deps.now().getTime()}`,
+    channels: rule?.channels?.length ? rule.channels : ['inapp', 'push'],
+    alertRuleId: rule?._id ?? null,
     force: true,
   });
-  return result === 'pushed' || result === 'inapp' ? 1 : 0;
+  return result === 'duplicate' ? 0 : 1;
 }
 
 export async function runNotify(deps: PipelineDeps, job: NotifyJob): Promise<number> {
   if (job.test) return notifyTest(deps, job);
   switch (job.kind) {
+    case undefined:
+      return 0;
     case 'instant':
       return notifyInstant(deps, job);
     case 'digest':

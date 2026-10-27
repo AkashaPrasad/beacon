@@ -1,3 +1,5 @@
+import mongoose, { Schema, type Types } from 'mongoose';
+
 import type {
   AlertConditions,
   AlertChannel,
@@ -8,7 +10,6 @@ import type {
   TrackerItem,
   WeightsInput,
 } from '@kestrel/shared';
-import mongoose, { Schema, type Types } from 'mongoose';
 
 // API-owned collections. The worker reads them and writes only the fields it owns
 // (profile embedding, tracker nudges, rule lastTriggeredAt, push subscription pruning).
@@ -29,16 +30,27 @@ const userSchema = new Schema<UserDoc>(
 export const UserModel =
   (mongoose.models.User as mongoose.Model<UserDoc> | undefined) ?? mongoose.model<UserDoc>('User', userSchema);
 
+/** Lowest stage-1 similarity that made the candidate set at the last full recompute. */
+export interface MatchFloors {
+  overall: number;
+  byType: Partial<Record<string, number>>;
+}
+
 export type ProfileDoc = Omit<Profile, 'userId'> & {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  /** API-owned hash of the profile fields (explanations are cached by it). */
+  profileHash?: string | null;
   /** 384-d profile embedding (worker-owned). */
   embedding?: number[];
-  /** Hash of the profile text the embedding was computed from. */
+  /** Hash of the profile text the embedding was computed from (worker-owned). */
   embeddingHash: string | null;
+  embeddedAt?: Date | null;
   embeddingModel?: string | null;
-  /** Hash of profile + weights the stored matches were computed with. */
+  /** Worker-owned: hash of profile + weights + visible sources the stored matches were computed with. */
   matchHash?: string | null;
+  /** Worker-owned: incremental matching only keeps listings that would have made stage 1. */
+  matchFloors?: MatchFloors | null;
   updatedAt?: Date;
 };
 const profileSchema = new Schema<ProfileDoc>(
@@ -84,7 +96,7 @@ const trackerItemSchema = new Schema<TrackerItemDoc>(
     listingId: { type: Schema.Types.ObjectId, ref: 'Listing', default: null },
     sourceId: { type: Schema.Types.ObjectId, ref: 'Source', default: null },
   },
-  { collection: 'trackerItems', timestamps: true, ...loose },
+  { collection: 'tracker_items', timestamps: true, ...loose },
 );
 export const TrackerItemModel =
   (mongoose.models.TrackerItem as mongoose.Model<TrackerItemDoc> | undefined) ??
@@ -108,7 +120,7 @@ export interface AlertRuleDoc {
 }
 const alertRuleSchema = new Schema<AlertRuleDoc>(
   { userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true } },
-  { collection: 'alertRules', timestamps: true, ...loose },
+  { collection: 'alert_rules', timestamps: true, ...loose },
 );
 export const AlertRuleModel =
   (mongoose.models.AlertRule as mongoose.Model<AlertRuleDoc> | undefined) ??
@@ -127,8 +139,48 @@ const pushSubscriptionSchema = new Schema<PushSubscriptionDoc>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     endpoint: { type: String, required: true, unique: true },
   },
-  { collection: 'pushSubscriptions', timestamps: true, ...loose },
+  { collection: 'push_subscriptions', timestamps: true, ...loose },
 );
 export const PushSubscriptionModel =
   (mongoose.models.PushSubscription as mongoose.Model<PushSubscriptionDoc> | undefined) ??
   mongoose.model<PushSubscriptionDoc>('PushSubscription', pushSubscriptionSchema);
+
+/** `subscriptions` (API-owned): user ↔ community source. Read for listing visibility. */
+export interface SubscriptionDoc {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  sourceId: Types.ObjectId;
+  packId: string | null;
+}
+const subscriptionSchema = new Schema<SubscriptionDoc>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    sourceId: { type: Schema.Types.ObjectId, ref: 'Source', required: true },
+    packId: { type: String, default: null },
+  },
+  { collection: 'subscriptions', ...loose },
+);
+export const SubscriptionModel =
+  (mongoose.models.Subscription as mongoose.Model<SubscriptionDoc> | undefined) ??
+  mongoose.model<SubscriptionDoc>('Subscription', subscriptionSchema);
+
+/** `interactions` (API-owned): saved / hidden flags. Saved listings get deadline reminders. */
+export interface InteractionDoc {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  listingId: Types.ObjectId;
+  saved: boolean;
+  hidden: boolean;
+}
+const interactionSchema = new Schema<InteractionDoc>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    listingId: { type: Schema.Types.ObjectId, ref: 'Listing', required: true },
+    saved: { type: Boolean, default: false },
+    hidden: { type: Boolean, default: false },
+  },
+  { collection: 'interactions', timestamps: true, ...loose },
+);
+export const InteractionModel =
+  (mongoose.models.Interaction as mongoose.Model<InteractionDoc> | undefined) ??
+  mongoose.model<InteractionDoc>('Interaction', interactionSchema);

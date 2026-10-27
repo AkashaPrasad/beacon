@@ -1,10 +1,10 @@
+import { buildAll, type RawListing } from './build.js';
+import { emptyResult, type Fetcher } from './types.js';
+import { asArray, boardTokenOf, companyOf, rethrowNotFound, str } from './util.js';
 import { SourceError } from '../lib/errors.js';
 import { escapedHtmlToMarkdown } from '../lib/html.js';
 import { httpJson } from '../lib/http.js';
 
-import { buildAll, type RawListing } from './build.js';
-import { emptyResult, type Fetcher } from './types.js';
-import { asArray, boardTokenOf, companyOf, rethrowNotFound, str } from './util.js';
 
 interface GreenhouseJob {
   id: number;

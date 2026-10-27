@@ -22,7 +22,7 @@ import { startWorkers } from './processors.js';
 import { DEAD_LETTER_QUEUE, MAINTENANCE_QUEUE, QUEUE_LIST } from './queues.js';
 import { createRedisConnection } from './redis.js';
 import { bullEnqueuer, createQueueSet, type QueueSet } from './runtime.js';
-import { registerSchedules, syncSourceSchedules } from './scheduler.js';
+import { applyGlobalConcurrency, registerSchedules, syncSourceSchedules } from './scheduler.js';
 
 export interface WorkerApp {
   deps: PipelineDeps;
@@ -40,7 +40,7 @@ export interface WorkerApp {
 export function buildWorker(env: Env, logger: Logger): WorkerApp {
   const redis = createRedisConnection(env.REDIS_URL);
   redis.on('error', (err) => logger.error({ err: err.message }, 'redis error'));
-  const set = createQueueSet(redis);
+  const set = createQueueSet(redis, env.QUEUE_PREFIX);
   const metrics = new Metrics();
   const meter = new CreditMeter(redis, { dailyCap: env.FIRECRAWL_DAILY_CREDIT_CAP, userDailyCap: env.FIRECRAWL_USER_DAILY_CREDIT_CAP });
   const standby = new StandbyManager({
@@ -118,10 +118,19 @@ export function buildWorker(env: Env, logger: Logger): WorkerApp {
       logger.info({ port: env.HEALTH_PORT }, 'health server listening');
       if (!env.MONGODB_URI) throw new Error('MONGODB_URI is required');
       await connectMongo({ uri: env.MONGODB_URI, dbName: env.MONGODB_DB });
-      await ensureWorkerIndexes();
+      await ensureWorkerIndexes((message) => logger.warn({ message }, 'index conflict (left as is)'));
       logger.info({ db: env.MONGODB_DB, vector: env.VECTOR_SEARCH, llm: Boolean(deps.llm), embedder: deps.embedder.model, crawler: { cloud: crawler.cloudConfigured, selfhosted: crawler.selfhostedAvailable } }, 'worker dependencies ready');
       if (env.WORKER_PROCESSORS) {
-        workers = startWorkers({ deps, set, connection: redis, standby, crawler, syncSchedules: () => syncSourceSchedules(set, logger) });
+        await applyGlobalConcurrency(set);
+        workers = startWorkers({
+          deps,
+          set,
+          connection: redis,
+          standby,
+          crawler,
+          syncSchedules: () => syncSourceSchedules(set, logger),
+          ...(env.QUEUE_PREFIX ? { prefix: env.QUEUE_PREFIX } : {}),
+        });
         logger.info({ queues: [...QUEUE_LIST, MAINTENANCE_QUEUE], dlq: DEAD_LETTER_QUEUE }, 'processors started');
       }
       if (env.WORKER_SCHEDULER) await registerSchedules(set, logger);

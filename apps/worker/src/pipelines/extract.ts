@@ -1,10 +1,10 @@
 import { canonicaliseSkills, type Eligibility, normaliseCountry, parseDeadline } from '@kestrel/shared';
 
-import { extractByRules } from '../lib/extract-rules.js';
-import type { LlmExtraction } from '../lib/llm.js';
-import { type ExtractMethod, type ListingDoc, ListingModel } from '../models/index.js';
-
 import type { PipelineDeps } from './deps.js';
+import { extractByRules } from '../lib/extract-rules.js';
+import { type LlmCallContext, LlmCapError, type LlmExtraction } from '../lib/llm.js';
+import { type ExtractMethod, type ListingDoc, ListingModel, SettingsModel, SourceModel } from '../models/index.js';
+
 
 export interface ExtractOutcome {
   listingId: string;
@@ -35,6 +35,17 @@ function fromLlm(llm: LlmExtraction): Eligibility {
 }
 
 /**
+ * Who pays for an LLM extraction: the owner of a personal source (their daily cap, and
+ * nothing at all when they turned AI off), else the server-wide budget.
+ */
+async function llmContextFor(l: Pick<ListingDoc, 'sourceId'>): Promise<LlmCallContext | null> {
+  const source = await SourceModel.findById(l.sourceId, { scope: 1, ownerId: 1 }).lean();
+  if (source?.scope !== 'personal' || !source.ownerId) return {};
+  const settings = await SettingsModel.findOne({ userId: source.ownerId }, { ai: 1 }).lean();
+  return settings?.ai?.enabled === false ? null : { userId: String(source.ownerId) };
+}
+
+/**
  * Structure + skills for one listing. ATS/public-API listings (structured) use the
  * deterministic rules only; crawled/RSS ones go to the server LLM (`generateObject`),
  * with the rules as fallback. Skipped when `extractedHash === contentHash`.
@@ -55,9 +66,10 @@ export async function extractListing(deps: PipelineDeps, listingId: string): Pro
   let type = l.type;
   let method: ExtractMethod = 'rules';
 
-  if (!l.structured && deps.llm && l.descriptionMd.trim().length > 80) {
+  const llmCtx = !l.structured && deps.llm && l.descriptionMd.trim().length > 80 ? await llmContextFor(l) : null;
+  if (deps.llm && llmCtx) {
     try {
-      const llm = await deps.llm.extractListing({ title: l.title, company: l.company, descriptionMd: l.descriptionMd, contentHash: l.contentHash });
+      const llm = await deps.llm.extractListing({ title: l.title, company: l.company, descriptionMd: l.descriptionMd, contentHash: l.contentHash }, llmCtx);
       method = 'llm';
       required = union(canonicaliseSkills(llm.skillsRequired), required).slice(0, 40);
       nice = union(canonicaliseSkills(llm.skillsNice), nice).filter((s) => !required.includes(s)).slice(0, 40);
@@ -73,8 +85,9 @@ export async function extractListing(deps: PipelineDeps, listingId: string): Pro
       if (llm.remote !== 'unknown') remote = llm.remote;
       if (llm.type) type = llm.type;
     } catch (err) {
-      deps.logger.warn({ listingId, err: err instanceof Error ? err.message : String(err) }, 'llm extraction failed; rules only');
-      deps.metrics.inc('beacon_worker_llm_failures_total', { op: 'extract' }, 1, 'LLM calls that failed after retries');
+      const capped = err instanceof LlmCapError;
+      deps.logger.warn({ listingId, capped, err: err instanceof Error ? err.message : String(err) }, 'llm extraction skipped; rules only');
+      deps.metrics.inc('beacon_worker_llm_failures_total', { op: 'extract', reason: capped ? 'cap' : 'error' }, 1, 'LLM extractions that fell back to rules');
     }
   }
 

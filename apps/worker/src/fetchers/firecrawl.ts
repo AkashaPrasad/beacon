@@ -1,14 +1,14 @@
 import { OPPORTUNITY_TYPES, type OpportunityType, tryNormaliseUrl } from '@kestrel/shared';
 
+import { buildAll, type RawListing } from './build.js';
+import { emptyResult, type CrawlIndexItem, type FetchContext, type Fetcher, type FetchSource } from './types.js';
+import { companyOf, str } from './util.js';
 import type { ScrapeFormat } from '../crawl/backend.js';
 import type { CrawlerClient } from '../crawl/client.js';
 import { SourceError } from '../lib/errors.js';
 import { plainToMarkdown } from '../lib/html.js';
 import { httpRequest } from '../lib/http.js';
 
-import { buildAll, type RawListing } from './build.js';
-import { emptyResult, type CrawlIndexItem, type FetchContext, type Fetcher, type FetchSource } from './types.js';
-import { companyOf, str } from './util.js';
 
 /** JSON schema Firecrawl fills on an index or detail page (one call, +4 credits). */
 export const LISTING_EXTRACTION_SCHEMA = {

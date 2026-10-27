@@ -27,8 +27,8 @@ Browser (React SPA, PWA + service worker for web push)
    └─► https://api.beacon.spacesdrive.cc       Cloudflare proxy → Elastic IP
              │
    ┌─────────▼──────────── AWS EC2 t4g.small (arm64, 2 GB) · ap-south-1 · docker compose ──┐
-   │ caddy :80/:443 ─► api :4000 (Express 5, NODE_OPTIONS=--max-old-space-size=512)         │
-   │                   worker :4001 (BullMQ consumers + local embeddings, 768 MB heap)       │
+   │ caddy :80/:443 ─► api :4000 (Express 5, NODE_OPTIONS=--max-old-space-size=384)         │
+   │                   worker :4001 (BullMQ consumers + local embeddings, 640 MB heap)       │
    │                   redis :6379 (queues, rate limits, credit meters; noeviction)          │
    └─────────┬──────────────────────────────┬────────────────────────────────────────────────┘
              │                              │ outbound only
@@ -241,7 +241,7 @@ by `computeFit`, so "deadline passed" is visible rather than silently dropped.
 - **LLM:** only for resume → profile, listing → structured fields, and optional top-30 re-rank;
   zod-validated, 30 s timeout, 2 retries, per-user daily cap, cached by `(listing, profileHash)`.
   AI-off mode uses `extractSkills` + regex eligibility + embeddings + `computeFit`.
-- **Memory:** api heap 512 MB, worker 768 MB; Redis `maxmemory` with `noeviction` (BullMQ
+- **Memory:** api heap 384 MB in a 512 MB container, worker 640 MB in a 900 MB container; Redis `maxmemory` with `noeviction` (BullMQ
   requirement). The embedding model loads only in the worker.
 
 ## 7. Security boundaries

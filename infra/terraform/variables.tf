@@ -122,3 +122,9 @@ variable "create_github_oidc_provider" {
   type        = bool
   default     = true
 }
+
+variable "firecrawl_availability_zone" {
+  description = "AZ for the Firecrawl standby. Kept separate from the app box so a capacity shortage in one AZ (seen for t4g.large in ap-south-1a on 2026-10-27) does not block the standby. Cross-AZ traffic inside the VPC is fine for this low-volume link."
+  type        = string
+  default     = "ap-south-1b"
+}

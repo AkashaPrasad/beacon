@@ -1,5 +1,6 @@
-import type { OpportunityType, RefreshInterval, SourceHealth, SourceKind, SourceScope } from '@kestrel/shared';
 import mongoose, { Schema, type Types } from 'mongoose';
+
+import type { OpportunityType, RefreshInterval, SourceHealth, SourceKind, SourceScope } from '@kestrel/shared';
 
 /**
  * Machine-readable health detail written next to `health` / `errorReason` (the shared

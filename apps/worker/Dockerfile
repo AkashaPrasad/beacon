@@ -3,9 +3,10 @@
 # Build context is the REPO ROOT:
 #   docker build -f apps/worker/Dockerfile -t beacon-worker .
 # NOTE: onnxruntime-node (used by @huggingface/transformers for local embeddings) ships
-# glibc binaries; the runtime stage adds gcompat + libstdc++ for musl. If embeddings fail
-# to load on Alpine, build with --build-arg NODE_IMAGE=node:22-bookworm-slim (docs/DECISIONS.md).
-ARG NODE_IMAGE=node:22-alpine
+# glibc binaries. On Alpine it fails to load even with gcompat ("__sprintf_chk: symbol not
+# found", verified 2026-10-27), so the worker defaults to Debian slim (docs/DECISIONS.md).
+# --build-arg NODE_IMAGE=node:22-alpine still builds, but only EMBEDDING_PROVIDER=openai works there.
+ARG NODE_IMAGE=node:22-bookworm-slim
 ARG PNPM_VERSION=12.8.1
 
 # ── base: node + pinned pnpm ──────────────────────────────────────────────────
@@ -50,6 +51,7 @@ RUN mkdir -p /app/.cache && chown node:node /app/.cache
 ENV HF_HOME=/app/.cache/huggingface
 USER node
 EXPOSE 4001
+# node fetch, not wget: works on the Alpine default and on --build-arg NODE_IMAGE=node:22-bookworm-slim.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${HEALTH_PORT}/healthz" || exit 1
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.HEALTH_PORT||4001)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 CMD ["node", "dist/index.js"]

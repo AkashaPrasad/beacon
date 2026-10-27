@@ -1,10 +1,10 @@
+import { buildAll, type RawListing } from './build.js';
+import { emptyResult, type Fetcher } from './types.js';
+import { boardTokenOf, companyOf, rethrowNotFound } from './util.js';
 import { SourceError } from '../lib/errors.js';
 import { htmlToMarkdown } from '../lib/html.js';
 import { httpJson } from '../lib/http.js';
 
-import { buildAll, type RawListing } from './build.js';
-import { emptyResult, type Fetcher } from './types.js';
-import { boardTokenOf, companyOf, rethrowNotFound } from './util.js';
 
 interface WorkableJob {
   title: string;

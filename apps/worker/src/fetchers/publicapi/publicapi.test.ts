@@ -1,10 +1,10 @@
 import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { fetchPublicApi, resolvePublicApi } from './index.js';
 import { SourceError } from '../../lib/errors.js';
 import { sample, testCtx, testSource } from '../../test/samples.js';
 
-import { fetchPublicApi, resolvePublicApi } from './index.js';
 
 beforeAll(() => nock.disableNetConnect());
 afterEach(() => {

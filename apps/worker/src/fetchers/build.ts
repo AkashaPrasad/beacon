@@ -46,6 +46,8 @@ export interface RawListing {
   companyDomain?: string | null;
   structured?: boolean;
   version?: string | null;
+  /** Known posting re-listed without its detail (see NormalisedListing.partial). */
+  partial?: boolean;
 }
 
 const TYPE_RULES: readonly [OpportunityType, RegExp][] = [
@@ -222,7 +224,13 @@ export function buildListing(raw: RawListing, source: FetchSource, now: Date = n
   } = parsed.data;
   return {
     ok: true,
-    listing: { ...rest, externalId: String(raw.externalId), structured: raw.structured ?? true, version: raw.version ?? null },
+    listing: {
+      ...rest,
+      externalId: String(raw.externalId),
+      structured: raw.structured ?? true,
+      version: raw.version ?? null,
+      ...(raw.partial ? { partial: true } : {}),
+    },
   };
 }
 

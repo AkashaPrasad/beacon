@@ -1,10 +1,11 @@
-import { EMBEDDING_DIM } from '@kestrel/shared';
 import { Types } from 'mongoose';
 
+import { EMBEDDING_DIM } from '@kestrel/shared';
+
+import type { PipelineDeps } from './deps.js';
 import { EMBED_BATCH, embeddingHash, listingEmbeddingText, profileEmbeddingText } from '../lib/embeddings.js';
 import { type ListingDoc, ListingModel, type ProfileDoc, ProfileModel } from '../models/index.js';
 
-import type { PipelineDeps } from './deps.js';
 
 export interface EmbedOutcome {
   embedded: number;
@@ -68,8 +69,11 @@ export async function embedUser(deps: PipelineDeps, userId: string): Promise<Emb
   }
   const [vector] = await deps.embedder.embed([text]);
   if (!vector || vector.length !== EMBEDDING_DIM) throw new Error('embedder returned no vector');
-  await ProfileModel.updateOne({ _id: profile._id }, { $set: { embedding: vector, embeddingHash: hash, embeddingModel: deps.embedder.model } });
+  await ProfileModel.updateOne(
+    { _id: profile._id },
+    { $set: { embedding: vector, embeddingHash: hash, embeddingModel: deps.embedder.model, embeddedAt: deps.now() } },
+  );
   deps.metrics.inc('beacon_worker_embeddings_total', { kind: 'profile' }, 1);
-  await deps.enqueue.match({ userId });
+  await deps.enqueue.match({ userId, reason: 'embedding' });
   return { embedded: 1, skipped: 0, changed: true };
 }

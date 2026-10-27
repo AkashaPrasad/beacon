@@ -51,6 +51,20 @@ export class MemoryRedis implements RedisLike {
     return Promise.resolve(Math.ceil((entry.expiresAt - this.clock()) / 1000));
   }
 
+  /** Hashes are stored as JSON strings (enough for the LLM token counters). */
+  hincrby(key: string, field: string, by: number): Promise<number> {
+    const entry = this.live(key);
+    const hash = entry ? (JSON.parse(entry.value) as Record<string, number>) : {};
+    hash[field] = (hash[field] ?? 0) + by;
+    this.store.set(key, { value: JSON.stringify(hash), expiresAt: entry?.expiresAt ?? null });
+    return Promise.resolve(hash[field]);
+  }
+
+  hgetall(key: string): Promise<Record<string, number>> {
+    const entry = this.live(key);
+    return Promise.resolve(entry ? (JSON.parse(entry.value) as Record<string, number>) : {});
+  }
+
   del(...keys: string[]): Promise<number> {
     let n = 0;
     for (const key of keys) if (this.store.delete(key)) n++;

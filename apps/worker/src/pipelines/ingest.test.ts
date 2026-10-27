@@ -1,6 +1,8 @@
 import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { extractListing } from './extract.js';
+import { fetchHostOf, ingestSource } from './ingest.js';
 import { FirecrawlHttpBackend } from '../crawl/backend.js';
 import { CrawlerClient } from '../crawl/client.js';
 import { CreditMeter } from '../crawl/meter.js';
@@ -11,8 +13,6 @@ import { MemoryRedis } from '../test/memory-redis.js';
 import { useMongo } from '../test/mongo.js';
 import { sample } from '../test/samples.js';
 
-import { extractListing } from './extract.js';
-import { fetchHostOf, ingestSource } from './ingest.js';
 
 useMongo();
 beforeAll(() => nock.disableNetConnect());
@@ -130,6 +130,34 @@ describe('ingest', () => {
     expect(docs).toHaveLength(1);
     expect(docs[0]!.sourceIds.map(String).sort()).toEqual([a, b].sort());
     expect(docs[0]!.seenCount).toBe(2);
+  });
+
+  it('a posting re-listed without its detail (Workday) is the same doc, matched by external id', async () => {
+    const deps = testDeps();
+    const wd = sample<{ jobPostings: { externalPath: string; locationsText?: string }[]; _detailSample: unknown }>('ats-workday');
+    const doc = await SourceModel.create({
+      url: 'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite',
+      name: 'Nvidia',
+      kind: 'workday',
+      scope: 'community',
+      config: { boardToken: 'nvidia', feedUrl: null, provider: null, tenant: 'nvidia', wdHost: 'wd5', site: 'NVIDIAExternalCareerSite' },
+    });
+    const sourceId = String(doc._id);
+    const host = nock('https://nvidia.wd5.myworkdayjobs.com');
+    const item = { ...wd.jobPostings[0]!, locationsText: '2 Locations' };
+    host.post('/wday/cxs/nvidia/NVIDIAExternalCareerSite/jobs').reply(200, { total: 1, jobPostings: [item] });
+    host.get(`/wday/cxs/nvidia/NVIDIAExternalCareerSite${item.externalPath}`).reply(200, wd._detailSample);
+    expect(await ingestSource(deps, sourceId)).toMatchObject({ new: 1 });
+    const first = (await ListingModel.findOne().lean())!;
+    expect(first.location.length).toBeGreaterThan(0);
+
+    // Second run: the id is known, so no detail call; the list item alone has no location.
+    host.post('/wday/cxs/nvidia/NVIDIAExternalCareerSite/jobs').reply(200, { total: 1, jobPostings: [item] });
+    const second = await ingestSource(deps, sourceId);
+    expect(second).toMatchObject({ new: 0, updated: 0, unchanged: 1 });
+    const docs = await ListingModel.find().lean();
+    expect(docs).toHaveLength(1);
+    expect(docs[0]).toMatchObject({ seenCount: 2, location: first.location, contentHash: first.contentHash });
   });
 
   it('304 Not Modified bumps every live listing of the source', async () => {

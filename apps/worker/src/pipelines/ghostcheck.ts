@@ -1,10 +1,11 @@
-import { type ApplyUrlCheck, DAY_MS, ghostRisk } from '@kestrel/shared';
 import { Types } from 'mongoose';
 
-import { USER_AGENT } from '../lib/http.js';
-import { type ListingDoc, ListingModel } from '../models/index.js';
+import { type ApplyUrlCheck, DAY_MS, ghostRisk } from '@kestrel/shared';
 
 import type { PipelineDeps } from './deps.js';
+import { USER_AGENT } from '../lib/http.js';
+import { type ApplyCheckDoc, type ApplyCheckStatus, type ListingDoc, ListingModel } from '../models/index.js';
+
 
 const CHECK_TIMEOUT_MS = 10_000;
 /** Re-match when the ghost score moves this much (it feeds the fit penalty). */
@@ -57,6 +58,19 @@ export async function checkApplyUrl(url: string): Promise<ApplyUrlCheck> {
   }
 }
 
+/** Raw HEAD/GET result → the API's `applyCheck.status` (API.md §12). */
+export function applyCheckStatus(check: ApplyUrlCheck): ApplyCheckStatus {
+  if (check.status === 404 || check.status === 410) return 'dead';
+  if (check.redirectedToHome) return 'redirect_home';
+  if (check.status !== null && check.status >= 200 && check.status < 400) return 'ok';
+  // Network errors, 5xx and bot walls (401/403/429): the link could not be verified.
+  return 'error';
+}
+
+export function toApplyCheck(check: ApplyUrlCheck, checkedAt: Date): ApplyCheckDoc {
+  return { status: applyCheckStatus(check), httpStatus: check.status, finalUrl: check.finalUrl ?? null, checkedAt, error: check.error ?? null };
+}
+
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export interface GhostcheckOutcome {
@@ -92,7 +106,7 @@ export async function ghostcheckListing(
     {
       $set: {
         ghostRisk: risk,
-        applyUrlCheck: { status: check.status, finalUrl: check.finalUrl ?? null, redirectedToHome: Boolean(check.redirectedToHome), error: check.error ?? null, checkedAt: now },
+        applyCheck: toApplyCheck(check, now),
         lastGhostCheckAt: now,
       },
     },

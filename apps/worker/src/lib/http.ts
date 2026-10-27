@@ -39,8 +39,9 @@ async function readCapped(res: Response, maxBytes: number, url: string): Promise
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    const result = (await reader.read()) as { done: boolean; value?: Uint8Array };
+    if (result.done || !result.value) break;
+    const value = result.value;
     total += value.byteLength;
     if (total > maxBytes) {
       await reader.cancel();

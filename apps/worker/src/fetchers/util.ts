@@ -1,7 +1,7 @@
-import { SourceError } from '../lib/errors.js';
 
 import { detectSourceKind } from './detect.js';
 import type { FetchSource } from './types.js';
+import { SourceError } from '../lib/errors.js';
 
 /** Board token from config, else parsed from the source URL. */
 export function boardTokenOf(source: FetchSource): string {

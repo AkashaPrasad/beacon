@@ -1,8 +1,8 @@
-import { contentHash, REFRESH_INTERVAL_MS, type RefreshInterval } from '@kestrel/shared';
+import { contentHash, REFRESH_INTERVAL_MS } from '@kestrel/shared';
 
 import type { Logger } from './logger.js';
 import { SourceModel } from './models/index.js';
-import { DEFAULT_JOB_OPTIONS, type IngestJob, QUEUE_NAMES } from './queues.js';
+import { DEFAULT_JOB_OPTIONS, type IngestJob, QUEUE_CONCURRENCY, QUEUE_NAMES } from './queues.js';
 import type { QueueSet } from './runtime.js';
 
 const IST = 'Asia/Kolkata';
@@ -26,7 +26,7 @@ export async function syncSourceSchedules(set: QueueSet, logger: Logger, now: ()
   const sources = await SourceModel.find({ enabled: { $ne: false } }, { _id: 1, refreshInterval: 1 }).lean();
   const wanted = new Map<string, number>();
   for (const s of sources) {
-    const interval = REFRESH_INTERVAL_MS[(s.refreshInterval ?? 'daily') as RefreshInterval] ?? REFRESH_INTERVAL_MS.daily;
+    const interval = REFRESH_INTERVAL_MS[s.refreshInterval ?? 'daily'] ?? REFRESH_INTERVAL_MS.daily;
     wanted.set(String(s._id), interval);
   }
   const existing = await ingest.getJobSchedulers(0, -1);
@@ -72,6 +72,11 @@ export async function registerFixedSchedules(set: QueueSet): Promise<void> {
   await notify.upsertJobScheduler('notify-deadline', { pattern: '0 8 * * *', tz: IST }, { name: 'notify', data: { kind: 'deadline' } });
   await notify.upsertJobScheduler('notify-nudge', { pattern: '0 10 * * *', tz: IST }, { name: 'notify', data: { kind: 'nudge' } });
   await cleanup.upsertJobScheduler('cleanup-daily', { pattern: '30 3 * * *', tz: IST }, { name: 'cleanup', data: {} });
+}
+
+/** Queue-level caps that hold across worker replicas (BullMQ global concurrency). */
+export async function applyGlobalConcurrency(set: QueueSet): Promise<void> {
+  await set.queues.get(QUEUE_NAMES.ingest)?.setGlobalConcurrency(QUEUE_CONCURRENCY.ingest);
 }
 
 export async function registerSchedules(set: QueueSet, logger: Logger): Promise<SyncResult> {

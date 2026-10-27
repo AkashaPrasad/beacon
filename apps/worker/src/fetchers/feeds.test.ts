@@ -1,6 +1,9 @@
 import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { detectSourceKind } from './detect.js';
+import { fetchFirecrawl, linksFromMarkdown } from './firecrawl.js';
+import { fetchRss } from './rss.js';
 import { FirecrawlHttpBackend } from '../crawl/backend.js';
 import { CrawlerClient } from '../crawl/client.js';
 import { CreditMeter } from '../crawl/meter.js';
@@ -8,9 +11,6 @@ import { SourceError } from '../lib/errors.js';
 import { MemoryRedis } from '../test/memory-redis.js';
 import { testCtx, testSource } from '../test/samples.js';
 
-import { detectSourceKind } from './detect.js';
-import { fetchFirecrawl, linksFromMarkdown } from './firecrawl.js';
-import { fetchRss } from './rss.js';
 
 beforeAll(() => nock.disableNetConnect());
 afterEach(() => {

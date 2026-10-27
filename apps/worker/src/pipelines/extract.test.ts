@@ -1,19 +1,20 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { contentHash } from '@kestrel/shared';
-import nock from 'nock';
 import { Types } from 'mongoose';
+import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { contentHash } from '@kestrel/shared';
+
 import { extractByRules, extractGradYears, extractMinExperience, extractStipend } from '../lib/extract-rules.js';
-import { type LlmExtraction, ListingLlm, repairJsonText } from '../lib/llm.js';
+import { type LlmCallContext, LlmCapError, type LlmExtraction, ListingLlm, repairJsonText } from '../lib/llm.js';
 import { nullLogger } from '../logger.js';
-import { ListingModel } from '../models/index.js';
+import { extractListing } from './extract.js';
+import { ListingModel, SettingsModel, SourceModel } from '../models/index.js';
 import { testDeps } from '../test/deps.js';
 import { MemoryRedis } from '../test/memory-redis.js';
 import { useMongo } from '../test/mongo.js';
 import { TEST_NOW } from '../test/samples.js';
 
-import { extractListing } from './extract.js';
 
 useMongo();
 beforeAll(() => nock.disableNetConnect());
@@ -126,6 +127,33 @@ describe('extract pipeline', () => {
     expect(l).toMatchObject({ stipendMin: 30_000, currency: 'INR', period: 'month', remote: 'hybrid', type: 'internship', extractMethod: 'llm' });
   });
 
+  it('personal sources: the owner pays (their cap) and AI off means rules only', async () => {
+    const contexts: LlmCallContext[] = [];
+    const deps = testDeps({
+      llm: {
+        extractListing: (_i: unknown, ctx?: LlmCallContext) => {
+          contexts.push(ctx ?? {});
+          return Promise.reject(new LlmCapError('cap'));
+        },
+      },
+    });
+    const ownerId = new Types.ObjectId();
+    const personal = await SourceModel.create({ url: 'https://acme.test/careers', name: 'Acme', kind: 'firecrawl', scope: 'personal', ownerId });
+    const community = await SourceModel.create({ url: 'https://community.test/careers', name: 'C', kind: 'firecrawl', scope: 'community' });
+    const a = await seedListing({ structured: false, sourceId: personal._id });
+    const b = await seedListing({ structured: false, sourceId: community._id, contentHash: contentHash('b') });
+    // Over the cap → rules only, and the job still succeeds.
+    expect(await extractListing(deps, a)).toMatchObject({ status: 'extracted', method: 'rules' });
+    expect(await extractListing(deps, b)).toMatchObject({ status: 'extracted', method: 'rules' });
+    expect(contexts).toEqual([{ userId: String(ownerId) }, {}]);
+    expect(deps.metrics.get('beacon_worker_llm_failures_total', { op: 'extract', reason: 'cap' })).toBe(2);
+
+    await SettingsModel.create({ userId: ownerId, ai: { enabled: false } });
+    const c = await seedListing({ structured: false, sourceId: personal._id, contentHash: contentHash('c') });
+    expect(await extractListing(deps, c)).toMatchObject({ method: 'rules' });
+    expect(contexts).toHaveLength(2);
+  });
+
   it('an LLM failure falls back to rules', async () => {
     const deps = testDeps({ llm: { extractListing: () => Promise.reject(new Error('timeout')) } });
     const id = await seedListing({ structured: false });
@@ -169,6 +197,37 @@ describe('ListingLlm (generateObject over an OpenAI-compatible API)', () => {
     expect(out).toMatchObject({ skillsRequired: ['Python'], remote: 'remote', type: 'internship', eligibility: { gradYears: [2026], degrees: [] } });
     // Second call is served from the cache (no HTTP mock left).
     expect(await client.extractListing({ title: 'Intern', company: 'Acme', descriptionMd: 'x', contentHash: 'h1' })).toEqual(out);
+  });
+
+  it('per-user daily cap (shared llm:calls key) and token counters in llm:tokens', async () => {
+    const redis = new MemoryRedis();
+    const capped = new ListingLlm({
+      model: createOpenAICompatible({ name: 'server', baseURL: BASE, apiKey: 'k' }).chatModel('m'),
+      modelId: 'm',
+      logger: nullLogger,
+      redis,
+      retries: 0,
+      userDailyCap: 1,
+      serverDailyCap: 0,
+      now: () => TEST_NOW,
+    });
+    nock(BASE)
+      .post('/chat/completions')
+      .reply(200, {
+        id: 'x',
+        object: 'chat.completion',
+        created: 1,
+        model: 'm',
+        choices: [{ index: 0, message: { role: 'assistant', content: '{"skillsRequired":["Go"]}' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+      });
+    await capped.extractListing({ title: 'a', company: 'b', descriptionMd: 'c', contentHash: 'u1' }, { userId: 'u' });
+    expect(await redis.get('llm:calls:u:2026-10-27')).toBe('1');
+    expect(await redis.hgetall('llm:tokens:u:2026-10-27')).toEqual({ prompt: 10, completion: 20, total: 30 });
+    // Second uncached call: over the cap, refused before any HTTP request.
+    await expect(capped.extractListing({ title: 'a', company: 'b', descriptionMd: 'c', contentHash: 'u2' }, { userId: 'u' })).rejects.toBeInstanceOf(LlmCapError);
+    // serverDailyCap 0: community extraction disabled.
+    await expect(capped.extractListing({ title: 'a', company: 'b', descriptionMd: 'c', contentHash: 'u3' })).rejects.toBeInstanceOf(LlmCapError);
   });
 
   it('retries then fails on a broken provider', async () => {

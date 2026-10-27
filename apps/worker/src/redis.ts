@@ -26,4 +26,5 @@ export interface RedisLike {
   expire(key: string, seconds: number): Promise<number>;
   ttl(key: string): Promise<number>;
   del(...keys: string[]): Promise<number>;
+  hincrby(key: string, field: string, by: number): Promise<number>;
 }

@@ -2,7 +2,6 @@ import robotsParserModule from 'robots-parser';
 
 import { httpRequest, USER_AGENT } from '../lib/http.js';
 import type { RedisLike } from '../redis.js';
-
 import { CRAWLER_KEYS } from './keys.js';
 
 const ROBOTS_TTL_SECONDS = 24 * 3600;
@@ -23,7 +22,7 @@ export class RobotsChecker {
   private async robotsTxt(origin: string, host: string): Promise<string> {
     const cached = await this.redis.get(CRAWLER_KEYS.robots(host));
     if (cached !== null) return cached;
-    let body = '';
+    let body: string;
     try {
       const res = await httpRequest(`${origin}/robots.txt`, { timeoutMs: 5_000, maxBytes: 512 * 1024, headers: { accept: 'text/plain' } });
       body = res.text;

@@ -9,6 +9,8 @@ const envSchema = z.object({
   HEALTH_PORT: z.coerce.number().int().min(0).max(65_535).default(4001),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+  /** BullMQ key prefix (default `bull`). Producers (the API) must use the same one. */
+  QUEUE_PREFIX: z.string().min(1).optional(),
 
   // ── Database ──
   MONGODB_URI: z.string().optional(),
@@ -37,6 +39,10 @@ const envSchema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(30_000),
   /** Disable server-side LLM extraction entirely (rules only). */
   LLM_DISABLED: bool.default(false),
+  /** Per-user daily LLM calls (`llm:calls:<userId>:<day>`, shared with the API). */
+  LLM_DAILY_USER_CAP: z.coerce.number().int().min(0).default(50),
+  /** Server-wide daily extraction calls for community listings (`llm:calls:server:<day>`). */
+  LLM_DAILY_SERVER_CAP: z.coerce.number().int().min(0).default(1_000),
   EMBEDDING_PROVIDER: z.enum(['local', 'openai']).default('local'),
   EMBEDDING_MODEL: z.string().default('Xenova/bge-small-en-v1.5'),
   OPENAI_API_KEY: z.string().optional(),
@@ -46,7 +52,8 @@ const envSchema = z.object({
   // ── Crawling ──
   FIRECRAWL_API_KEY: z.string().optional(),
   FIRECRAWL_API_URL: z.string().url().default('https://api.firecrawl.dev'),
-  FIRECRAWL_DAILY_CREDIT_CAP: z.coerce.number().int().min(0).default(150),
+  /** Same default as the API's credit meter (`GET /v1/sources/credits`). */
+  FIRECRAWL_DAILY_CREDIT_CAP: z.coerce.number().int().min(0).default(500),
   FIRECRAWL_USER_DAILY_CREDIT_CAP: z.coerce.number().int().min(0).default(30),
   FIRECRAWL_SELF_HOSTED_URL: z.string().url().optional(),
   FIRECRAWL_INSTANCE_ID: z.string().optional(),

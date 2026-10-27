@@ -1,6 +1,5 @@
 import type { SourceKind } from '@kestrel/shared';
 
-import { SourceError } from '../lib/errors.js';
 
 import { fetchAshby } from './ashby.js';
 import { fetchFirecrawl, fetchSitemap } from './firecrawl.js';
@@ -12,6 +11,7 @@ import { fetchSmartRecruiters } from './smartrecruiters.js';
 import type { Fetcher } from './types.js';
 import { fetchWorkable } from './workable.js';
 import { fetchWorkday } from './workday.js';
+import { SourceError } from '../lib/errors.js';
 
 const fetchJobspy: Fetcher = () =>
   Promise.reject(new SourceError('parse', 'JobSpy (LinkedIn/Indeed) sources are opt-in and not enabled in this deployment'));

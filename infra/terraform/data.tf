@@ -12,6 +12,12 @@ data "aws_subnet" "default" {
   default_for_az    = true
 }
 
+data "aws_subnet" "firecrawl" {
+  vpc_id            = data.aws_vpc.default.id
+  availability_zone = var.firecrawl_availability_zone
+  default_for_az    = true
+}
+
 # Latest Canonical Ubuntu 24.04 LTS (noble) arm64 image on gp3.
 # Instances ignore later AMI changes (see lifecycle in ec2.tf), so a newer
 # image never forces a replacement; unattended-upgrades keeps packages current.

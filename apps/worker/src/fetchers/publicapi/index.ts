@@ -2,7 +2,6 @@ import { SourceError } from '../../lib/errors.js';
 import { detectSourceKind, PUBLIC_API_HOSTS } from '../detect.js';
 import type { FetchContext, FetchResult, Fetcher, FetchSource } from '../types.js';
 import { str } from '../util.js';
-
 import { fetchDevfolio, fetchDevpost, fetchHackerEarth, fetchKaggle, fetchUnstop } from './hackathons.js';
 import { fetchAdzuna, fetchArbeitnow, fetchJobicy, fetchRemoteOk, fetchRemotive, fetchTheMuse } from './jobs.js';
 

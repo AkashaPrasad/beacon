@@ -1,3 +1,5 @@
+import { type AnyBulkWriteOperation, Types } from 'mongoose';
+
 import {
   computeFit,
   contentHash,
@@ -5,19 +7,24 @@ import {
   EMBEDDING_DIM,
   type FitResult,
   normaliseWeights,
+  OPPORTUNITY_TYPES,
+  type OpportunityType,
   type ScoringListing,
   type ScoringProfile,
   type Weights,
 } from '@kestrel/shared';
-import { type AnyBulkWriteOperation, Types } from 'mongoose';
 
+import type { PipelineDeps } from './deps.js';
 import { matchesConditions } from '../lib/alerts.js';
 import { profileEmbeddingText } from '../lib/embeddings.js';
+import { isVisible, type UserVisibility, VisibilityResolver } from '../lib/visibility.js';
 import {
   AlertRuleModel,
+  InteractionModel,
   type ListingDoc,
   ListingModel,
   type MatchDoc,
+  type MatchFloors,
   MatchModel,
   type ProfileDoc,
   ProfileModel,
@@ -25,15 +32,17 @@ import {
   TrackerItemModel,
 } from '../models/index.js';
 
-import type { PipelineDeps } from './deps.js';
 
 const LISTING_PROJECTION = {
   type: 1, title: 1, company: 1, location: 1, remote: 1, country: 1, stipendMin: 1, stipendMax: 1, currency: 1, period: 1,
   postedAt: 1, deadlineAt: 1, deadlineKind: 1, firstSeenAt: 1, eligibility: 1, skillsRequired: 1, skillsNice: 1,
-  ghostRisk: 1, roleFamily: 1, archived: 1, embedding: 1,
+  ghostRisk: 1, roleFamily: 1, archived: 1, embedding: 1, sourceId: 1, sourceIds: 1,
 } as const;
 
 type ScoredListing = Pick<ListingDoc, keyof typeof LISTING_PROJECTION | '_id'>;
+
+/** Stage-1 quota per opportunity type, so a narrow profile still sees every type in the feed. */
+export const PER_TYPE_CANDIDATES = 40;
 
 /** Hash of everything the stored fit depends on (profile text + scoring fields + weights). */
 export function profileHashOf(profile: ProfileDoc, weights: Weights): string {
@@ -101,19 +110,36 @@ function score(profile: ProfileDoc, weights: Weights, listing: ScoredListing, no
 const semanticOf = (a: readonly number[] | undefined, b: readonly number[] | undefined): number | null =>
   a?.length === EMBEDDING_DIM && b?.length === EMBEDDING_DIM ? cosineSimilarity(a, b) : null;
 
-function upsertOp(userId: Types.ObjectId, listing: ScoredListing, fit: FitResult, semantic: number | null, profileHash: string, now: Date): AnyBulkWriteOperation<MatchDoc> {
+interface MatchStamp {
+  profileHash: string | null;
+  matchHash: string;
+  now: Date;
+}
+
+/** Every `FitResult` field at the top level (API.md §12 `matches`). */
+function upsertOp(userId: Types.ObjectId, listing: ScoredListing, fit: FitResult, semantic: number | null, stamp: MatchStamp): AnyBulkWriteOperation<MatchDoc> {
   return {
     updateOne: {
       filter: { userId, listingId: listing._id },
       update: {
         $set: {
           score: fit.score,
-          fit,
+          rawScore: fit.rawScore,
+          components: fit.components,
+          contributions: fit.contributions,
+          weights: fit.weights,
+          caps: fit.caps,
+          ghostPenalty: fit.ghostPenalty,
+          hardFails: fit.hardFails,
+          semanticAvailable: fit.semanticAvailable,
+          details: fit.details,
+          explain: fit.explain,
+          profileHash: stamp.profileHash,
+          matchHash: stamp.matchHash,
           semantic,
-          profileHash,
           listingType: listing.type,
           listingDeadlineAt: listing.deadlineAt,
-          computedAt: now,
+          computedAt: stamp.now,
         },
       },
       upsert: true,
@@ -121,58 +147,86 @@ function upsertOp(userId: Types.ObjectId, listing: ScoredListing, fit: FitResult
   };
 }
 
+function visibleFilter(visibility: UserVisibility): Record<string, unknown> {
+  const ids = [...visibility.sourceIds].map((id) => new Types.ObjectId(id));
+  return { $or: [{ sourceIds: { $in: ids } }, { sourceId: { $in: ids } }] };
+}
+
+/** Listings the user saved or tracks: always scored, whatever stage 1 says. */
+async function pinnedListingIds(userId: Types.ObjectId): Promise<string[]> {
+  const [tracked, saved] = await Promise.all([
+    TrackerItemModel.find({ userId, listingId: { $ne: null } }, { listingId: 1 }).lean(),
+    InteractionModel.find({ userId, saved: true }, { listingId: 1 }).lean(),
+  ]);
+  return [...tracked.flatMap((t) => (t.listingId ? [String(t.listingId)] : [])), ...saved.map((s) => String(s.listingId))];
+}
+
 export interface MatchUserOutcome {
   userId: string;
   candidates: number;
   written: number;
+  removed: number;
   semantic: boolean;
 }
 
 /**
- * Full recompute for one user: stage 1 vector candidates (k=200) + every listing the user
- * tracks, stage 2 `computeFit`, upsert `matches` stamped with `profileHash`, drop matches
- * from older profile versions.
+ * Full recompute for one user. Stage 1: vector top-K (`MATCH_CANDIDATES_K`, default 200)
+ * over the listings the user can see, plus a per-type quota and every saved/tracked
+ * listing. Stage 2: shared `computeFit`. Upserts `matches` and removes the user's other
+ * matches, so a disabled pack or source leaves the feed. Records the stage-1 floors for
+ * incremental matching.
  */
-export async function matchUser(deps: PipelineDeps, userId: string): Promise<MatchUserOutcome> {
+export async function matchUser(deps: PipelineDeps, userId: string, resolver = new VisibilityResolver()): Promise<MatchUserOutcome> {
   const uid = new Types.ObjectId(userId);
   const profile = await ProfileModel.findOne({ userId: uid }).lean<ProfileDoc>();
-  if (!profile) return { userId, candidates: 0, written: 0, semantic: false };
+  if (!profile) return { userId, candidates: 0, written: 0, removed: 0, semantic: false };
   const now = deps.now();
   const weights = await weightsFor(uid);
-  const profileHash = profileHashOf(profile, weights);
+  const stamp: MatchStamp = { profileHash: profile.profileHash ?? null, matchHash: profileHashOf(profile, weights), now };
   const embedding = profile.embedding?.length === EMBEDDING_DIM ? profile.embedding : null;
+  const visibility = await resolver.forUser(uid);
+  const k = deps.env.MATCH_CANDIDATES_K;
 
   const candidateIds = new Set<string>();
-  if (embedding) {
-    for (const hit of await deps.vector.search(embedding, deps.env.MATCH_CANDIDATES_K)) candidateIds.add(hit.listingId);
+  const floors: MatchFloors = { overall: -1, byType: {} };
+  if (embedding && visibility.sourceIds.size > 0) {
+    const overall = await deps.vector.search(embedding, k, { sourceIds: visibility.sourceIds });
+    for (const hit of overall) candidateIds.add(hit.listingId);
+    floors.overall = overall.length >= k ? (overall.at(-1)?.score ?? -1) : -1;
+    const wanted: readonly OpportunityType[] = profile.opportunityTypes?.length ? profile.opportunityTypes : OPPORTUNITY_TYPES;
+    for (const type of wanted) {
+      const hits = await deps.vector.search(embedding, PER_TYPE_CANDIDATES, { sourceIds: visibility.sourceIds, type });
+      for (const hit of hits) candidateIds.add(hit.listingId);
+      floors.byType[type] = hits.length >= PER_TYPE_CANDIDATES ? (hits.at(-1)?.score ?? -1) : -1;
+    }
   }
-  const tracked = await TrackerItemModel.find({ userId: uid, listingId: { $ne: null } }, { listingId: 1 }).lean();
-  for (const t of tracked) if (t.listingId) candidateIds.add(String(t.listingId));
+  const pinned = new Set(await pinnedListingIds(uid));
+  for (const id of pinned) candidateIds.add(id);
 
-  let listings: ScoredListing[];
-  if (embedding || candidateIds.size > 0) {
-    listings = await ListingModel.find({ _id: { $in: [...candidateIds].map((id) => new Types.ObjectId(id)) } }, LISTING_PROJECTION).lean<ScoredListing[]>();
-  } else {
-    listings = [];
-  }
-  if (!embedding) {
-    // No profile embedding yet (embed pending): rules-only over the freshest listings.
-    const recent = await ListingModel.find({ archived: false }, LISTING_PROJECTION).sort({ lastSeenAt: -1 }).limit(deps.env.MATCH_CANDIDATES_K).lean<ScoredListing[]>();
+  const listings = candidateIds.size
+    ? await ListingModel.find({ _id: { $in: [...candidateIds].map((id) => new Types.ObjectId(id)) } }, LISTING_PROJECTION).lean<ScoredListing[]>()
+    : [];
+  if (!embedding && visibility.sourceIds.size > 0) {
+    // No profile embedding yet (embed pending): rules only over the freshest visible listings.
+    const recent = await ListingModel.find({ archived: false, ...visibleFilter(visibility) }, LISTING_PROJECTION)
+      .sort({ lastSeenAt: -1 })
+      .limit(k)
+      .lean<ScoredListing[]>();
     const seen = new Set(listings.map((l) => String(l._id)));
     listings.push(...recent.filter((l) => !seen.has(String(l._id))));
   }
 
-  const ops = listings
-    .filter((l) => !l.archived || candidateIds.has(String(l._id)))
-    .map((l) => {
-      const semantic = semanticOf(embedding ?? undefined, l.embedding);
-      return upsertOp(uid, l, score(profile, weights, l, now, semantic), semantic, profileHash, now);
-    });
+  // Saved/tracked listings stay even when archived or no longer visible (the drawer shows them).
+  const keep = listings.filter((l) => pinned.has(String(l._id)) || (!l.archived && isVisible(l, visibility)));
+  const ops = keep.map((l) => {
+    const semantic = semanticOf(embedding ?? undefined, l.embedding);
+    return upsertOp(uid, l, score(profile, weights, l, now, semantic), semantic, stamp);
+  });
   if (ops.length) await MatchModel.bulkWrite(ops, { ordered: false });
-  await MatchModel.deleteMany({ userId: uid, profileHash: { $ne: profileHash } });
-  await ProfileModel.updateOne({ _id: profile._id }, { $set: { matchHash: profileHash } });
+  const removed = (await MatchModel.deleteMany({ userId: uid, listingId: { $nin: keep.map((l) => l._id) } })).deletedCount;
+  await ProfileModel.updateOne({ _id: profile._id }, { $set: { matchHash: stamp.matchHash, matchFloors: embedding ? floors : null } });
   deps.metrics.inc('beacon_worker_matches_written_total', { mode: 'user' }, ops.length, 'Match documents written');
-  return { userId, candidates: listings.length, written: ops.length, semantic: Boolean(embedding) };
+  return { userId, candidates: listings.length, written: ops.length, removed, semantic: Boolean(embedding) };
 }
 
 export interface MatchListingsOutcome {
@@ -182,10 +236,20 @@ export interface MatchListingsOutcome {
   continued: boolean;
 }
 
+/** Would this listing have made the user's stage-1 candidate set at the last full recompute? */
+export function passesFloor(floors: MatchFloors | null | undefined, type: OpportunityType, semantic: number | null): boolean {
+  if (!floors || semantic === null) return true;
+  // A type that was not searched (outside the profile's opportunity types) uses the overall floor;
+  // −1 means that pool had fewer candidates than its quota, so everything was admitted.
+  const typeFloor = floors.byType[type] ?? floors.overall;
+  return semantic >= Math.min(floors.overall, typeFloor);
+}
+
 /**
- * Incremental: score new/changed listings for every user with a profile embedding
- * (chunked by MATCH_USERS_PER_JOB, continuation job for the rest), then evaluate each
- * user's instant alert rules and enqueue `notify`.
+ * Incremental: score new/changed listings for every user with a profile embedding who
+ * can see them (chunked by MATCH_USERS_PER_JOB, continuation job for the rest). A match
+ * doc is written when the listing clears the user's stage-1 floor, already had one, or
+ * fires an instant alert rule; then `notify {kind: instant}` per rule that fired.
  */
 export async function matchListings(deps: PipelineDeps, listingIds: readonly string[], afterUserId?: string): Promise<MatchListingsOutcome> {
   const now = deps.now();
@@ -199,20 +263,23 @@ export async function matchListings(deps: PipelineDeps, listingIds: readonly str
   const profiles = await ProfileModel.find(filter).sort({ userId: 1 }).limit(limit + 1).lean<ProfileDoc[]>();
   const continued = profiles.length > limit;
   const batch = profiles.slice(0, limit);
+  const visibility = await new VisibilityResolver().forUsers(batch.map((p) => p.userId));
 
   let written = 0;
   let alerts = 0;
   for (const profile of batch) {
+    const vis = visibility.get(String(profile.userId));
+    const visible = vis ? listings.filter((l) => isVisible(l, vis)) : [];
+    if (visible.length === 0) continue;
     const weights = await weightsFor(profile.userId);
-    const profileHash = profileHashOf(profile, weights);
-    const scored = listings.map((l) => {
+    const stamp: MatchStamp = { profileHash: profile.profileHash ?? null, matchHash: profileHashOf(profile, weights), now };
+    const scored = visible.map((l) => {
       const semantic = semanticOf(profile.embedding, l.embedding);
       return { listing: l, semantic, fit: score(profile, weights, l, now, semantic) };
     });
-    await MatchModel.bulkWrite(scored.map((s) => upsertOp(profile.userId, s.listing, s.fit, s.semantic, profileHash, now)), { ordered: false });
-    written += scored.length;
 
     const rules = await AlertRuleModel.find({ userId: profile.userId, enabled: true, cadence: 'instant' }).lean();
+    const fired = new Map<string, string[]>();
     for (const rule of rules) {
       const hits = scored.filter((s) =>
         matchesConditions(
@@ -232,18 +299,26 @@ export async function matchListings(deps: PipelineDeps, listingIds: readonly str
           now,
         ),
       );
-      if (hits.length === 0) continue;
+      if (hits.length) fired.set(String(rule._id), hits.sort((a, b) => b.fit.score - a.fit.score).map((h) => String(h.listing._id)));
+    }
+    const alerted = new Set([...fired.values()].flat());
+    const existing = new Set(
+      (await MatchModel.find({ userId: profile.userId, listingId: { $in: visible.map((l) => l._id) } }, { listingId: 1 }).lean()).map((m) => String(m.listingId)),
+    );
+    const keep = scored.filter((s) => {
+      const id = String(s.listing._id);
+      return existing.has(id) || alerted.has(id) || passesFloor(profile.matchFloors, s.listing.type, s.semantic);
+    });
+    if (keep.length) await MatchModel.bulkWrite(keep.map((s) => upsertOp(profile.userId, s.listing, s.fit, s.semantic, stamp)), { ordered: false });
+    written += keep.length;
+
+    for (const [ruleId, hitIds] of fired) {
       alerts++;
-      await deps.enqueue.notify({
-        kind: 'instant',
-        userId: String(profile.userId),
-        ruleId: String(rule._id),
-        listingIds: hits.sort((a, b) => b.fit.score - a.fit.score).map((h) => String(h.listing._id)),
-      });
+      await deps.enqueue.notify({ kind: 'instant', userId: String(profile.userId), ruleId, listingIds: hitIds });
     }
   }
   if (continued) {
-    const last = batch[batch.length - 1];
+    const last = batch.at(-1);
     if (last) await deps.enqueue.match({ listingIds: [...listingIds], afterUserId: String(last.userId) });
   }
   deps.metrics.inc('beacon_worker_matches_written_total', { mode: 'listings' }, written);

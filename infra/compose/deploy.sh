@@ -47,7 +47,11 @@ if [ -n "${GHCR_TOKEN:-}" ]; then
   logged_in=yes
 fi
 pull_ok=yes
-dc pull --quiet || pull_ok=no
+if [ -n "${SKIP_PULL:-}" ]; then
+  log "SKIP_PULL set: using images already loaded on this host"
+else
+  dc pull --quiet || pull_ok=no
+fi
 [ "$logged_in" = yes ] && docker logout ghcr.io >/dev/null 2>&1 || true
 [ "$pull_ok" = yes ] || { echo "image pull failed (are the GHCR packages public? see docs/INFRA.md)" >&2; exit 1; }
 

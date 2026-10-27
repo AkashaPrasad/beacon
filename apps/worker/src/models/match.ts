@@ -1,30 +1,45 @@
-import type { FitResult, OpportunityType } from '@kestrel/shared';
 import mongoose, { Schema, type Types } from 'mongoose';
 
-/** `matches`: one stage-2 fit result per (user, listing). Written by the match queue. */
-export interface MatchDoc {
+import type { FitResult, OpportunityType } from '@kestrel/shared';
+
+/**
+ * `matches`: one stage-2 fit result per (user, listing), written by the match queue.
+ * Every `FitResult` field sits at the top level (API.md §12), plus worker bookkeeping.
+ */
+export type MatchDoc = FitResult & {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   listingId: Types.ObjectId;
-  score: number;
-  fit: FitResult;
+  /** The profile's API-owned `profileHash` at compute time (explanations are keyed by it). */
+  profileHash: string | null;
+  /** Worker: hash of profile + weights + visible sources; a full recompute replaces other hashes. */
+  matchHash: string;
   /** Cosine similarity used for the semantic term (null when an embedding was missing). */
   semantic: number | null;
-  /** Hash of profile text + weights at compute time; stale when it differs from the profile's. */
-  profileHash: string;
   listingType: OpportunityType;
   listingDeadlineAt: Date | null;
   computedAt: Date;
-}
+};
 
+const mixed = Schema.Types.Mixed;
 const matchSchema = new Schema<MatchDoc>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     listingId: { type: Schema.Types.ObjectId, ref: 'Listing', required: true },
     score: { type: Number, required: true },
-    fit: { type: Schema.Types.Mixed, required: true },
+    rawScore: Number,
+    components: mixed,
+    contributions: mixed,
+    weights: mixed,
+    caps: mixed,
+    ghostPenalty: Number,
+    hardFails: mixed,
+    semanticAvailable: Boolean,
+    details: mixed,
+    explain: mixed,
+    profileHash: { type: String, default: null },
+    matchHash: { type: String, required: true },
     semantic: { type: Number, default: null },
-    profileHash: { type: String, required: true },
     listingType: { type: String, required: true },
     listingDeadlineAt: { type: Date, default: null },
     computedAt: { type: Date, required: true },

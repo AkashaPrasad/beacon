@@ -1,3 +1,5 @@
+import { type AnyBulkWriteOperation, Types } from 'mongoose';
+
 import {
   canonicalKey,
   contentHash,
@@ -9,16 +11,14 @@ import {
   normaliseTitle,
   tryNormaliseUrl,
 } from '@kestrel/shared';
-import { type AnyBulkWriteOperation, Types } from 'mongoose';
 
-import { CRAWL_KINDS, fetcherFor } from '../fetchers/index.js';
+import type { PipelineDeps } from './deps.js';
 import { PUBLIC_API_HOSTS } from '../fetchers/detect.js';
+import { CRAWL_KINDS, fetcherFor } from '../fetchers/index.js';
 import type { FetchResult, FetchSource, NormalisedListing } from '../fetchers/types.js';
 import { errorMessage, isSourceError, type SourceErrorKind } from '../lib/errors.js';
 import { type ListingDoc, ListingModel, type SourceDoc, type SourceHealthCode, SourceModel, SourceRunModel } from '../models/index.js';
 import type { IngestReason } from '../queues.js';
-
-import type { PipelineDeps } from './deps.js';
 
 /** A role that reappears after this long unseen counts as a re-post (ghost signal). */
 const REPOST_GAP_MS = 7 * DAY_MS;
@@ -52,8 +52,8 @@ export function toFetchSource(doc: SourceDoc): FetchSource {
     typeTag: doc.typeTag ?? null,
     ownerId: doc.ownerId ? String(doc.ownerId) : null,
     config: { ...(doc.config ?? {}), boardToken: doc.config?.boardToken ?? null, feedUrl: doc.config?.feedUrl ?? null, provider: doc.config?.provider ?? null },
-    companyDomain: (doc.companyDomain as string | null | undefined) ?? (doc.config?.companyDomain as string | null | undefined) ?? null,
-    country: (doc.country as string | null | undefined) ?? (doc.config?.country as string | null | undefined) ?? null,
+    companyDomain: (doc.companyDomain) ?? (doc.config?.companyDomain as string | null | undefined) ?? null,
+    country: (doc.country) ?? (doc.config?.country as string | null | undefined) ?? null,
     etag: doc.etag ?? null,
     lastModified: doc.lastModified ?? null,
   };
@@ -145,7 +145,7 @@ function fetchedFields(p: Prepared, sourceKind: string) {
 
 type ExistingRow = Pick<
   ListingDoc,
-  '_id' | 'canonicalKey' | 'applyUrlKey' | 'contentHash' | 'lastSeenAt' | 'sourceId' | 'externalId' | 'descriptionMd' | 'skillsRequired' | 'deadlineAt' | 'stipendMin' | 'eligibility' | 'postedAt' | 'location' | 'remote' | 'country' | 'companyDomain' | 'stipendMax' | 'skillsNice'
+  '_id' | 'canonicalKey' | 'applyUrlKey' | 'contentHash' | 'lastSeenAt' | 'sourceId' | 'sourceIds' | 'externalId' | 'descriptionMd' | 'skillsRequired' | 'deadlineAt' | 'stipendMin' | 'eligibility' | 'postedAt' | 'location' | 'remote' | 'country' | 'companyDomain' | 'stipendMax' | 'skillsNice'
 >;
 
 /**
@@ -196,7 +196,7 @@ export async function ingestSource(deps: PipelineDeps, sourceId: string, reason:
       maxItems: deps.env.INGEST_MAX_LISTINGS,
       maxDetailCalls: CRAWL_KINDS.has(source.kind) ? deps.env.FIRECRAWL_MAX_DETAIL_PAGES : 50,
       detailDelayMs: deps.env.NODE_ENV === 'test' ? 0 : 250,
-      extractIndex: deps.llm ? (md, url) => deps.llm!.extractIndex(md, url) : undefined,
+      extractIndex: deps.llm ? (md, url) => deps.llm!.extractIndex(md, url, { userId: source.ownerId }) : undefined,
       keys: { adzunaAppId: deps.env.ADZUNA_APP_ID, adzunaAppKey: deps.env.ADZUNA_APP_KEY },
     });
   } catch (err) {
@@ -279,27 +279,35 @@ export async function ingestSource(deps: PipelineDeps, sourceId: string, reason:
   const deduped = dedupeListings(prepared.map((p) => ({ ...p, seenCount: 1 })));
   summary.found = deduped.length;
 
+  const externalIds = deduped.map((d) => d.externalId).filter(Boolean);
   const existing = deduped.length
     ? await ListingModel.find(
         {
           $or: [
+            // Same posting in this source first: its key/URL can drift (Workday list vs detail).
+            { sourceIds: sourceObjectId, externalId: { $in: externalIds } },
             { canonicalKey: { $in: deduped.map((d) => d.canonicalKey) } },
             { applyUrlKey: { $in: deduped.map((d) => d.applyUrlKey).filter((u): u is string => Boolean(u)) } },
           ],
         },
         {
-          canonicalKey: 1, applyUrlKey: 1, contentHash: 1, lastSeenAt: 1, sourceId: 1, externalId: 1, descriptionMd: 1, skillsRequired: 1, skillsNice: 1,
+          canonicalKey: 1, applyUrlKey: 1, contentHash: 1, lastSeenAt: 1, sourceId: 1, sourceIds: 1, externalId: 1, descriptionMd: 1, skillsRequired: 1, skillsNice: 1,
           deadlineAt: 1, stipendMin: 1, stipendMax: 1, eligibility: 1, postedAt: 1, location: 1, remote: 1, country: 1, companyDomain: 1,
         },
       ).lean<ExistingRow[]>()
     : [];
   const byKey = new Map(existing.map((e) => [e.canonicalKey, e]));
   const byUrl = new Map(existing.filter((e) => e.applyUrlKey).map((e) => [e.applyUrlKey as string, e]));
+  const byExternal = new Map(
+    existing
+      .filter((e) => e.externalId && (e.sourceIds ?? [e.sourceId]).some((id) => String(id) === sourceId))
+      .map((e) => [e.externalId as string, e]),
+  );
 
   const ops: AnyBulkWriteOperation<ListingDoc>[] = [];
   const claimed = new Set<string>();
   for (const p of deduped) {
-    const match = byKey.get(p.canonicalKey) ?? (p.applyUrlKey ? byUrl.get(p.applyUrlKey) : undefined);
+    const match = byExternal.get(p.externalId) ?? byKey.get(p.canonicalKey) ?? (p.applyUrlKey ? byUrl.get(p.applyUrlKey) : undefined);
     if (!match || claimed.has(String(match._id))) {
       const _id = new Types.ObjectId();
       const risk = ghostRisk({ postedAt: p.postedAt, firstSeenAt: now, lastSeenAt: now, title: p.title, descriptionMd: p.descriptionMd }, { now, identicalOpenRoles: p.identical });
@@ -323,7 +331,7 @@ export async function ingestSource(deps: PipelineDeps, sourceId: string, reason:
             embeddingModel: null,
             repostCount: 0,
             identicalOpenRoles: p.identical,
-            applyUrlCheck: null,
+            applyCheck: null,
             lastGhostCheckAt: null,
           } as unknown as ListingDoc,
         },
@@ -341,13 +349,14 @@ export async function ingestSource(deps: PipelineDeps, sourceId: string, reason:
       $inc: { seenCount: 1, ...(reposted ? { repostCount: 1 } : {}) },
       $addToSet: { sourceIds: sourceObjectId },
     };
-    if (match.contentHash === p.contentHash) {
+    // Re-confirmed without detail, or unchanged: only mark it seen.
+    if (p.partial || match.contentHash === p.contentHash) {
       ops.push({ updateOne: { filter: { _id: match._id }, update: bump } });
       summary.unchanged++;
       continue;
     }
     // Changed content. Another source's richer record wins; ours only bumps it.
-    if (!sameSource && listingRichness(match as never) > listingRichness(p as never)) {
+    if (!sameSource && listingRichness(match as never) > listingRichness(p)) {
       ops.push({ updateOne: { filter: { _id: match._id }, update: bump } });
       summary.unchanged++;
       continue;

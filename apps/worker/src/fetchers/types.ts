@@ -25,6 +25,11 @@ export type NormalisedListing = Omit<
   structured: boolean;
   /** Optional change marker (SmartRecruiters releasedDate, Workday postedOn) for detail diffs. */
   version?: string | null;
+  /**
+   * The source only re-confirmed a known posting (detail call skipped): ingest marks it seen
+   * and leaves the stored fields alone.
+   */
+  partial?: boolean;
 };
 
 /** The subset of a source document the fetchers need. */

@@ -1,12 +1,12 @@
 import Parser from 'rss-parser';
 
+import { buildAll, type RawListing } from './build.js';
+import { emptyResult, type Fetcher } from './types.js';
+import { companyOf, str } from './util.js';
 import { SourceError } from '../lib/errors.js';
 import { htmlToMarkdown, plainToMarkdown, stripTags } from '../lib/html.js';
 import { httpRequest } from '../lib/http.js';
 
-import { buildAll, type RawListing } from './build.js';
-import { emptyResult, type Fetcher } from './types.js';
-import { companyOf, str } from './util.js';
 
 type FeedItem = Parser.Item & { 'content:encoded'?: string; id?: string };
 

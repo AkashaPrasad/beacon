@@ -1,11 +1,16 @@
-import { contentHash } from '@kestrel/shared';
 import { Types } from 'mongoose';
 import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { contentHash } from '@kestrel/shared';
+
+import { runCleanup } from './cleanup.js';
+import { applyCheckStatus, checkApplyUrl, ghostcheckListing, redirectedToHome } from './ghostcheck.js';
+import { runNotify } from './notify.js';
 import { inQuietHours, quietHoursEnd } from '../lib/time.js';
 import {
   AlertRuleModel,
+  InteractionModel,
   ListingModel,
   MatchModel,
   NotificationModel,
@@ -14,13 +19,11 @@ import {
   SourceRunModel,
   TrackerItemModel,
 } from '../models/index.js';
+import { normaliseNotifyJob } from '../processors.js';
 import { testDeps } from '../test/deps.js';
 import { useMongo } from '../test/mongo.js';
 import { TEST_NOW } from '../test/samples.js';
 
-import { runCleanup } from './cleanup.js';
-import { checkApplyUrl, ghostcheckListing, redirectedToHome } from './ghostcheck.js';
-import { runNotify } from './notify.js';
 
 useMongo();
 beforeAll(() => nock.disableNetConnect());
@@ -78,7 +81,7 @@ describe('notify: instant', () => {
     const userId = await pushUser();
     const rule = await instantRule(userId);
     const l = await listing({ deadlineAt: new Date(TEST_NOW.getTime() + 5 * DAY) });
-    await MatchModel.create({ userId, listingId: l._id, score: 86, fit: {}, profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
+    await MatchModel.create({ userId, listingId: l._id, score: 86, matchHash: 'h', profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
     const job = { kind: 'instant' as const, userId: String(userId), ruleId: String(rule._id), listingIds: [String(l._id)] };
     expect(await runNotify(deps, job)).toBe(1);
     expect(await runNotify(deps, job)).toBe(0);
@@ -98,7 +101,7 @@ describe('notify: instant', () => {
     const userId = await pushUser({ start: '11:00', end: '13:00' });
     const rule = await instantRule(userId);
     const l = await listing();
-    await MatchModel.create({ userId, listingId: l._id, score: 90, fit: {}, profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
+    await MatchModel.create({ userId, listingId: l._id, score: 90, matchHash: 'h', profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
     await runNotify(deps, { kind: 'instant', userId: String(userId), ruleId: String(rule._id), listingIds: [String(l._id)] });
     const queued = (await NotificationModel.findOne({ userId }).lean())!;
     expect(queued.pushStatus).toBe('pending');
@@ -126,7 +129,7 @@ describe('notify: instant', () => {
     const rule = await instantRule(userId);
     const a = await listing();
     const b = await listing();
-    for (const l of [a, b]) await MatchModel.create({ userId, listingId: l._id, score: 90, fit: {}, profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
+    for (const l of [a, b]) await MatchModel.create({ userId, listingId: l._id, score: 90, matchHash: 'h', profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
     await runNotify(deps, { kind: 'instant', userId: String(userId), ruleId: String(rule._id), listingIds: [String(a._id), String(b._id)] });
     expect(deps.push.sent).toHaveLength(1);
     expect(await NotificationModel.countDocuments({ userId })).toBe(2);
@@ -145,6 +148,38 @@ describe('notify: deadlines, nudges, digests', () => {
     deps.clock.now = new Date(TEST_NOW.getTime() + 2 * DAY);
     expect(await runNotify(deps, { kind: 'deadline' })).toBe(1);
     expect((await NotificationModel.find({ userId }).sort({ createdAt: 1 }).lean()).map((x) => x.title)).toEqual(['3 days left: SDE Intern', 'Last day: SDE Intern']);
+  });
+
+  it('reminds about saved (untracked) listings too, once per threshold', async () => {
+    const deps = testDeps();
+    const userId = await pushUser();
+    const saved = await listing({ title: 'Design Intern', deadlineAt: new Date(TEST_NOW.getTime() + 6.5 * DAY) });
+    const both = await listing({ title: 'Tracked too', deadlineAt: new Date(TEST_NOW.getTime() + 6.5 * DAY) });
+    await InteractionModel.create({ userId, listingId: saved._id, saved: true });
+    await InteractionModel.create({ userId, listingId: both._id, saved: true });
+    // Tracked as well: the tracker item carries the reminder, not the saved flag.
+    await TrackerItemModel.create({ userId, listingId: both._id, title: 'Tracked too', company: 'Acme', stage: 'saved', lastActivityAt: TEST_NOW });
+    expect(await runNotify(deps, { kind: 'deadline' })).toBe(2);
+    expect(await runNotify(deps, { kind: 'deadline' })).toBe(0);
+    const titles = (await NotificationModel.find({ userId }).lean()).map((n) => n.title).sort();
+    expect(titles).toEqual(['7 days left: Design Intern', '7 days left: Tracked too']);
+    const n = (await NotificationModel.findOne({ userId, title: /Design/ }).lean())!;
+    expect(n.url).toBe(`/radar?listing=${String(saved._id)}`);
+  });
+
+  it('the API test job { userId, alertRuleId, test } sends through the rule channels, bypassing quiet hours', async () => {
+    const deps = testDeps();
+    const userId = await pushUser({ start: '00:00', end: '23:59' });
+    const rule = await instantRule(userId);
+    const job = normaliseNotifyJob({ userId: String(userId), alertRuleId: String(rule._id), test: true });
+    expect(await runNotify(deps, job)).toBe(1);
+    expect(deps.push.sent).toHaveLength(1);
+    const n = (await NotificationModel.findOne({ userId }).lean())!;
+    expect(n).toMatchObject({ kind: 'system', title: 'Test: “Strong fits”', pushStatus: 'sent', channels: ['inapp', 'push'] });
+    expect(String(n.alertRuleId)).toBe(String(rule._id));
+    // A second test is a new notification (tests are never deduped).
+    deps.clock.now = new Date(TEST_NOW.getTime() + 1_000);
+    expect(await runNotify(deps, job)).toBe(1);
   });
 
   it('follow-up at 10 d and ghosted at 30 d after applying, honouring snoozes', async () => {
@@ -183,7 +218,7 @@ describe('notify: deadlines, nudges, digests', () => {
       timezone: 'Asia/Kolkata',
     });
     const l = await listing();
-    await MatchModel.create({ userId, listingId: l._id, score: 75, fit: {}, profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
+    await MatchModel.create({ userId, listingId: l._id, score: 75, matchHash: 'h', profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
     expect(await runNotify(deps, { kind: 'digest' })).toBe(1);
     expect(await runNotify(deps, { kind: 'digest' })).toBe(0);
     const n = (await NotificationModel.findOne({ userId, kind: 'digest' }).lean())!;
@@ -199,9 +234,18 @@ describe('ghostcheck', () => {
     const out = await ghostcheckListing(deps, String(l._id));
     const stored = (await ListingModel.findById(l._id).lean())!;
     expect(stored.ghostRisk.reasons.map((r) => r.code).sort()).toEqual(['age', 'apply_link_dead']);
-    expect(stored.applyUrlCheck?.status).toBe(404);
+    expect(stored.applyCheck).toMatchObject({ status: 'dead', httpStatus: 404, checkedAt: TEST_NOW });
     expect(out.score).toBeGreaterThan(0);
     expect(deps.enqueue.matches).toEqual([{ listingIds: [String(l._id)] }]);
+  });
+
+  it('maps raw checks to the API applyCheck status', () => {
+    expect(applyCheckStatus({ status: 200, redirectedToHome: false })).toBe('ok');
+    expect(applyCheckStatus({ status: 410 })).toBe('dead');
+    expect(applyCheckStatus({ status: 200, redirectedToHome: true })).toBe('redirect_home');
+    expect(applyCheckStatus({ status: 503 })).toBe('error');
+    expect(applyCheckStatus({ status: 403 })).toBe('error');
+    expect(applyCheckStatus({ status: null, error: 'ECONNRESET' })).toBe('error');
   });
 
   it('falls back to GET when HEAD is refused and detects redirect-to-home', async () => {
@@ -221,7 +265,7 @@ describe('cleanup', () => {
     const deps = testDeps();
     const old = await listing({ lastSeenAt: new Date(TEST_NOW.getTime() - 61 * DAY) });
     const fresh = await listing();
-    await MatchModel.create({ userId: new Types.ObjectId(), listingId: old._id, score: 50, fit: {}, profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
+    await MatchModel.create({ userId: new Types.ObjectId(), listingId: old._id, score: 50, matchHash: 'h', profileHash: 'h', listingType: 'internship', computedAt: TEST_NOW });
     await SourceRunModel.collection.insertOne({ sourceId: new Types.ObjectId(), startedAt: new Date(TEST_NOW.getTime() - 40 * DAY) });
     const out = await runCleanup(deps, null);
     expect(out).toMatchObject({ archived: 1, matchesPruned: 1, sourceRunsPruned: 1 });

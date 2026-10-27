@@ -1,3 +1,5 @@
+import mongoose, { Schema, type Types } from 'mongoose';
+
 import type {
   DeadlineKind,
   Eligibility,
@@ -7,16 +9,18 @@ import type {
   RemoteMode,
   SourceKind,
 } from '@kestrel/shared';
-import mongoose, { Schema, type Types } from 'mongoose';
 
 export type ExtractMethod = 'rules' | 'llm' | 'firecrawl' | 'none';
 
-export interface ApplyUrlCheckDoc {
-  status: number | null;
+/** API.md §12 `applyCheck` (the API maps it to `applyLinkHealth`), plus the worker's raw details. */
+export type ApplyCheckStatus = 'ok' | 'dead' | 'redirect_home' | 'error';
+export interface ApplyCheckDoc {
+  status: ApplyCheckStatus;
+  httpStatus: number | null;
   finalUrl: string | null;
-  redirectedToHome: boolean;
-  error: string | null;
   checkedAt: Date;
+  /** Network error message when `status` is `error` without an HTTP status. */
+  error: string | null;
 }
 
 /** `listings` document: the shared `Listing` shape plus worker-internal bookkeeping. */
@@ -72,7 +76,7 @@ export interface ListingDoc {
   repostCount: number;
   /** Raw postings at this company with the same normalised title in the last run. */
   identicalOpenRoles: number;
-  applyUrlCheck: ApplyUrlCheckDoc | null;
+  applyCheck: ApplyCheckDoc | null;
   lastGhostCheckAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -143,11 +147,8 @@ const listingSchema = new Schema<ListingDoc>(
     embeddingModel: { type: String, default: null },
     repostCount: { type: Number, default: 0 },
     identicalOpenRoles: { type: Number, default: 0 },
-    applyUrlCheck: {
-      type: new Schema(
-        { status: Number, finalUrl: String, redirectedToHome: Boolean, error: String, checkedAt: Date },
-        { _id: false },
-      ),
+    applyCheck: {
+      type: new Schema({ status: String, httpStatus: Number, finalUrl: String, checkedAt: Date, error: String }, { _id: false }),
       default: null,
     },
     lastGhostCheckAt: { type: Date, default: null },

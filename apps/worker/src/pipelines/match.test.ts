@@ -1,32 +1,52 @@
-import { contentHash } from '@kestrel/shared';
 import { Types } from 'mongoose';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { contentHash } from '@kestrel/shared';
 
 import { loadEnv } from '../env.js';
-import { AlertRuleModel, ListingModel, MatchModel, ProfileModel, SettingsModel, TrackerItemModel } from '../models/index.js';
+import { embedListing, embedUser } from './embed.js';
+import { matchListings, matchUser, passesFloor } from './match.js';
+import {
+  AlertRuleModel,
+  InteractionModel,
+  ListingModel,
+  MatchModel,
+  ProfileModel,
+  SettingsModel,
+  SourceModel,
+  SubscriptionModel,
+  TrackerItemModel,
+} from '../models/index.js';
 import { testDeps } from '../test/deps.js';
 import { useMongo } from '../test/mongo.js';
 import { TEST_NOW } from '../test/samples.js';
 
-import { embedListing, embedUser } from './embed.js';
-import { matchListings, matchUser } from './match.js';
 
 useMongo();
 
+async function source(partial: Record<string, unknown> = {}) {
+  const doc = await SourceModel.create({ url: `https://src.test/${new Types.ObjectId().toHexString()}`, name: 'Src', kind: 'greenhouse', scope: 'community', ...partial });
+  return doc._id;
+}
+
 let seq = 0;
+let defaultSource: Types.ObjectId | null = null;
 async function listing(partial: Record<string, unknown> = {}) {
-  seq++;
+  const n = ++seq;
+  defaultSource ??= await source();
+  const sourceId = (partial.sourceId as Types.ObjectId | undefined) ?? defaultSource;
   const doc = await ListingModel.create({
     type: 'internship',
-    title: `Frontend Engineering Intern ${seq}`,
-    company: `Company ${seq}`,
+    title: `Frontend Engineering Intern ${n}`,
+    company: `Company ${n}`,
     location: ['Bengaluru'],
     remote: 'hybrid',
     country: 'IN',
-    applyUrl: `https://acme.test/jobs/${seq}`,
-    sourceId: new Types.ObjectId(),
-    canonicalKey: `c${seq}|frontend|bengaluru`,
-    contentHash: contentHash(`l${seq}`),
+    applyUrl: `https://acme.test/jobs/${n}`,
+    sourceId,
+    sourceIds: [sourceId],
+    canonicalKey: `c${n}|frontend|bengaluru`,
+    contentHash: contentHash(`l${n}`),
     firstSeenAt: TEST_NOW,
     lastSeenAt: TEST_NOW,
     postedAt: TEST_NOW,
@@ -51,11 +71,17 @@ async function user(partial: Record<string, unknown> = {}) {
     remotePref: 'any',
     openToRelocate: true,
     opportunityTypes: ['internship'],
+    profileHash: 'api-profile-hash',
     embeddingHash: null,
     ...partial,
   });
   return String(userId);
 }
+
+// Collections are emptied between tests, so the cached community source must be recreated.
+beforeEach(() => {
+  defaultSource = null;
+});
 
 describe('embed', () => {
   it('embeds listings in batches (target + up to 15 waiting) and skips unchanged text', async () => {
@@ -77,7 +103,9 @@ describe('embed', () => {
     const userId = await user();
     expect(await embedUser(deps, userId)).toMatchObject({ embedded: 1, changed: true });
     expect(await embedUser(deps, userId)).toMatchObject({ embedded: 0, changed: false });
-    expect(deps.enqueue.matches).toEqual([{ userId }]);
+    expect(deps.enqueue.matches).toEqual([{ userId, reason: 'embedding' }]);
+    const p = (await ProfileModel.findOne({ userId: new Types.ObjectId(userId) }).lean())!;
+    expect(p.embeddedAt).toEqual(TEST_NOW);
   });
 });
 
@@ -99,17 +127,22 @@ describe('match', () => {
     const best = matches.find((m) => String(m.listingId) === good)!;
     const worst = matches.find((m) => String(m.listingId) === other)!;
     expect(best.score).toBeGreaterThan(worst.score);
-    expect(best.fit.semanticAvailable).toBe(true);
-    expect(best.fit.details.skills.matchedRequired).toEqual(expect.arrayContaining(['React', 'TypeScript']));
-    expect(new Set(matches.map((m) => m.profileHash)).size).toBe(1);
+    // FitResult fields at the top level (API.md §12), stamped with the API's profileHash.
+    expect(best.semanticAvailable).toBe(true);
+    expect(best.details.skills.matchedRequired).toEqual(expect.arrayContaining(['React', 'TypeScript']));
+    expect(best.components.semantic).toBeGreaterThan(0);
+    expect(best.contributions.skills).toBeGreaterThan(0);
+    expect(best.explain.whyFit.length).toBeGreaterThan(0);
+    expect(new Set(matches.map((m) => m.profileHash))).toEqual(new Set(['api-profile-hash']));
+    expect(new Set(matches.map((m) => m.matchHash)).size).toBe(1);
 
-    // Weights change → new profileHash, old matches replaced.
+    // Weights change → new matchHash, matches rewritten with the new weights.
     await SettingsModel.create({ userId: new Types.ObjectId(userId), weights: { semantic: 0, skills: 1, role: 0, eligibility: 0, location: 0, freshness: 0, stipend: 0 } });
     await matchUser(deps, userId);
     const after = await MatchModel.find({ userId: new Types.ObjectId(userId) }).lean();
     expect(after).toHaveLength(3);
-    expect(after[0]!.profileHash).not.toBe(best.profileHash);
-    expect(after.find((m) => String(m.listingId) === good)!.fit.weights.skills).toBe(1);
+    expect(after[0]!.matchHash).not.toBe(best.matchHash);
+    expect(after.find((m) => String(m.listingId) === good)!.weights.skills).toBe(1);
   });
 
   it('works without a profile embedding (rules only over fresh listings)', async () => {
@@ -120,7 +153,68 @@ describe('match', () => {
     expect(out).toMatchObject({ semantic: false, written: 1 });
     const m = (await MatchModel.findOne({ userId: new Types.ObjectId(userId) }).lean())!;
     expect(m.semantic).toBeNull();
-    expect(m.fit.semanticAvailable).toBe(false);
+    expect(m.semanticAvailable).toBe(false);
+  });
+
+  it('only matches listings from the user\'s sources; removing a source drops its matches', async () => {
+    const deps = testDeps();
+    const mine = await source({ scope: 'personal' });
+    const subscribed = await source();
+    const other = await source();
+    const a = await listing({ sourceId: mine });
+    const b = await listing({ sourceId: subscribed });
+    const c = await listing({ sourceId: other });
+    // Seen in an unsubscribed source but also (deduped) in a subscribed one → visible.
+    const d = await listing({ sourceId: other, sourceIds: [other, subscribed] });
+    for (const id of [a, b, c, d]) await embedListing(deps, id);
+    const userId = await user();
+    const uid = new Types.ObjectId(userId);
+    await SourceModel.updateOne({ _id: mine }, { $set: { ownerId: uid } });
+    await SubscriptionModel.create({ userId: uid, sourceId: subscribed, packId: 'top-indian-product' });
+    await embedUser(deps, userId);
+
+    await matchUser(deps, userId);
+    const ids = async () => (await MatchModel.find({ userId: uid }).lean()).map((m) => String(m.listingId)).sort();
+    expect(await ids()).toEqual([a, b, d].sort());
+
+    // Pack disabled → the API deletes the subscription and enqueues match {userId}.
+    await SubscriptionModel.deleteMany({ userId: uid });
+    const out = await matchUser(deps, userId);
+    expect(out.removed).toBe(2);
+    expect(await ids()).toEqual([a]);
+
+    // Incremental matching skips users who cannot see the listing.
+    const e = await listing({ sourceId: other });
+    await embedListing(deps, e);
+    expect(await matchListings(deps, [e])).toMatchObject({ written: 0 });
+  });
+
+  it('keeps saved and tracked listings in the match set even outside stage 1', async () => {
+    const deps = testDeps();
+    const userId = await user();
+    const uid = new Types.ObjectId(userId);
+    // The user has a personal source, so the community listing below is not visible…
+    await source({ scope: 'personal', ownerId: uid });
+    const saved = await listing({ title: 'Payroll Clerk', skillsRequired: ['Accounting'], type: 'fulltime' });
+    await embedListing(deps, saved);
+    await embedUser(deps, userId);
+    expect((await matchUser(deps, userId)).written).toBe(0);
+    // …until it is saved from a shared link: then it is always scored.
+    await InteractionModel.create({ userId: uid, listingId: new Types.ObjectId(saved), saved: true });
+    expect((await matchUser(deps, userId)).written).toBe(1);
+    expect(await MatchModel.exists({ userId: uid, listingId: new Types.ObjectId(saved) })).toBeTruthy();
+  });
+
+  it('stage-1 floors: incremental keeps only listings that would have made the candidate set', () => {
+    const floors = { overall: 0.6, byType: { hackathon: 0.3 } };
+    expect(passesFloor(floors, 'internship', 0.7)).toBe(true);
+    expect(passesFloor(floors, 'internship', 0.5)).toBe(false);
+    // A type quota with a lower floor still admits the listing.
+    expect(passesFloor(floors, 'hackathon', 0.4)).toBe(true);
+    expect(passesFloor(null, 'internship', 0.1)).toBe(true);
+    expect(passesFloor(floors, 'internship', null)).toBe(true);
+    // −1: the pool was smaller than its quota at the last recompute, so everything passes.
+    expect(passesFloor({ overall: -1, byType: {} }, 'research', -0.2)).toBe(true);
   });
 
   it('incremental: scores new listings for every embedded user and fires instant rules', async () => {

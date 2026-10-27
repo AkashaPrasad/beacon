@@ -1,12 +1,12 @@
-import { SourceError } from '../lib/errors.js';
-import { parseRelativePosted } from '../lib/dates.js';
-import { htmlToMarkdown } from '../lib/html.js';
-import { httpJson, sleep } from '../lib/http.js';
 
 import { buildAll, type RawListing } from './build.js';
 import { detectSourceKind } from './detect.js';
 import { emptyResult, type FetchContext, type Fetcher, type FetchSource } from './types.js';
 import { companyOf, rethrowNotFound, str } from './util.js';
+import { parseRelativePosted } from '../lib/dates.js';
+import { SourceError } from '../lib/errors.js';
+import { htmlToMarkdown } from '../lib/html.js';
+import { httpJson, sleep } from '../lib/http.js';
 
 interface WdListItem {
   title: string;
@@ -80,6 +80,8 @@ function mapWorkday(item: WdListItem, t: WorkdayTarget, company: string, detail:
     postedAt: info?.startDate ?? parseRelativePosted(info?.postedOn ?? item.postedOn, now),
     typeHints: [info?.timeType],
     structured: true,
+    // Without the detail the list item has no description and only "N Locations".
+    partial: !detail && Boolean(knownDescription),
   };
 }
 

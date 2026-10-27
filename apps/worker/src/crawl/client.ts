@@ -2,7 +2,6 @@ import { SourceError } from '../lib/errors.js';
 import type { Logger } from '../logger.js';
 import { nullLogger } from '../logger.js';
 import type { RedisLike } from '../redis.js';
-
 import {
   type CrawlBackend,
   estimateCredits,
@@ -88,7 +87,7 @@ export class CrawlerClient {
       return cached === null ? null : Number(cached);
     }
     await this.opts.redis.set(CRAWLER_KEYS.cloudRemainingCheckedAt, String(this.now()));
-    let remaining: number | null = null;
+    let remaining: number | null;
     try {
       remaining = await cloud.remainingCredits();
     } catch (err) {

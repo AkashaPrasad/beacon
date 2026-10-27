@@ -10,7 +10,6 @@ import { sleep as realSleep } from '../lib/http.js';
 import type { Logger } from '../logger.js';
 import { nullLogger } from '../logger.js';
 import type { RedisLike } from '../redis.js';
-
 import { CRAWLER_KEYS } from './keys.js';
 
 /** Structural EC2 client (the real `EC2Client` or a test double). */

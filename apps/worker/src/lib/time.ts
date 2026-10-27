@@ -1,5 +1,6 @@
-import type { QuietHours } from '@kestrel/shared';
 import { DateTime } from 'luxon';
+
+import type { QuietHours } from '@kestrel/shared';
 
 const toMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);

@@ -2,8 +2,6 @@ import { DescribeInstancesCommand, StartInstancesCommand, StopInstancesCommand }
 import nock from 'nock';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { SourceError } from '../lib/errors.js';
-import { MemoryRedis } from '../test/memory-redis.js';
 
 import { FirecrawlHttpBackend } from './backend.js';
 import { CrawlerClient } from './client.js';
@@ -11,6 +9,8 @@ import { CRAWLER_KEYS } from './keys.js';
 import { CreditMeter } from './meter.js';
 import { RobotsChecker } from './robots.js';
 import { type Ec2Like, StandbyManager } from './standby.js';
+import { SourceError } from '../lib/errors.js';
+import { MemoryRedis } from '../test/memory-redis.js';
 
 const CLOUD = 'https://api.firecrawl.dev';
 const STANDBY = 'http://10.0.0.5:3002';

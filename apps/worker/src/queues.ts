@@ -23,7 +23,8 @@ export const MAINTENANCE_QUEUE = 'maintenance';
 
 // ── Job payloads (the producer contract; see docs/WORKER.md) ─────────────────────────
 
-export type IngestReason = 'schedule' | 'manual' | 'created' | 'retry';
+/** `created | enabled | pack` come from the API (docs/API.md §13); the rest are worker-internal. */
+export type IngestReason = 'schedule' | 'manual' | 'created' | 'enabled' | 'pack' | 'retry';
 export interface IngestJob {
   sourceId: string;
   reason: IngestReason;
@@ -33,10 +34,12 @@ export interface ExtractJob {
   listingId: string;
 }
 
-export type EmbedJob = { listingId: string } | { userId: string };
+/** The API sends `{ kind: 'profile', userId }`; ingest flows send `{ listingId }`. */
+export type EmbedJob = { kind?: 'listing'; listingId: string } | { kind?: 'profile'; userId: string };
 
+export type MatchReason = 'profile' | 'weights' | 'sources' | 'manual' | 'embedding';
 export type MatchJob =
-  | { userId: string }
+  | { userId: string; reason?: MatchReason }
   | {
       listingIds: string[];
       /** Continuation cursor when there are more users than MATCH_USERS_PER_JOB. */
@@ -49,12 +52,15 @@ export interface GhostcheckJob {
 
 export type NotifyKind = 'instant' | 'digest' | 'deadline' | 'nudge';
 export interface NotifyJob {
-  kind: NotifyKind;
+  /** Optional only for `test` jobs (the API sends `{ userId, alertRuleId, test: true }`). */
+  kind?: NotifyKind;
   userId?: string;
   ruleId?: string;
+  /** Alias of `ruleId` used by the API producer. */
+  alertRuleId?: string;
   /** Listing ids that triggered an instant rule evaluation. */
   listingIds?: string[];
-  /** Send a test push/in-app notification to `userId` (Settings > [Send a test notification]). */
+  /** Send a test push/in-app notification to `userId` (Alerts > [Test] or Settings > [Send a test notification]). */
   test?: boolean;
 }
 

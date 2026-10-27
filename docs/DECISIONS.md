@@ -1,7 +1,103 @@
 # Decisions
 
-One line each: **decision**, why, and the alternative rejected. Newest sections at the bottom.
-Other agents append their own sections.
+One line each: **decision** · why · alternative rejected. Sections are by area. Every judgement
+call from the build is here; the detailed per-phase engineering log (kept verbatim, with the
+numbers behind each call) follows in the appendix. Agents append new entries to the matching
+section.
+
+## Product
+
+- **Named Beacon (renamed from Kestrel).** · The metaphor (hovers, watches many things, dives only on a worthwhile target) fits the product's behaviour and the hosts and brand were free. · Rejected: keeping Kestrel. The npm scope stayed `@kestrel/*` until one orchestrated sweep to `@beacon/*`, so no agent renamed packages piecemeal.
+- **No email and no Telegram; alert channels are web push (VAPID) and the in-app notification centre only.** · Removes a third-party sender, DNS/DKIM setup and a bot token, and keeps notification data inside the product. · Rejected: Resend email digests and a Telegram bot (SPEC §3.1 E); `react-email` is not used.
+- **Google Sign-In only, with the redirect authorization-code flow as the primary path (the ID-token credential path is also accepted).** · The API exchanges the code with `GOOGLE_CLIENT_SECRET`, verifies the ID token and sets an httpOnly `beacon_session` cookie. The redirect flow works in browsers that block third-party sign-in prompts and needs no Google script on the page. · Rejected: password flows, and the GIS pop-up as the only path.
+- **Never remove a capability to simplify a screen; use progressive disclosure.** · Owner priority: all options kept, smart defaults first, advanced controls one click away or on the keyboard and ⌘K. · Rejected: trimming features for visual simplicity.
+- **Free and BYOK; the product is not monetised.** · Matches the "free, privacy-respecting" positioning and keeps the cost model to infrastructure only. · Rejected: a paid AI tier.
+- **Community sources are crawled once and shared; personal sources are per user.** · Ingestion cost scales with sources, not users. · Rejected: per-user crawling of the same career pages.
+
+## Matching
+
+- **Hybrid, explainable score: `100 · (0.40 semantic + 0.25 skills + 0.15 role + 0.10 eligibility + 0.05 location + 0.05 freshness) − ghost penalty`, with user-adjustable weights.** · Every component's contribution is shown, so a score can be defended line by line. · Rejected: an LLM-only ranker (opaque, costly, not reproducible).
+- **Three stages: Atlas `$vectorSearch` top 200, deterministic `computeFit`, optional LLM re-rank of the top 30 cached per `(user, listing, profileHash)`.** · Cheap retrieval first, pure scoring second, the paid step last and run once. · Rejected: scoring every listing with an LLM.
+- **Vector retrieval adapter: `VECTOR_SEARCH=atlas`, with an in-process cosine scan (`memory`) for tests and as a graceful fallback.** · Tests and a missing index must not break the feed. · Rejected: hard dependency on Atlas Vector Search.
+- **Local embeddings: `bge-small-en-v1.5` (384-d, L2-normalised) in the worker through transformers.js.** · No per-call cost, no resume text leaves the box, about 100 MB. · Rejected: a hosted embedding API.
+- **Hard constraints are visible caps, never silent filters (eligibility 35, remote-only vs on-site 50, deadline passed 20).** · SPEC rule "never silently"; the reason is listed in `caps[]`. · Rejected: dropping the listing.
+- **Resume parsing works without AI (unpdf/mammoth, sections, skill taxonomy, regexes); the LLM only enriches.** · AI-off mode must work end to end. · Rejected: LLM-only parsing.
+- **Ghost risk is a points model with listed reasons (age, reposts, dead or redirecting apply link, boilerplate, identical open roles, not seen for 14 days), capped at 100; penalty = score / 5.** · Auditable and cheap; responds to the documented ghost-listing problem (about 1 in 5). · Rejected: a single opaque "ghost probability".
+- **No semantic similarity available: redistribute its weight over the other terms.** · Treating it as 0 would cap every score at 60. · Rejected: zero.
+- **Default stipend weight 0.** · SPEC §4's formula has no stipend term and is reproduced exactly; the slider can raise it. · Rejected: adding an unspecified term.
+- **Dedup by union-find over `canonicalKey` or normalised apply URL; geography is part of the key.** · Merges cross-board duplicates without merging "Google India" into "Google". · Rejected: title-and-company only.
+
+## Data sources
+
+- **Cost-aware ingestion ladder: ATS JSON API, then public API, then RSS or sitemap, then crawler.** · 222 of 338 seeded sources (66%) are verified ATS endpoints and cost nothing. · Rejected: crawling everything with Firecrawl.
+- **`ETag` / `If-Modified-Since` polling and a `contentHash` gate.** · Unchanged text triggers no extraction, embedding or matching. · Rejected: re-processing every poll.
+- **Firecrawl cloud first, a self-hosted standby second.** · A real backup that costs almost nothing while idle. · Rejected: cloud-only (a credit outage would stop ingestion) and an always-on self-hosted box.
+- **Failover rules: cloud 402, the global daily cap, or `remainingCredits < 20` sets the Redis flag `crawler:backend=selfhosted` (6 h TTL).** · A single, observable switch. · Rejected: per-request retry against the standby.
+- **The standby is a separate EC2 instance that is normally stopped; the worker starts it with `ec2:StartInstances` and stops it after `FIRECRAWL_STANDBY_IDLE_MINUTES` (20).** · Near-zero idle cost (a 30 GB volume, about $2.74/month). · Rejected: always-on standby ($32.70 a month more).
+- **Credit meter counts both backends; self-hosted calls cost 0 cloud credits but still show.** · The user sees real usage. · Rejected: hiding standby calls.
+- **Seed packs contain only endpoints verified live on 2026-10-27; wrong-company slugs were dropped and bot-protected pages kept as `firecrawl`.** · See `seed/VERIFICATION.md`. · Rejected: guessing slugs.
+- **Fixtures use fictional organisations only.** · They feed the public landing demo; fake postings attributed to real companies could mislead. · Rejected: realistic real-company samples.
+
+## AI
+
+- **Default LLM is the Meta Model API (`muse-spark-1.3-contributor`, OpenAI-compatible).** · Free for the project; supports JSON mode. · Rejected: a paid default provider.
+- **Always `max_tokens ≥ 4096` and parse `choices[0].message.content` as JSON, stripping code fences.** · It is a reasoning model, so reasoning tokens count toward `max_tokens`. · Rejected: small token budgets (truncated JSON).
+- **BYOK: any OpenAI-compatible provider, key encrypted with AES-256-GCM (`ENCRYPTION_KEY`), never logged, never returned (last 4 characters only).** · Users control cost and data. · Rejected: storing keys in plaintext or returning them to the client.
+- **Consent toggle for sending resume text to an AI provider, and an AI-off mode.** · The default tier may use prompts for training. · Rejected: implicit consent.
+- **LLM calls are zod-validated, 30 s timeout, 2 retries, per-user daily cap, cached.** · Bounded cost and failure modes. · Rejected: unbounded retries.
+
+## Frontend
+
+- **Vite 8, React 19.3, React Router 7, Tailwind 4.3, shadcn/ui, Motion, TanStack Query/Table/Virtual, dnd-kit, cmdk.** · Latest stable on 2026-10-27, matching the brief. · Rejected: Next.js (no server rendering needed; the SPA is static on a CDN).
+- **Static SPA on Cloudflare Pages.** · Free, global, nothing to run on AWS for it. · Rejected: serving the SPA from the EC2 box.
+- **Vite resolves `@kestrel/shared` through a `source` export condition.** · Per-module tree-shaking took the placeholder page from 127 kB to 78 kB gzipped. · Rejected: a single-file tsup bundle for the browser.
+- **Polish mandate: shared-layout transitions, spring motion within 150–250 ms, optimistic updates with undo, skeletons within 100 ms, virtualised lists, `prefers-reduced-motion` honoured.** · Owner's brief: Apple-grade smoothness. · Rejected: spinner-only screens and blocking on the network.
+- **Alerts and push UI show web push and in-app only.** · See Product.
+- **Vite env names use the `VITE_` prefix (`VITE_API_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_VAPID_PUBLIC_KEY`, `VITE_SENTRY_DSN`).** · Vite exposes only `VITE_*` to the browser. · Rejected: unprefixed names.
+
+## Backend
+
+- **Express 5, Mongoose 9.11, zod 4, pino with redaction, BullMQ 6.5 with ioredis 6.** · Latest stable on 2026-10-27 (Mongoose 9 instead of the brief's 8). · Rejected: pinning Mongoose 8.
+- **JWT in an httpOnly, Secure, SameSite=Lax cookie, with a CSRF check and every query scoped by `userId`.** · Not readable by scripts; ownership enforced in one place. · Rejected: tokens in localStorage.
+- **The API never loads the embedding model or crawls; the worker owns all heavy work.** · Keeps the API light on a 2 GB box. · Rejected: one process doing both.
+- **Idempotent jobs: deterministic `jobId` per entity, upserts keyed by a natural key, 3 attempts with exponential backoff, dead-letter queue.** · Retries and duplicate triggers are safe. · Rejected: fire-and-forget jobs.
+- **Patch DTOs are separate schemas with no defaults.** · zod 4 applies defaults inside `.partial()`, so a PATCH would reset omitted fields. · Rejected: `.partial()` of the create schema.
+- **`ghostRisk.reasons` are `{ code, message, points }` objects.** · The UI shows each reason and the points are auditable. · Rejected: bare strings.
+- **Isomorphic shared package; sha256 through `@noble/hashes`, not `node:crypto`.** · `contentHash` also runs in the browser. · Rejected: Node-only hashing.
+
+## Infra
+
+- **One t4g.small (arm64, 2 GB) runs caddy, api, worker and Redis; frontend on Pages; DB on Atlas M0.** · About $16 a month; no Chromium on the box because Firecrawl renders remotely. · Rejected: a larger instance or managed Redis.
+- **Standby AZ moved to `ap-south-1b` (variable `firecrawl_availability_zone`).** · A t4g.large capacity shortage in ap-south-1a was seen on 2026-10-27; the app box stays in 1a and cross-AZ traffic inside the VPC is fine at this volume. · Rejected: waiting for capacity, or moving the app box.
+- **Redis `maxmemory-policy noeviction`, not SPEC's `allkeys-lru`.** · BullMQ requires it (LRU can silently evict job and lock keys); `docker-compose.dev.yml` uses it too. Override with `REDIS_MAXMEMORY_POLICY` in `/opt/beacon/compose.env`. · Rejected: following SPEC literally.
+- **Node heap caps of 384 MB (api) and 640 MB (worker), not SPEC's 512/768.** · A heap equal to the 512 MB cgroup limit gets OOM-killed before V8 can collect, and onnxruntime memory lives outside the heap. · Rejected: the SPEC values.
+- **GitHub OIDC role opens port 22 to the runner IP for the duration of a deploy only.** · SSH is otherwise restricted to the owner's IP and hosted-runner IPs are unpredictable. · Rejected: opening 22 to the world; SSM Run Command (more IAM and agent surface).
+- **Native `ubuntu-24.04-arm` runners build the arm64 images.** · Free for public repos and avoids QEMU. · Rejected: QEMU on x86 (5–10x slower).
+- **Firecrawl API from the published image; `playwright-service` and `nuq-postgres` built from the pinned tag (v2.11.162).** · Fast first boot, and the schema and scraper match the release. · Rejected: a full source build (about an hour on a t4g.large).
+- **Let's Encrypt HTTP-01 through the Cloudflare proxy, SSL mode Full (strict).** · Verified on this zone on 2026-10-27: the ACME path reaches the origin while `/` gets a 301. · Rejected: a Cloudflare Origin CA certificate (extra token scope, manual renewal).
+- **Gzipped user-data with files embedded as YAML block scalars.** · Base64-in-YAML was 18.8 KB, over EC2's 16 KB limit; gzip gives 6 KB. · Rejected: base64 embedding.
+- **`secrets.env` is parsed, not `source`d.** · An unquoted `&` in `MONGODB_URI` makes bash drop the variable and zsh fail. · Rejected: plain `source`.
+- **`cpu_credits = unlimited` on both instances.** · No throttling for the API or short standby bursts; surplus costs $0.04 per vCPU-hour only if CPU stays above baseline. · Rejected: standard credits.
+- **Docker networks drawn from `10.201.0.0/16`.** · Docker's default pools include `172.31.0.0/16`, the default VPC CIDR, which would swallow traffic to the standby. · Rejected: default pools.
+- **Dockerfiles: pnpm installed with npm, filtered install, topological build, `pnpm deploy --prod`, non-root, busybox `HEALTHCHECK`; `ARG NODE_IMAGE` for a glibc fallback.** · Corepack is gone from Node 25+; onnxruntime ships glibc binaries. · Rejected: copying the whole workspace `node_modules` (about 3x larger).
+- **Compose healthchecks run `node -e "fetch(...)"`.** · Images need no curl. · Rejected: adding curl.
+- **Cloudflare Pages deploy should use a narrow "Pages: Edit" token (`CLOUDFLARE_PAGES_DEPLOY_TOKEN`), not the broad account token.** · Least privilege in CI. · Rejected: the account-wide token in GitHub secrets.
+
+## Testing
+
+- **Quality gates per phase: `pnpm lint && pnpm typecheck && pnpm test` green; nothing is claimed that was not run.** · Honest status. · Rejected: marking phases done on file presence.
+- **Coverage gate in `packages/shared`: lines, functions, statements at least 90, branches at least 80 (measured 99.7% lines).** · The scoring core is what the viva examines. · Rejected: a repo-wide threshold that would fail on files outside an agent's ownership.
+- **ESLint 10 flat config with type-aware rules; Prettier is a separate `format:check`.** · Catches floating promises and unsafe `any` without a repo-wide format gate. · Rejected: syntax-only lint; `prettier --check` inside lint.
+- **TypeScript 6.0.3, not 7.** · typescript-eslint and tsup do not support the native TS 7 port yet. · Rejected: TS 7 with non-type-aware lint.
+- **gitleaks in the pre-commit hook (local binary, then Docker, then warn) and in CI.** · The npm package named `gitleaks` is unrelated third-party code. · Rejected: `npx gitleaks`.
+- **Playwright E2E (Chromium, WebKit, iPhone viewport) with axe on every route, Lighthouse CI budgets, autocannon load test, `scripts/security-check.sh`.** · Functional, accessibility, performance and security coverage in one matrix. · Rejected: unit tests only.
+
+---
+
+# Appendix: detailed engineering log
+
+The per-phase entries below are the original, longer-form decisions with the numbers behind
+them. They are kept verbatim.
 
 ## Phase 1: monorepo and tooling
 
@@ -50,3 +146,22 @@ Other agents append their own sections.
 - **Role taxonomy: 76 families in 7 groups; `classifyRole` picks the highest-weight matching pattern (title-specific 8–10, keyword 5–7, generic 1–4).** Related families are symmetric.
 - **Fixtures use fictional organisations and people only.** They feed the public landing-page demo, and fake postings attributed to real companies could mislead visitors.
 - **Coverage gate in `packages/shared/vitest.config.ts`: lines, functions and statements ≥ 90, branches ≥ 80.** Barrels and fixtures are excluded from the measurement.
+
+## Phase 4: worker (`apps/worker`)
+
+- **Matches are written only for listings the user can see, using the API's visibility rule (own personal sources + subscriptions, else every community source; a listing is visible when any of its `sourceIds` is).** The API's warm feed lists every match doc without re-checking sources, so a global top-K would ignore pack and source choices. A full recompute also deletes the user's other matches. Rejected: global vector top-K.
+- **Stage 1 = vector top 200 over visible listings + top 40 per opportunity type + every saved or tracked listing.** A narrow profile still gets hackathons and scholarships in the feed's type filters. Rejected: a single top-200, which can contain only one type.
+- **Incremental matching writes a match only when the listing clears the user's stage-1 floor (the K-th similarity at the last recompute), already had one, or fires an instant rule.** The feed stays consistent with a full recompute and `matches` stays bounded on M0. Rejected: a match for every new listing × every user.
+- **`matches` stores every `FitResult` field at the top level and `profileHash` = the profile's API `profileHash`; the worker's own profile + weights hash is a separate `matchHash`.** This follows API.md §12 and lines up with the `explanations` cache. Rejected: a nested `fit` object (the earlier worker draft).
+- **Ingest matches existing docs by `(source, externalId)` before `canonicalKey`/apply URL, and a known Workday posting re-listed without its detail is only marked seen (`partial`).** Workday list items have no description and only "N Locations", so the key drifted and good data was overwritten. Rejected: re-fetching every detail on every run.
+- **`applyCheck {status: ok|dead|redirect_home|error, httpStatus, finalUrl, checkedAt}`, with 401/403/429/5xx/network as `error`.** This is the API contract. A bot wall means "could not verify", not "dead".
+- **Server-side LLM extraction is charged to the personal source's owner (`llm:calls:<userId>:<day>`, same cap and key as the API); an owner with AI off gets rules only; community listings use `llm:calls:server:<day>` (cap 1000).** It honours the per-user cap rule and the AI-off choice, and protects the shared Meta quota. Rejected: unmetered extraction.
+- **Kept AI SDK `generateObject` (deprecated in AI SDK 7) and switched the SDK warning log off.** The spec names it, it still works, and it is the only API with `repairText` (needed for fenced JSON from the reasoning model). The provider sends `response_format: json_object` and zod validates. Rejected: `generateText` + `Output.object` (no repair hook).
+- **Worker image defaults to `node:22-bookworm-slim`.** `onnxruntime-node` fails on Alpine even with gcompat (`__sprintf_chk: symbol not found`, verified in the built image), so local embeddings cannot run there. The API image stays Alpine. Rejected: Alpine + `EMBEDDING_PROVIDER=openai` (it would make a paid key mandatory).
+- **Docker `HEALTHCHECK` uses `node -e fetch(...)`.** INFRA's contract is that images need only `node`; Debian slim has no wget.
+- **Ingest global concurrency 3 is enforced queue-wide (`Queue.setGlobalConcurrency`), not only per worker process.** It still holds if a second worker replica is started.
+- **Index creation tolerates "same name, different options" conflicts (logged, nothing dropped).** The API declares indexes on the same collections, and a stale index must not stop the worker from booting. Rejected: `syncIndexes()`, which would drop the API's indexes.
+- **`FIRECRAWL_DAILY_CREDIT_CAP` default 500, the same as the API's credit meter (prod sets 150 in `secrets.env`).** The two sides must agree on the cap shown in the UI.
+- **Optional `QUEUE_PREFIX`.** It isolates the smoke run (and any staging) on a shared Redis. The default `bull` is what the API uses.
+- **The real-Redis integration test serves upstream APIs from a local HTTP server (publicapi sources with a `feedUrl`) instead of nock.** nock's undici interception threw an uncaught TLS socket error after the flow test. Rejected: keeping nock for the BullMQ tests.
+- **Deadline reminders also cover saved (untracked) listings.** USERFLOW §3.3 says "saved and tracked items". A tracked listing is reminded once, through its tracker item.

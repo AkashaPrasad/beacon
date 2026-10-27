@@ -1,9 +1,10 @@
-import { DAY_MS, LISTING_ARCHIVE_AFTER_DAYS } from '@kestrel/shared';
 import type { Queue } from 'bullmq';
 
-import { ListingModel, MatchModel, SourceRunModel } from '../models/index.js';
+import { DAY_MS, LISTING_ARCHIVE_AFTER_DAYS } from '@kestrel/shared';
 
 import type { PipelineDeps } from './deps.js';
+import { ListingModel, MatchModel, SourceRunModel } from '../models/index.js';
+
 
 export const SOURCE_RUN_RETENTION_DAYS = 30;
 export const DLQ_RETENTION_DAYS = 7;

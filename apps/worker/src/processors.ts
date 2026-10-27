@@ -4,6 +4,7 @@ import type { CrawlerClient } from './crawl/client.js';
 import type { StandbyManager } from './crawl/standby.js';
 import { isSourceError } from './lib/errors.js';
 import { acquireLock, domainLockKey } from './lib/lock.js';
+import { SourceModel, type SourceDoc } from './models/index.js';
 import { runCleanup } from './pipelines/cleanup.js';
 import type { PipelineDeps } from './pipelines/deps.js';
 import { embedListing, embedUser } from './pipelines/embed.js';
@@ -12,7 +13,6 @@ import { ghostcheckListing, ghostRecheck } from './pipelines/ghostcheck.js';
 import { fetchHostOf, ingestSource, toFetchSource } from './pipelines/ingest.js';
 import { matchListings, matchUser } from './pipelines/match.js';
 import { runNotify } from './pipelines/notify.js';
-import { SourceModel, type SourceDoc } from './models/index.js';
 import {
   type DeadLetterJob,
   type EmbedJob,
@@ -71,6 +71,12 @@ export function ingestProcessor(ctx: ProcessorContext): Processor {
   };
 }
 
+/** Accepts the API's `{ userId, alertRuleId, test: true }` as well as worker-internal jobs. */
+export function normaliseNotifyJob(data: NotifyJob): NotifyJob {
+  const ruleId = data.ruleId ?? data.alertRuleId;
+  return { ...data, ...(ruleId ? { ruleId } : {}) };
+}
+
 export function processorFor(queue: QueueName, ctx: ProcessorContext): Processor {
   const { deps } = ctx;
   switch (queue) {
@@ -81,17 +87,21 @@ export function processorFor(queue: QueueName, ctx: ProcessorContext): Processor
     case 'embed':
       return (job) => {
         const data = job.data as EmbedJob;
-        return 'userId' in data ? embedUser(deps, data.userId) : embedListing(deps, data.listingId);
+        if ('userId' in data && data.userId) return embedUser(deps, data.userId);
+        if ('listingId' in data && data.listingId) return embedListing(deps, data.listingId);
+        throw new UnrecoverableError('embed job needs userId or listingId');
       };
     case 'match':
       return (job) => {
         const data = job.data as MatchJob;
-        return 'userId' in data ? matchUser(deps, data.userId) : matchListings(deps, data.listingIds, data.afterUserId);
+        if ('userId' in data && data.userId) return matchUser(deps, data.userId);
+        if ('listingIds' in data && Array.isArray(data.listingIds)) return matchListings(deps, data.listingIds, data.afterUserId);
+        throw new UnrecoverableError('match job needs userId or listingIds');
       };
     case 'ghostcheck':
       return (job) => ghostcheckListing(deps, (job.data as GhostcheckJob).listingId);
     case 'notify':
-      return (job) => runNotify(deps, job.data as NotifyJob);
+      return (job) => runNotify(deps, normaliseNotifyJob(job.data as NotifyJob));
     case 'cleanup':
       return () => runCleanup(deps, ctx.set.dead);
   }

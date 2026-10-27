@@ -1,5 +1,6 @@
-import type { AlertChannel, NotificationKind } from '@kestrel/shared';
 import mongoose, { Schema, type Types } from 'mongoose';
+
+import type { AlertChannel, NotificationKind } from '@kestrel/shared';
 
 export interface NotificationDoc {
   _id: Types.ObjectId;
@@ -42,7 +43,9 @@ const notificationSchema = new Schema<NotificationDoc>(
   },
   { collection: 'notifications', strict: false },
 );
-notificationSchema.index({ userId: 1, dedupeKey: 1 }, { unique: true });
+// Partial: only worker-written notifications carry a dedupe key.
+notificationSchema.index({ userId: 1, dedupeKey: 1 }, { unique: true, partialFilterExpression: { dedupeKey: { $type: 'string' } } });
+notificationSchema.index({ userId: 1, readAt: 1 });
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ pushStatus: 1, pushAfter: 1 });
 

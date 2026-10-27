@@ -43,7 +43,7 @@ locals {
 resource "aws_instance" "firecrawl" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.firecrawl_instance_type
-  subnet_id                   = data.aws_subnet.default.id
+  subnet_id                   = data.aws_subnet.firecrawl.id
   vpc_security_group_ids      = [aws_security_group.firecrawl.id]
   key_name                    = aws_key_pair.beacon.key_name
   associate_public_ip_address = true # outbound internet in the default VPC (no NAT)
