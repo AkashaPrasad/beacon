@@ -28,13 +28,13 @@ What distinguishes it:
 
 ## 2. Production URLs
 
-| What                | URL                                           |
-| ------------------- | --------------------------------------------- |
-| Web app             | `https://beacon.spacesdrive.cc`               |
-| API                 | `https://api.beacon.spacesdrive.cc`           |
-| API reference       | `https://api.beacon.spacesdrive.cc/docs`      |
-| Liveness / readiness| `https://api.beacon.spacesdrive.cc/healthz`, `/readyz` |
-| Repository          | `https://github.com/AkashaPrasad/beacon` (public) |
+| What                 | URL                                                    |
+| -------------------- | ------------------------------------------------------ |
+| Web app              | `https://beacon.spacesdrive.cc`                        |
+| API                  | `https://api-beacon.spacesdrive.cc`                    |
+| API reference        | `https://api-beacon.spacesdrive.cc/docs`               |
+| Liveness / readiness | `https://api-beacon.spacesdrive.cc/healthz`, `/readyz` |
+| Repository           | `https://github.com/AkashaPrasad/beacon` (public)      |
 
 Region: AWS `ap-south-1` (Mumbai). Web on Cloudflare Pages (project `beacon`); API on EC2 behind
 the Cloudflare proxy.
@@ -43,7 +43,7 @@ the Cloudflare proxy.
 
 ```
 Browser (React SPA, PWA + web push)       beacon.spacesdrive.cc   Cloudflare Pages
-   └─► api.beacon.spacesdrive.cc          Cloudflare proxy → Elastic IP
+   └─► api-beacon.spacesdrive.cc          Cloudflare proxy → Elastic IP
           └─ EC2 t4g.small (arm64, 2 GB, ap-south-1a) · docker compose
                caddy :80/:443 → api :4000 (Express 5)
                worker :4001 (BullMQ, local embeddings)
@@ -71,17 +71,17 @@ Detail: [ARCHITECTURE](./ARCHITECTURE.md), [INFRA](./INFRA.md), [RUNBOOK](./RUNB
 
 ### Cost table (ap-south-1, on-demand, AWS Price List 2026-10-27)
 
-| Item                                                            | Per month        |
-| --------------------------------------------------------------- | ---------------- |
-| `beacon-app` t4g.small, 730 h ($0.0112/h)                      | $8.18            |
-| App root volume, 20 GB gp3                                      | $1.82            |
-| Elastic IP (public IPv4, in use)                                | $3.65            |
-| Standby root volume, 30 GB gp3 (billed while stopped)           | $2.74            |
-| Standby t4g.large, only while running (about 20 h)              | $0.90            |
-| Standby public IPv4, only while running (about 20 h)            | $0.10            |
-| Data transfer out (first 100 GB free)                           | $0               |
-| Cloudflare Free, Atlas M0, GitHub Actions + GHCR (public repo)  | $0               |
-| **Baseline**                                                    | **about $16.40; about $17.40 with standby use** |
+| Item                                                           | Per month                                       |
+| -------------------------------------------------------------- | ----------------------------------------------- |
+| `beacon-app` t4g.small, 730 h ($0.0112/h)                      | $8.18                                           |
+| App root volume, 20 GB gp3                                     | $1.82                                           |
+| Elastic IP (public IPv4, in use)                               | $3.65                                           |
+| Standby root volume, 30 GB gp3 (billed while stopped)          | $2.74                                           |
+| Standby t4g.large, only while running (about 20 h)             | $0.90                                           |
+| Standby public IPv4, only while running (about 20 h)           | $0.10                                           |
+| Data transfer out (first 100 GB free)                          | $0                                              |
+| Cloudflare Free, Atlas M0, GitHub Actions + GHCR (public repo) | $0                                              |
+| **Baseline**                                                   | **about $16.40; about $17.40 with standby use** |
 
 Leaving the standby running all month by mistake adds about $36. AWS Free-plan credits, if they
 apply to the account, cover this for the semester.
@@ -93,74 +93,74 @@ Names and purpose only. Values live in the git-ignored `secrets.env` and, in pro
 
 **Identity and URLs**
 
-| Name | Purpose |
-| --- | --- |
-| `APP_NAME`, `DOMAIN`, `WEB_HOST`, `API_HOST` | Product name and hostnames |
-| `WEB_URL`, `API_URL` | CORS origin, cookie scope, links in notifications |
-| `GITHUB_REPO` | Repository slug used by deploy tooling |
+| Name                                           | Purpose                                                    |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `APP_NAME`, `DOMAIN`, `WEB_HOST`, `API_HOST`   | Product name and hostnames                                 |
+| `WEB_URL`, `API_URL`                           | CORS origin, cookie scope, links in notifications          |
+| `GITHUB_REPO`                                  | Repository slug used by deploy tooling                     |
 | `NODE_ENV`, `PORT`, `HEALTH_PORT`, `LOG_LEVEL` | Runtime mode, ports (api 4000, worker 4001), log verbosity |
 
 **Data**
 
-| Name | Purpose |
-| --- | --- |
-| `MONGODB_URI`, `MONGODB_DB` | Atlas connection and database name |
-| `REDIS_URL` | BullMQ, rate limits, credit meters |
-| `VECTOR_SEARCH` | `atlas` (`$vectorSearch`) or `memory` (in-process cosine fallback) |
+| Name                        | Purpose                                                            |
+| --------------------------- | ------------------------------------------------------------------ |
+| `MONGODB_URI`, `MONGODB_DB` | Atlas connection and database name                                 |
+| `REDIS_URL`                 | BullMQ, rate limits, credit meters                                 |
+| `VECTOR_SEARCH`             | `atlas` (`$vectorSearch`) or `memory` (in-process cosine fallback) |
 
 **Auth and secrets at rest**
 
-| Name | Purpose |
-| --- | --- |
+| Name                                       | Purpose                                                        |
+| ------------------------------------------ | -------------------------------------------------------------- |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth client (the secret is used for the code exchange) |
-| `JWT_SECRET` | Signs the session cookie |
-| `ENCRYPTION_KEY` | AES-256-GCM key for user BYOK keys |
+| `JWT_SECRET`                               | Signs the session cookie                                       |
+| `ENCRYPTION_KEY`                           | AES-256-GCM key for user BYOK keys                             |
 
 **AI**
 
-| Name | Purpose |
-| --- | --- |
+| Name                                                       | Purpose                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
 | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | Server default LLM (Meta Model API, OpenAI-compatible) |
-| `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL` | Local embeddings (`bge-small-en-v1.5`, 384-d) |
+| `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`                    | Local embeddings (`bge-small-en-v1.5`, 384-d)          |
 
 **Crawling and the standby**
 
-| Name | Purpose |
-| --- | --- |
-| `FIRECRAWL_API_KEY` | Firecrawl cloud |
-| `FIRECRAWL_DAILY_CREDIT_CAP` | Global daily credit cap shown in the meter |
-| `FIRECRAWL_SELF_HOSTED_URL` | Standby base URL (`http://<private-ip>:3002`, no auth) |
-| `FIRECRAWL_INSTANCE_ID` | EC2 instance the worker may start and stop |
-| `FIRECRAWL_STANDBY_IDLE_MINUTES` | Idle time before the standby is stopped (default 20) |
-| `AWS_REGION` | Region for the EC2 client (default credential chain, no static keys) |
+| Name                             | Purpose                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `FIRECRAWL_API_KEY`              | Firecrawl cloud                                                      |
+| `FIRECRAWL_DAILY_CREDIT_CAP`     | Global daily credit cap shown in the meter                           |
+| `FIRECRAWL_SELF_HOSTED_URL`      | Standby base URL (`http://<private-ip>:3002`, no auth)               |
+| `FIRECRAWL_INSTANCE_ID`          | EC2 instance the worker may start and stop                           |
+| `FIRECRAWL_STANDBY_IDLE_MINUTES` | Idle time before the standby is stopped (default 20)                 |
+| `AWS_REGION`                     | Region for the EC2 client (default credential chain, no static keys) |
 
 **Web push**
 
-| Name | Purpose |
-| --- | --- |
+| Name                                                     | Purpose          |
+| -------------------------------------------------------- | ---------------- |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web push signing |
 
 **Web build (Vite, browser-visible)**
 
-| Name | Purpose |
-| --- | --- |
+| Name                                                                                | Purpose                                  |
+| ----------------------------------------------------------------------------------- | ---------------------------------------- |
 | `VITE_API_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_VAPID_PUBLIC_KEY`, `VITE_SENTRY_DSN` | Build-time equivalents of the API values |
 
 **Observability**
 
-| Name | Purpose |
-| --- | --- |
+| Name         | Purpose                  |
+| ------------ | ------------------------ |
 | `SENTRY_DSN` | Optional error reporting |
 
 **Infrastructure and CI (not read by the apps)**
 
-| Name | Purpose |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PAGES_PROJECT` | DNS, Pages and SSL setup |
-| `CLOUDFLARE_PAGES_DEPLOY_TOKEN` | Optional narrow "Pages: Edit" token for CI |
-| `AWS_PROFILE`, `AWS_INSTANCE_TYPE`, `FIRECRAWL_INSTANCE_TYPE` | Terraform inputs |
-| `SSH_PUBLIC_KEY`, `SSH_PRIVATE_KEY_PATH` | Key pair for the two instances |
-| `REDIS_MAXMEMORY_POLICY` | Optional override in `/opt/beacon/compose.env` (default `noeviction`) |
+| Name                                                                                              | Purpose                                                               |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PAGES_PROJECT` | DNS, Pages and SSL setup                                              |
+| `CLOUDFLARE_PAGES_DEPLOY_TOKEN`                                                                   | Optional narrow "Pages: Edit" token for CI                            |
+| `AWS_PROFILE`, `AWS_INSTANCE_TYPE`, `FIRECRAWL_INSTANCE_TYPE`                                     | Terraform inputs                                                      |
+| `SSH_PUBLIC_KEY`, `SSH_PRIVATE_KEY_PATH`                                                          | Key pair for the two instances                                        |
+| `REDIS_MAXMEMORY_POLICY`                                                                          | Optional override in `/opt/beacon/compose.env` (default `noeviction`) |
 
 ## 5. Status
 
@@ -208,24 +208,24 @@ final test run below.
 
 ### 5.4 Test and quality results
 
-| Check | Result |
-| --- | --- |
-| `pnpm lint` | `<!-- orchestrator: fill after deploy -->` |
-| `pnpm typecheck` | `<!-- orchestrator: fill after deploy -->` |
-| `pnpm test` (unit and integration, with coverage) | `<!-- orchestrator: fill after deploy -->` |
+| Check                                               | Result                                     |
+| --------------------------------------------------- | ------------------------------------------ |
+| `pnpm lint`                                         | `<!-- orchestrator: fill after deploy -->` |
+| `pnpm typecheck`                                    | `<!-- orchestrator: fill after deploy -->` |
+| `pnpm test` (unit and integration, with coverage)   | `<!-- orchestrator: fill after deploy -->` |
 | `pnpm test:e2e` (Chromium, WebKit, iPhone viewport) | `<!-- orchestrator: fill after deploy -->` |
-| axe, every route | `<!-- orchestrator: fill after deploy -->` |
-| `scripts/security-check.sh` | `<!-- orchestrator: fill after deploy -->` |
-| `node scripts/load-test.mjs` | `<!-- orchestrator: fill after deploy -->` |
-| `scripts/smoke-prod.sh` | `<!-- orchestrator: fill after deploy -->` |
+| axe, every route                                    | `<!-- orchestrator: fill after deploy -->` |
+| `scripts/security-check.sh`                         | `<!-- orchestrator: fill after deploy -->` |
+| `node scripts/load-test.mjs`                        | `<!-- orchestrator: fill after deploy -->` |
+| `scripts/smoke-prod.sh`                             | `<!-- orchestrator: fill after deploy -->` |
 
 ### 5.5 Lighthouse scores
 
-| Page | Performance | Accessibility | Best practices | SEO |
-| --- | --- | --- | --- | --- |
-| Landing (desktop) | `<!-- orchestrator: fill after deploy -->` | | | |
-| Landing (mobile, 4G) | `<!-- orchestrator: fill after deploy -->` | | | |
-| Radar (mobile) | `<!-- orchestrator: fill after deploy -->` | | | |
+| Page                 | Performance                                | Accessibility | Best practices | SEO |
+| -------------------- | ------------------------------------------ | ------------- | -------------- | --- |
+| Landing (desktop)    | `<!-- orchestrator: fill after deploy -->` |               |                |     |
+| Landing (mobile, 4G) | `<!-- orchestrator: fill after deploy -->` |               |                |     |
+| Radar (mobile)       | `<!-- orchestrator: fill after deploy -->` |               |                |     |
 
 Budgets are in `.lighthouserc.cjs`.
 
@@ -255,18 +255,18 @@ These cannot be done from the repository.
 Capture these into `docs/screenshots/` after the deploy, from production, with the demo account.
 `<!-- orchestrator: fill after deploy -->`
 
-| File | Screen |
-| --- | --- |
-| `docs/screenshots/landing.png` | Landing page, hero and scroll story |
-| `docs/screenshots/onboarding-resume.png` | Onboarding resume step with the parsed, editable profile |
-| `docs/screenshots/radar.png` | Radar feed with fit rings, why-it-fits chips and ghost badges |
-| `docs/screenshots/drawer.png` | Listing drawer with score breakdown, matched and missing skills |
-| `docs/screenshots/deadlines.png` | Deadline timeline |
-| `docs/screenshots/sources-detect.png` | Sources manager with a URL detected (kind, cost, credit meter) |
-| `docs/screenshots/alerts-builder.png` | Alert rule builder (push and in-app only) |
-| `docs/screenshots/tracker.png` | Tracker kanban with a nudge |
-| `docs/screenshots/settings-ai.png` | Settings, AI section (BYOK, consent, AI off) |
-| `docs/screenshots/mobile-radar.png` | Radar at phone width with the bottom tab bar |
+| File                                     | Screen                                                          |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `docs/screenshots/landing.png`           | Landing page, hero and scroll story                             |
+| `docs/screenshots/onboarding-resume.png` | Onboarding resume step with the parsed, editable profile        |
+| `docs/screenshots/radar.png`             | Radar feed with fit rings, why-it-fits chips and ghost badges   |
+| `docs/screenshots/drawer.png`            | Listing drawer with score breakdown, matched and missing skills |
+| `docs/screenshots/deadlines.png`         | Deadline timeline                                               |
+| `docs/screenshots/sources-detect.png`    | Sources manager with a URL detected (kind, cost, credit meter)  |
+| `docs/screenshots/alerts-builder.png`    | Alert rule builder (push and in-app only)                       |
+| `docs/screenshots/tracker.png`           | Tracker kanban with a nudge                                     |
+| `docs/screenshots/settings-ai.png`       | Settings, AI section (BYOK, consent, AI off)                    |
+| `docs/screenshots/mobile-radar.png`      | Radar at phone width with the bottom tab bar                    |
 
 ## 8. Acceptance checklist
 

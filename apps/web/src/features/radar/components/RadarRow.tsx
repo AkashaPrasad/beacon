@@ -11,7 +11,15 @@
  * - Never press-scales (full-width rows tint instead). Enter animation only for the first 12 rows of a
  *   fresh list and for live inserts (the parent decides; rows mounted by scrolling never animate).
  */
-import { ArrowUpRight, Bookmark, BookmarkCheck, Eye, EllipsisVertical, EyeOff, KanbanSquare } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Bookmark,
+  BookmarkCheck,
+  Eye,
+  EllipsisVertical,
+  EyeOff,
+  KanbanSquare,
+} from 'lucide-react';
 import { m } from 'motion/react';
 import { memo, useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
 
@@ -26,7 +34,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { FitResult } from '@kestrel/shared';
 import {
   CompanyLogo,
   DeadlineCountdown,
@@ -39,9 +46,8 @@ import {
   variants,
 } from '@kestrel/ui';
 
-import { ghostTooltip, locationText, postedText, sourceLabel, stipendText } from '../lib/format';
-
 import { FitPeek } from './FitPeek';
+import { ghostTooltip, locationText, postedText, sourceLabel, stipendText } from '../lib/format';
 import { LIVE_BAR_FADE_MS } from '../lib/motion';
 
 export type RowAction = 'save' | 'hide' | 'unhide' | 'track' | 'apply';
@@ -149,7 +155,13 @@ function LiveBar() {
     });
     return () => animation.cancel();
   }, []);
-  return <span ref={ref} aria-hidden="true" className="absolute inset-y-0 left-0 w-0.5 bg-accent-strong" />;
+  return (
+    <span
+      ref={ref}
+      aria-hidden="true"
+      className="absolute inset-y-0 left-0 w-0.5 bg-accent-strong"
+    />
+  );
 }
 
 /**
@@ -174,7 +186,10 @@ export function RowDeadline({
   }
   if (deadlineStatus(deadlineAt, { now }).tone === 'closed') {
     return (
-      <time dateTime={deadlineAt.toISOString()} className="whitespace-nowrap font-mono text-mono-sm text-fg-disabled">
+      <time
+        dateTime={deadlineAt.toISOString()}
+        className="whitespace-nowrap font-mono text-mono-sm text-fg-tertiary"
+      >
         Closed
       </time>
     );
@@ -215,7 +230,9 @@ function RadarRowImpl({
   const score = fit?.score ?? item.score;
   const ghostLevel = ghostLevelOf(listing.ghostRisk.score);
   const stipend = stipendText(listing);
-  const meta = [locationText(listing), stipend, postedText(listing, now)].filter(Boolean).join(' · ');
+  const meta = [locationText(listing), stipend, postedText(listing, now)]
+    .filter(Boolean)
+    .join(' · ');
   const hardFail = Boolean(fit?.hardFails.length);
   const actionsBg = active || open ? 'bg-surface-active' : 'bg-surface-hover';
   const closed = deadlineStatus(listing.deadlineAt, { now }).tone === 'closed';
@@ -264,9 +281,10 @@ function RadarRowImpl({
         'group/row relative h-full cursor-default select-none border-b border-border-subtle outline-none',
         'scroll-mt-[calc(var(--topbar-h)+44px)] focus-visible:focus-ring-inset',
         // Instant in, 120 ms out (MOTION §4): the duration only applies when leaving hover.
-        'bg-surface transition-colors duration-fast ease-out pointer-fine:hover:bg-surface-hover pointer-fine:hover:duration-0',
-        (active || open) && 'bg-surface-active pointer-fine:hover:bg-surface-active',
-        hidden && 'opacity-60',
+        'bg-transparent transition-colors duration-fast ease-out pointer-fine:hover:bg-surface-hover pointer-fine:hover:duration-0',
+        (active || open) &&
+          'bg-surface-active shadow-[inset_2px_0_0_var(--color-accent-strong)] pointer-fine:hover:bg-surface-active',
+        hidden && 'bg-surface-sunken',
         className,
       )}
       {...animate}
@@ -288,7 +306,12 @@ function RadarRowImpl({
               <span className="sr-only">New</span>
             </span>
           )}
-          <CompanyLogo name={listing.company} domain={listing.companyDomain} size={compact ? 20 : 28} data-vt="logo" />
+          <CompanyLogo
+            name={listing.company}
+            domain={listing.companyDomain}
+            size={compact ? 20 : 28}
+            data-vt="logo"
+          />
         </span>
 
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 compact:flex-row compact:items-center compact:gap-1.5">
@@ -325,12 +348,20 @@ function RadarRowImpl({
             <span id={metaId} className="min-w-0 truncate">
               {phone ? (
                 <>
-                  <span data-testid="radar-row-company" title={listing.company} className="text-fg-secondary">
+                  <span
+                    data-testid="radar-row-company"
+                    title={listing.company}
+                    className="text-fg-secondary"
+                  >
                     {listing.company}
                   </span>
                   {' · '}
                   <span data-testid="radar-row-deadline">
-                    <RowDeadline deadlineAt={listing.deadlineAt} deadlineKind={listing.deadlineKind} now={now} />
+                    <RowDeadline
+                      deadlineAt={listing.deadlineAt}
+                      deadlineKind={listing.deadlineKind}
+                      now={now}
+                    />
                   </span>
                   {' · '}
                   {locationText(listing)}
@@ -371,7 +402,11 @@ function RadarRowImpl({
           <span className="hidden w-4 justify-center text-fg-secondary sm:flex">
             {saved ? (
               <>
-                <BookmarkCheck className="size-4 text-accent-strong" strokeWidth={1.5} aria-hidden="true" />
+                <BookmarkCheck
+                  className="size-4 text-accent-strong"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
                 <span className="sr-only">Saved</span>
               </>
             ) : tracked ? (
@@ -382,24 +417,28 @@ function RadarRowImpl({
             ) : null}
           </span>
           {!phone && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                data-testid="radar-row-deadline"
-                className="inline-flex h-6 min-w-16 items-center justify-center rounded-full bg-surface-sunken px-2.5"
-                tabIndex={-1}
-              >
-                <RowDeadline deadlineAt={listing.deadlineAt} deadlineKind={listing.deadlineKind} now={now} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {listing.deadlineAt
-                ? `${closed ? 'Closed ' : ''}${formatAbsolute(listing.deadlineAt, timeZone)}`
-                : listing.deadlineKind === 'rolling'
-                  ? 'Applications reviewed on a rolling basis'
-                  : 'The listing does not state a deadline'}
-            </TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  data-testid="radar-row-deadline"
+                  className="inline-flex h-6 min-w-16 items-center justify-center rounded-full bg-surface-sunken px-2.5"
+                  tabIndex={-1}
+                >
+                  <RowDeadline
+                    deadlineAt={listing.deadlineAt}
+                    deadlineKind={listing.deadlineKind}
+                    now={now}
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {listing.deadlineAt
+                  ? `${closed ? 'Closed ' : ''}${formatAbsolute(listing.deadlineAt, timeZone)}`
+                  : listing.deadlineKind === 'rolling'
+                    ? 'Applications reviewed on a rolling basis'
+                    : 'The listing does not state a deadline'}
+              </TooltipContent>
+            </Tooltip>
           )}
           <span
             data-testid="radar-row-score"
@@ -417,7 +456,11 @@ function RadarRowImpl({
             ) : (
               <>
                 <FitPeek fit={fit} ghost={listing.ghostRisk}>
-                  <FitRing score={score} size={compact ? 24 : 28} animateId={enter.kind === 'none' ? undefined : listing.id} />
+                  <FitRing
+                    score={score}
+                    size={compact ? 24 : 28}
+                    animateId={enter.kind === 'none' ? undefined : listing.id}
+                  />
                 </FitPeek>
                 <span className="sr-only">{fitBandOf(score).label}</span>
               </>

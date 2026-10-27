@@ -9,30 +9,34 @@ import {
   APPROX_FX_PER_USD,
   convertCurrency,
   DAY_MS,
+  FIT_BANDS,
+  NUDGE_FOLLOW_UP_DAYS,
   decodeCursor,
   EMBEDDING_DIM,
   encodeCursor,
   OPPORTUNITY_TYPES,
+  REMOTE_MODES,
   toMonthlyAmount,
   type FitResult,
   type ListingPublic,
   type OpportunityType,
   type PayPeriod,
+  type RemoteMode,
 } from '@kestrel/shared';
 
 import type { AppContext } from '../context.js';
 import { FEED_DESCRIPTION_CHARS, toFitResult, toListingPublic } from './serialize.js';
+import { toTrackerRef, type TrackerRef } from './tracker.js';
 import { getVisibility, visibleSourceFilter } from './visibility.js';
 import { sha256Hex, stableStringify } from '../lib/crypto.js';
 import { badCursor } from '../lib/errors.js';
 import { withTimeout } from '../lib/redis.js';
 import { escapeRegex, toObjectId } from '../lib/validate.js';
 import { candidatesForUser } from '../lib/vector.js';
-import { Interaction, Match, type MatchDoc } from '../models/activity.js';
+import { Interaction, Match, TrackerItem, type MatchDoc } from '../models/activity.js';
 import { Listing, type ListingDoc } from '../models/listing.js';
 import { Profile } from '../models/profile.js';
 import type { FeedQueryApi } from '../schemas/index.js';
-
 
 export interface FeedItemDTO {
   listing: ListingPublic;
@@ -41,6 +45,8 @@ export interface FeedItemDTO {
   saved: boolean;
   hidden: boolean;
   trackerItemId: string | null;
+  /** The listing's tracker item and its stage ("In Tracker · Applied"), or null. */
+  tracker: TrackerRef | null;
 }
 
 export interface FeedResponse {
@@ -63,17 +69,27 @@ export function listingFilter(q: FeedQueryApi, now: Date, prefix = ''): Filter {
   if (q.types?.length) and.push({ [f('type')]: { $in: q.types } });
   if (q.remote?.length) and.push({ [f('remote')]: { $in: q.remote } });
   if (q.locations?.length) {
-    and.push({ $or: q.locations.map((l) => ({ [f('location')]: { $regex: escapeRegex(l), $options: 'i' } })) });
+    and.push({
+      $or: q.locations.map((l) => ({ [f('location')]: { $regex: escapeRegex(l), $options: 'i' } })),
+    });
   }
   if (q.deadlineWithinDays) {
-    and.push({ [f('deadlineAt')]: { $gte: now, $lte: new Date(now.getTime() + q.deadlineWithinDays * DAY_MS) } });
+    and.push({
+      [f('deadlineAt')]: {
+        $gte: now,
+        $lte: new Date(now.getTime() + q.deadlineWithinDays * DAY_MS),
+      },
+    });
   } else if (!q.includeExpired) {
     and.push({ $or: [{ [f('deadlineAt')]: null }, { [f('deadlineAt')]: { $gte: now } }] });
   }
   if (q.postedWithinDays) {
     const cutoff = new Date(now.getTime() - q.postedWithinDays * DAY_MS);
     and.push({
-      $or: [{ [f('postedAt')]: { $gte: cutoff } }, { [f('postedAt')]: null, [f('firstSeenAt')]: { $gte: cutoff } }],
+      $or: [
+        { [f('postedAt')]: { $gte: cutoff } },
+        { [f('postedAt')]: null, [f('firstSeenAt')]: { $gte: cutoff } },
+      ],
     });
   }
   if (q.minStipend !== undefined && q.minStipend > 0) {
@@ -90,7 +106,9 @@ export function listingFilter(q: FeedQueryApi, now: Date, prefix = ''): Filter {
   }
   const companies = [...(q.company ? [q.company] : []), ...(q.companies ?? [])];
   if (companies.length) {
-    and.push({ [f('company')]: { $in: companies.map((c) => new RegExp(`^${escapeRegex(c)}$`, 'i')) } });
+    and.push({
+      [f('company')]: { $in: companies.map((c) => new RegExp(`^${escapeRegex(c)}$`, 'i')) },
+    });
   }
   const sourceIds = [...(q.sourceId ? [q.sourceId] : []), ...(q.sourceIds ?? [])];
   if (sourceIds.length) and.push(visibleSourceFilter(sourceIds.map(toObjectId), prefix));
@@ -98,7 +116,12 @@ export function listingFilter(q: FeedQueryApi, now: Date, prefix = ''): Filter {
     for (const word of q.q.split(/\s+/).filter(Boolean).slice(0, 8)) {
       const rx = { $regex: escapeRegex(word), $options: 'i' };
       and.push({
-        $or: [{ [f('title')]: rx }, { [f('company')]: rx }, { [f('skillsRequired')]: rx }, { [f('location')]: rx }],
+        $or: [
+          { [f('title')]: rx },
+          { [f('company')]: rx },
+          { [f('skillsRequired')]: rx },
+          { [f('location')]: rx },
+        ],
       });
     }
   }
@@ -129,7 +152,12 @@ function stipendClauses(minMonthly: number, base: string, f: (s: string) => stri
   return clauses.length ? clauses : [{ _id: null }];
 }
 
-function interactionStages(userId: Types.ObjectId, listingIdField: string, hideHidden: boolean, savedOnly: boolean): PipelineStage[] {
+function interactionStages(
+  userId: Types.ObjectId,
+  listingIdField: string,
+  hideHidden: boolean,
+  savedOnly: boolean,
+): PipelineStage[] {
   const stages: PipelineStage[] = [
     {
       $lookup: {
@@ -160,7 +188,7 @@ function trackerStage(userId: Types.ObjectId, listingIdField: string): PipelineS
       from: 'tracker_items',
       localField: listingIdField,
       foreignField: 'listingId',
-      pipeline: [{ $match: { userId } }, { $project: { _id: 1 } }, { $limit: 1 }],
+      pipeline: [{ $match: { userId } }, { $project: { _id: 1, stage: 1 } }, { $limit: 1 }],
       as: '_tr',
     },
   };
@@ -187,12 +215,16 @@ function sortStages(
   if (cursor) {
     const raw = cursor['s'];
     const id = cursor['id'];
-    if (typeof raw !== 'number' || typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) throw badCursor();
+    if (typeof raw !== 'number' || typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id))
+      throw badCursor();
     const value = kind === 'fit' ? raw : new Date(raw);
     const lid = toObjectId(id);
     stages.push({
       $match: {
-        $or: [{ _sk: { [desc ? '$lt' : '$gt']: value } }, { _sk: value, _lid: { [desc ? '$lt' : '$gt']: lid } }],
+        $or: [
+          { _sk: { [desc ? '$lt' : '$gt']: value } },
+          { _sk: value, _lid: { [desc ? '$lt' : '$gt']: lid } },
+        ],
       },
     });
   }
@@ -205,7 +237,8 @@ function fitKeyset(cursor: Record<string, unknown> | null): PipelineStage[] {
   if (!cursor) return [];
   const score = cursor['s'];
   const id = cursor['id'];
-  if (typeof score !== 'number' || typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) throw badCursor();
+  if (typeof score !== 'number' || typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id))
+    throw badCursor();
   const lid = toObjectId(id);
   return [{ $match: { $or: [{ score: { $lt: score } }, { score, listingId: { $lt: lid } }] } }];
 }
@@ -220,7 +253,7 @@ interface Row {
   _lid: Types.ObjectId;
   _saved: boolean;
   _hidden: boolean;
-  _tr: { _id: Types.ObjectId }[];
+  _tr: { _id: Types.ObjectId; stage: string }[];
 }
 
 function toItem(listing: ListingDoc, match: MatchDoc | null, row: Row): FeedItemDTO {
@@ -232,6 +265,7 @@ function toItem(listing: ListingDoc, match: MatchDoc | null, row: Row): FeedItem
     saved: Boolean(row._saved),
     hidden: Boolean(row._hidden),
     trackerItemId: row._tr[0]?._id.toString() ?? null,
+    tracker: toTrackerRef(row._tr[0]),
   };
 }
 
@@ -266,16 +300,52 @@ async function cachedTotal(
     /* recompute */
   }
   const total = await compute();
-  void withTimeout(ctx.redis.set(key, String(total), 'EX', TOTAL_CACHE_TTL_SECONDS), 500, 'feed total cache').catch(() => undefined);
+  void withTimeout(
+    ctx.redis.set(key, String(total), 'EX', TOTAL_CACHE_TTL_SECONDS),
+    500,
+    'feed total cache',
+  ).catch(() => undefined);
   return total;
 }
 
-async function countPipeline(model: typeof Match | typeof Listing, pre: PipelineStage[]): Promise<number> {
+/** Same cache shape as `cachedTotal`, for a JSON value. */
+async function cachedJson<T>(
+  ctx: AppContext,
+  userId: Types.ObjectId,
+  q: FeedQueryApi,
+  path: string,
+  compute: () => Promise<T>,
+): Promise<T> {
+  const { cursor: _cursor, limit: _limit, sort: _sort, ...filters } = q;
+  const key = `feed:${path}:${userId.toString()}:${sha256Hex(stableStringify(filters)).slice(0, 24)}`;
+  try {
+    const hit = await withTimeout(ctx.redis.get(key), 500, 'feed facets cache');
+    if (hit) return JSON.parse(hit) as T;
+  } catch {
+    /* recompute */
+  }
+  const value = await compute();
+  void withTimeout(
+    ctx.redis.set(key, JSON.stringify(value), 'EX', TOTAL_CACHE_TTL_SECONDS),
+    500,
+    'feed facets cache',
+  ).catch(() => undefined);
+  return value;
+}
+
+async function countPipeline(
+  model: typeof Match | typeof Listing,
+  pre: PipelineStage[],
+): Promise<number> {
   const result = await aggregate<{ n: number }>(model, [...pre, { $count: 'n' }]);
   return result[0]?.n ?? 0;
 }
 
-export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQueryApi): Promise<FeedResponse> {
+export async function getFeed(
+  ctx: AppContext,
+  userId: Types.ObjectId,
+  q: FeedQueryApi,
+): Promise<FeedResponse> {
   const now = ctx.now();
   const hideHidden = q.hideHidden ?? !q.includeHidden;
   const cursor = q.cursor ? decodeCursor(q.cursor) : null;
@@ -285,7 +355,9 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
   if (await Match.exists({ userId })) {
     const kind: SortKind = q.sort;
     if (cursor && cursor['k'] !== kind) throw badCursor();
-    const matchStage: PipelineStage = { $match: { userId, ...(q.minFit !== undefined ? { score: { $gte: q.minFit } } : {}) } };
+    const matchStage: PipelineStage = {
+      $match: { userId, ...(q.minFit !== undefined ? { score: { $gte: q.minFit } } : {}) },
+    };
     const join: PipelineStage[] = [
       {
         $lookup: {
@@ -306,7 +378,13 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
     // instead of joining every match of the user before sorting.
     const ordered: PipelineStage[] =
       kind === 'fit'
-        ? [matchStage, ...fitKeyset(cursor), { $sort: { score: -1, listingId: -1 } }, ...join, { $addFields: { _sk: '$score', _lid: '$listingId' } }]
+        ? [
+            matchStage,
+            ...fitKeyset(cursor),
+            { $sort: { score: -1, listingId: -1 } },
+            ...join,
+            { $addFields: { _sk: '$score', _lid: '$listingId' } },
+          ]
         : [...pre, ...sortStages(kind, 'score', 'listing.', 'listingId', cursor)];
     const [rows, total] = await Promise.all([
       aggregate<Row & MatchDoc & { listing: ListingDoc }>(Match, [
@@ -314,7 +392,9 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
         { $limit: limit + 1 },
         trackerStage(userId, 'listingId'),
       ]),
-      q.cursor ? Promise.resolve(undefined) : cachedTotal(ctx, userId, q, 'match', () => countPipeline(Match, pre)),
+      q.cursor
+        ? Promise.resolve(undefined)
+        : cachedTotal(ctx, userId, q, 'match', () => countPipeline(Match, pre)),
     ]);
     const page = rows.slice(0, limit);
     const last = page.at(-1);
@@ -328,8 +408,12 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
 
   // ── Cold start ──
   const visibility = await getVisibility(userId);
-  const baseMatch: Filter = { $and: [listingFilter(q, now), visibleSourceFilter(visibility.sourceIds)] };
-  const profile = await Profile.findOne({ userId }, { embedding: 1 }).lean<{ embedding?: number[] }>();
+  const baseMatch: Filter = {
+    $and: [listingFilter(q, now), visibleSourceFilter(visibility.sourceIds)],
+  };
+  const profile = await Profile.findOne({ userId }, { embedding: 1 }).lean<{
+    embedding?: number[];
+  }>();
   const embedding = profile?.embedding ?? [];
   const useVector = embedding.length === EMBEDDING_DIM && q.sort !== 'deadline';
 
@@ -348,7 +432,11 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
     );
     const rank = new Map(candidates.map((c, i) => [c.listingId, i]));
     const rows = await aggregate<Row & ListingDoc>(Listing, [
-      { $match: { $and: [baseMatch, { _id: { $in: candidates.map((c) => toObjectId(c.listingId)) } }] } },
+      {
+        $match: {
+          $and: [baseMatch, { _id: { $in: candidates.map((c) => toObjectId(c.listingId)) } }],
+        },
+      },
       { $project: LISTING_JOIN_PROJECTION },
       ...interactionStages(userId, '_id', hideHidden, q.savedOnly),
       { $addFields: { _lid: '$_id', _sk: null } },
@@ -358,7 +446,8 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
     const page = rows.slice(offset, offset + limit);
     return {
       items: page.map((row) => toItem(row, null, row)),
-      nextCursor: offset + limit < rows.length ? encodeCursor({ k: 'vec', o: offset + limit }) : null,
+      nextCursor:
+        offset + limit < rows.length ? encodeCursor({ k: 'vec', o: offset + limit }) : null,
       warmingUp: true,
       ...(q.cursor ? {} : { total: rows.length }),
     };
@@ -378,7 +467,9 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
       { $limit: limit + 1 },
       trackerStage(userId, '_id'),
     ]),
-    q.cursor ? Promise.resolve(undefined) : cachedTotal(ctx, userId, q, 'cold', () => countPipeline(Listing, pre)),
+    q.cursor
+      ? Promise.resolve(undefined)
+      : cachedTotal(ctx, userId, q, 'cold', () => countPipeline(Listing, pre)),
   ]);
   const page = rows.slice(0, limit);
   const last = page.at(-1);
@@ -394,6 +485,10 @@ export interface FeedSummary {
   total: number;
   byType: Record<OpportunityType, number>;
   deadlinesThisWeek: number;
+  /** Earliest upcoming deadline among the visible, unhidden listings (Radar / Deadlines headlines). */
+  nextDeadlineAt: Date | null;
+  /** Tracker items in `applied` with no activity for ≥ NUDGE_FOLLOW_UP_DAYS (10) days. */
+  followUpsDue: number;
   newSinceLastVisit: number;
   lastSeenFeedAt: Date | null;
   saved: number;
@@ -407,26 +502,49 @@ export async function getFeedSummary(
 ): Promise<FeedSummary> {
   const now = ctx.now();
   const weekEnd = new Date(now.getTime() + 7 * DAY_MS);
-  const visibleFilter = { $and: [{ archived: { $ne: true } }, { $or: [{ deadlineAt: null }, { deadlineAt: { $gte: now } }] }] };
+  const visibleFilter = {
+    $and: [
+      { archived: { $ne: true } },
+      { $or: [{ deadlineAt: null }, { deadlineAt: { $gte: now } }] },
+    ],
+  };
   const facet = (prefix: string): PipelineStage => ({
     $facet: {
       byType: [{ $group: { _id: `$${prefix}type`, n: { $sum: 1 } } }],
-      week: [{ $match: { [`${prefix}deadlineAt`]: { $gte: now, $lte: weekEnd } } }, { $count: 'n' }],
-      fresh: [
-        ...(lastSeenFeedAt ? [{ $match: { [`${prefix}firstSeenAt`]: { $gt: lastSeenFeedAt } } }] : []),
+      week: [
+        { $match: { [`${prefix}deadlineAt`]: { $gte: now, $lte: weekEnd } } },
         { $count: 'n' },
+      ],
+      fresh: [
+        ...(lastSeenFeedAt
+          ? [{ $match: { [`${prefix}firstSeenAt`]: { $gt: lastSeenFeedAt } } }]
+          : []),
+        { $count: 'n' },
+      ],
+      next: [
+        { $match: { [`${prefix}deadlineAt`]: { $gte: now } } },
+        { $group: { _id: null, at: { $min: `$${prefix}deadlineAt` } } },
       ],
     },
   });
   const warmingUp = !(await Match.exists({ userId }));
-  let rows: { byType: { _id: string; n: number }[]; week: { n: number }[]; fresh: { n: number }[] }[];
+  let rows: {
+    byType: { _id: string; n: number }[];
+    week: { n: number }[];
+    fresh: { n: number }[];
+    next: { at: Date | null }[];
+  }[];
   if (!warmingUp) {
     rows = await Match.aggregate([
       { $match: { userId } },
-      { $lookup: { from: 'listings', localField: 'listingId', foreignField: '_id', as: 'listing' } },
+      {
+        $lookup: { from: 'listings', localField: 'listingId', foreignField: '_id', as: 'listing' },
+      },
       { $unwind: '$listing' },
       { $match: { 'listing.archived': { $ne: true } } },
-      { $match: { $or: [{ 'listing.deadlineAt': null }, { 'listing.deadlineAt': { $gte: now } }] } },
+      {
+        $match: { $or: [{ 'listing.deadlineAt': null }, { 'listing.deadlineAt': { $gte: now } }] },
+      },
       ...interactionStages(userId, 'listingId', true, false),
       facet('listing.'),
     ]);
@@ -438,8 +556,11 @@ export async function getFeedSummary(
       facet(''),
     ]);
   }
-  const row = rows[0] ?? { byType: [], week: [], fresh: [] };
-  const byType = Object.fromEntries(OPPORTUNITY_TYPES.map((t) => [t, 0])) as Record<OpportunityType, number>;
+  const row = rows[0] ?? { byType: [], week: [], fresh: [], next: [] };
+  const byType = Object.fromEntries(OPPORTUNITY_TYPES.map((t) => [t, 0])) as Record<
+    OpportunityType,
+    number
+  >;
   let total = 0;
   for (const { _id, n } of row.byType) {
     if ((OPPORTUNITY_TYPES as readonly string[]).includes(_id)) byType[_id as OpportunityType] = n;
@@ -449,9 +570,206 @@ export async function getFeedSummary(
     total,
     byType,
     deadlinesThisWeek: row.week[0]?.n ?? 0,
+    nextDeadlineAt: row.next[0]?.at ?? null,
+    followUpsDue: await TrackerItem.countDocuments({
+      userId,
+      stage: 'applied',
+      lastActivityAt: { $lte: new Date(now.getTime() - NUDGE_FOLLOW_UP_DAYS * DAY_MS) },
+    }),
     newSinceLastVisit: row.fresh[0]?.n ?? 0,
     lastSeenFeedAt,
     saved: await Interaction.countDocuments({ userId, saved: true }),
     warmingUp,
   };
+}
+
+// ── Facets (conditional counts for the filter rail) ─────────────────────────
+
+export const FACET_DEADLINE_WINDOWS = [7, 14, 30] as const;
+export const FACET_FRESHNESS_WINDOWS = [1, 7, 30] as const;
+
+export interface FeedFacets {
+  warmingUp: boolean;
+  /** Listings matching every current filter (= the feed's `total`). */
+  total: number;
+  /** Fit presets (shared FIT_BANDS): listings with score ≥ `min`, `minFit` ignored. Null while warming up. */
+  fit: { min: number; label: string; count: number }[] | null;
+  /** Per type, the `types` filter ignored. */
+  types: Record<OpportunityType, number>;
+  /** Per remote mode, the `remote` filter ignored. */
+  remote: Record<RemoteMode, number>;
+  /** Deadline within N days, plus no fixed deadline; `deadlineWithinDays` ignored. */
+  deadline: { within: { days: number; count: number }[]; none: number };
+  /** Posted within N days (posted date, else first seen); `postedWithinDays` ignored. */
+  freshness: { within: { days: number; count: number }[] };
+}
+
+/** Fields the facet filters read; nothing else is pulled through the join. */
+const FACET_LISTING_FIELDS = Object.fromEntries(
+  [
+    'archived',
+    'type',
+    'remote',
+    'location',
+    'deadlineAt',
+    'postedAt',
+    'firstSeenAt',
+    'currency',
+    'period',
+    'stipendMin',
+    'stipendMax',
+    'eligibility.gradYears',
+    'company',
+    'sourceId',
+    'sourceIds',
+    'title',
+    'skillsRequired',
+  ].map((f) => [f, 1]),
+);
+
+const countIf = (cond: unknown) => ({ $sum: { $cond: [cond, 1, 0] } });
+
+/**
+ * Conditional counts for each rail facet: every count applies all current filters except the
+ * facet's own, so the numbers say what picking that option would show. Display-only, cached 60 s.
+ */
+export async function getFeedFacets(
+  ctx: AppContext,
+  userId: Types.ObjectId,
+  q: FeedQueryApi,
+): Promise<FeedFacets> {
+  const now = ctx.now();
+  const hideHidden = q.hideHidden ?? !q.includeHidden;
+  const warm = Boolean(await Match.exists({ userId }));
+  const p = warm ? 'listing.' : '';
+  const variant = (patch: Partial<FeedQueryApi>): Filter =>
+    listingFilter({ ...q, ...patch }, now, p);
+  const score: Filter = warm && q.minFit !== undefined ? { score: { $gte: q.minFit } } : {};
+  const both = (filter: Filter, withScore = true): PipelineStage.Match => ({
+    $match: withScore ? { $and: [filter, score] } : filter,
+  });
+  const posted = { $ifNull: [`$${p}postedAt`, `$${p}firstSeenAt`] };
+  const deadlineIn = (days: number) => ({
+    $and: [
+      { $gte: [`$${p}deadlineAt`, now] },
+      { $lte: [`$${p}deadlineAt`, new Date(now.getTime() + days * DAY_MS)] },
+    ],
+  });
+
+  const facets: Record<string, PipelineStage.FacetPipelineStage[]> = {
+    total: [both(variant({})), { $count: 'n' }],
+    types: [both(variant({ types: undefined })), { $group: { _id: `$${p}type`, n: { $sum: 1 } } }],
+    remote: [
+      both(variant({ remote: undefined })),
+      { $group: { _id: `$${p}remote`, n: { $sum: 1 } } },
+    ],
+    deadline: [
+      both(variant({ deadlineWithinDays: undefined })),
+      {
+        $group: {
+          _id: null,
+          ...Object.fromEntries(
+            FACET_DEADLINE_WINDOWS.map((d) => [`d${d}`, countIf(deadlineIn(d))]),
+          ),
+          none: countIf({ $eq: [{ $ifNull: [`$${p}deadlineAt`, null] }, null] }),
+        },
+      },
+    ],
+    freshness: [
+      both(variant({ postedWithinDays: undefined })),
+      {
+        $group: {
+          _id: null,
+          ...Object.fromEntries(
+            FACET_FRESHNESS_WINDOWS.map((d) => [
+              `p${d}`,
+              countIf({ $gte: [posted, new Date(now.getTime() - d * DAY_MS)] }),
+            ]),
+          ),
+        },
+      },
+    ],
+  };
+  if (warm) {
+    facets['fit'] = [
+      both(variant({}), false),
+      {
+        $group: {
+          _id: null,
+          ...Object.fromEntries(
+            FIT_BANDS.map((b) => [`f${b.min}`, countIf({ $gte: ['$score', b.min] })]),
+          ),
+        },
+      },
+    ];
+  }
+
+  const compute = async (): Promise<FeedFacets> => {
+    const head: PipelineStage[] = warm
+      ? [
+          { $match: { userId } },
+          {
+            $lookup: {
+              from: 'listings',
+              localField: 'listingId',
+              foreignField: '_id',
+              pipeline: [{ $project: FACET_LISTING_FIELDS }],
+              as: 'listing',
+            },
+          },
+          { $unwind: '$listing' },
+          ...interactionStages(userId, 'listingId', hideHidden, q.savedOnly),
+        ]
+      : [
+          {
+            $match: {
+              $and: [
+                { archived: { $ne: true } },
+                visibleSourceFilter((await getVisibility(userId)).sourceIds),
+              ],
+            },
+          },
+          { $project: FACET_LISTING_FIELDS },
+          ...interactionStages(userId, '_id', hideHidden, q.savedOnly),
+        ];
+    type Grouped = { _id: string | null; n: number };
+    const [row] = await aggregate<Record<string, (Grouped & Record<string, number>)[]>>(
+      warm ? Match : Listing,
+      [...head, { $facet: facets }],
+    );
+    const first = (key: string): Record<string, number> => row?.[key]?.[0] ?? {};
+    const byKey = <K extends string>(keys: readonly K[], key: string): Record<K, number> => {
+      const out = Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
+      for (const g of row?.[key] ?? [])
+        if (g._id && (keys as readonly string[]).includes(g._id)) out[g._id as K] = g.n;
+      return out;
+    };
+    return {
+      warmingUp: !warm,
+      total: first('total')['n'] ?? 0,
+      fit: warm
+        ? FIT_BANDS.map((b) => ({
+            min: b.min,
+            label: b.label,
+            count: first('fit')[`f${b.min}`] ?? 0,
+          }))
+        : null,
+      types: byKey(OPPORTUNITY_TYPES, 'types'),
+      remote: byKey(REMOTE_MODES, 'remote'),
+      deadline: {
+        within: FACET_DEADLINE_WINDOWS.map((days) => ({
+          days,
+          count: first('deadline')[`d${days}`] ?? 0,
+        })),
+        none: first('deadline')['none'] ?? 0,
+      },
+      freshness: {
+        within: FACET_FRESHNESS_WINDOWS.map((days) => ({
+          days,
+          count: first('freshness')[`p${days}`] ?? 0,
+        })),
+      },
+    };
+  };
+  return cachedJson(ctx, userId, q, warm ? 'facets:match' : 'facets:cold', compute);
 }

@@ -121,7 +121,7 @@ function NotificationCentre({ onNavigate }: { onNavigate: () => void }) {
               <button
                 type="button"
                 onClick={() => open(n)}
-                className="flex w-full gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-fast hover:bg-surface-hover hover:duration-0 focus-visible:focus-ring-inset"
+                className="press-card flex w-full gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-fast hover:bg-surface-hover hover:duration-0 focus-visible:focus-ring-inset"
               >
                 <Icon
                   className="mt-0.5 size-4 shrink-0 text-fg-secondary"

@@ -5,10 +5,19 @@
  * Groups (each collapsible, persisted): Type · Deadline · Work mode & location · Stipend floor ·
  * Grad year · Company · Source · Freshness · Saved only, then Saved views (localStorage + palette).
  */
-import { Bookmark, ChevronDown, Layers, Pin, PinOff, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import {
+  Bookmark,
+  ChevronDown,
+  Layers,
+  Pin,
+  PinOff,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
-
 
 import { useSources } from '@/api/sources';
 import { toggleRail, useRailCollapsed } from '@/components/shell/shell-state';
@@ -21,7 +30,7 @@ import { readJson, writeJson } from '@/lib/storage';
 import { withUndo } from '@/lib/undo';
 import { cn } from '@/lib/utils';
 import { OPPORTUNITY_TYPES, type OpportunityType } from '@kestrel/shared';
-import { TYPE_META } from '@kestrel/ui';
+import { TYPE_META, typeTone } from '@kestrel/ui';
 
 import {
   DEADLINE_WINDOWS,
@@ -30,7 +39,13 @@ import {
   remoteLabel,
   type RadarFilters,
 } from '../lib/filters';
-import { deleteView, restoreView, saveView, useSavedViews, type SavedView } from '../lib/savedViews';
+import {
+  deleteView,
+  restoreView,
+  saveView,
+  useSavedViews,
+  type SavedView,
+} from '../lib/savedViews';
 
 // ── Persisted open/closed state per group ────────────────────────────────────
 
@@ -53,8 +68,22 @@ function useClosedGroups() {
   );
 }
 
-function Group({ id, label, count, children }: { id: string; label: string; count?: ReactNode; children: ReactNode }) {
-  const closed = Boolean(useClosedGroups()[id]);
+function Group({
+  id,
+  label,
+  count,
+  defaultClosed = false,
+  children,
+}: {
+  id: string;
+  label: string;
+  count?: ReactNode;
+  /** Secondary facets start collapsed (UX-RESTRUCTURE [RAD]: 5 open facets, the rest show their value). */
+  defaultClosed?: boolean;
+  children: ReactNode;
+}) {
+  const stored = useClosedGroups()[id];
+  const closed = stored == null ? defaultClosed : Boolean(stored);
   const bodyId = useId();
   return (
     <section className="border-b border-border-subtle px-3 py-2.5 last:border-b-0">
@@ -69,7 +98,10 @@ function Group({ id, label, count, children }: { id: string; label: string; coun
           <span className="flex-1">{label}</span>
           {count != null && <span className="font-mono text-mono-sm normal-case">{count}</span>}
           <ChevronDown
-            className={cn('size-3.5 transition-transform duration-fast ease-out', closed && '-rotate-90')}
+            className={cn(
+              'size-3.5 transition-transform duration-fast ease-out',
+              closed && '-rotate-90',
+            )}
             strokeWidth={1.5}
             aria-hidden="true"
           />
@@ -175,7 +207,13 @@ function ChipInput({
           placeholder={placeholder}
           className="h-7 min-w-0 flex-1 rounded-sm border border-border-input bg-surface-raised px-2 text-small text-fg placeholder:text-fg-tertiary hover:border-fg-tertiary focus-visible:focus-ring"
         />
-        <Button variant="ghost" size="icon-sm" aria-label={`Add ${label.toLowerCase()}`} onClick={add} disabled={!draft.trim()}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Add ${label.toLowerCase()}`}
+          onClick={add}
+          disabled={!draft.trim()}
+        >
           <Plus strokeWidth={1.5} />
         </Button>
         {suggestions.length > 0 && (
@@ -224,7 +262,13 @@ const GRAD_YEARS = Array.from({ length: 6 }, (_, i) => thisYear - 1 + i);
 // ── Saved views ──────────────────────────────────────────────────────────────
 
 /** Saved views: name the current filters and view, then come back to them in one click (or ⌘K). */
-export function SavedViews({ search, onApply }: { search: string; onApply: (view: SavedView) => void }) {
+export function SavedViews({
+  search,
+  onApply,
+}: {
+  search: string;
+  onApply: (view: SavedView) => void;
+}) {
   const views = useSavedViews();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
@@ -232,7 +276,9 @@ export function SavedViews({ search, onApply }: { search: string; onApply: (view
   return (
     <div className="flex flex-col">
       {views.length === 0 && (
-        <p className="pb-1 text-caption text-fg-tertiary">Save the filters you use most, then switch with one click.</p>
+        <p className="pb-1 text-caption text-fg-tertiary">
+          Save the filters you use most, then switch with one click.
+        </p>
       )}
       <ul className="flex flex-col gap-0.5">
         {views.map((view, index) => (
@@ -255,8 +301,11 @@ export function SavedViews({ search, onApply }: { search: string; onApply: (view
               onClick={() => {
                 const removed = deleteView(view.id);
                 if (!removed) return;
-                withUndo({ message: `Deleted view “${removed.name}”.`, run: () => undefined, undo: () => restoreView(removed, index) })
-                  .promise.catch(() => undefined);
+                withUndo({
+                  message: `Deleted view “${removed.name}”.`,
+                  run: () => undefined,
+                  undo: () => restoreView(removed, index),
+                }).promise.catch(() => undefined);
               }}
               className="grid size-7 place-items-center rounded-sm text-fg-tertiary opacity-0 group-hover/view:opacity-100 hover:text-fg focus-visible:opacity-100 focus-visible:focus-ring"
             >
@@ -333,11 +382,16 @@ export function FilterRail({
   const collapsedState = useRailCollapsed();
   const collapsed = variant === 'inline' && collapsedState;
   const sources = useSources();
-  const set = <K extends keyof RadarFilters>(key: K, value: RadarFilters[K]) => onChange({ ...filters, [key]: value });
+  const set = <K extends keyof RadarFilters>(key: K, value: RadarFilters[K]) =>
+    onChange({ ...filters, [key]: value });
 
   if (collapsed) {
     return (
-      <div data-testid="radar-filter-rail" data-collapsed="true" className="flex flex-col items-center gap-2 py-3">
+      <div
+        data-testid="radar-filter-rail"
+        data-collapsed="true"
+        className="flex flex-col items-center gap-2 py-3"
+      >
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -367,7 +421,10 @@ export function FilterRail({
     <div data-testid="radar-filter-rail" className="flex flex-col pb-6">
       <div className="flex h-11 items-center gap-2 border-b border-border-subtle px-3">
         <h2 className="flex-1 text-label text-fg-tertiary uppercase">
-          Filters{activeCount ? <span className="ml-1.5 font-mono text-mono-sm normal-case">{activeCount}</span> : null}
+          Filters
+          {activeCount ? (
+            <span className="ml-1.5 font-mono text-mono-sm normal-case">{activeCount}</span>
+          ) : null}
         </h2>
         {activeCount > 0 && (
           <Button variant="ghost" size="xs" onClick={onReset}>
@@ -385,10 +442,16 @@ export function FilterRail({
                 data-testid="radar-filters-pin"
                 className="grid size-7 place-items-center rounded-sm text-fg-tertiary hover:bg-surface-hover hover:text-fg focus-visible:focus-ring"
               >
-                {pin.pinned ? <PinOff className="size-4" strokeWidth={1.5} /> : <Pin className="size-4" strokeWidth={1.5} />}
+                {pin.pinned ? (
+                  <PinOff className="size-4" strokeWidth={1.5} />
+                ) : (
+                  <Pin className="size-4" strokeWidth={1.5} />
+                )}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{pin.pinned ? 'Unpin: back to a popover' : 'Pin as a sidebar'}</TooltipContent>
+            <TooltipContent side="bottom">
+              {pin.pinned ? 'Unpin: back to a popover' : 'Pin as a sidebar'}
+            </TooltipContent>
           </Tooltip>
         )}
         {variant === 'inline' && (
@@ -416,7 +479,7 @@ export function FilterRail({
       <Group id="type" label="Type">
         <ul className="flex flex-col gap-0.5">
           {OPPORTUNITY_TYPES.map((type) => {
-            const { label, icon: Icon } = TYPE_META[type];
+            const { label } = TYPE_META[type];
             const checked = filters.types.includes(type);
             const id = `radar-type-${type}`;
             return (
@@ -430,13 +493,23 @@ export function FilterRail({
                     data-testid={`radar-filter-type-${type}`}
                     checked={checked}
                     onCheckedChange={(value) =>
-                      set('types', value === true ? [...filters.types, type] : filters.types.filter((t) => t !== type))
+                      set(
+                        'types',
+                        value === true
+                          ? [...filters.types, type]
+                          : filters.types.filter((t) => t !== type),
+                      )
                     }
                   />
-                  <Icon className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+                  <span
+                    aria-hidden="true"
+                    className={cn('size-2 shrink-0 rounded-full', typeTone(type).dot)}
+                  />
                   <span className={cn('flex-1', checked && 'text-fg')}>{label}</span>
                   {typeCounts?.[type] != null && (
-                    <span className="font-mono text-mono-sm text-fg-tertiary">{typeCounts[type]}</span>
+                    <span className="font-mono text-mono-sm text-fg-tertiary">
+                      {typeCounts[type]}
+                    </span>
                   )}
                 </label>
               </li>
@@ -467,10 +540,17 @@ export function FilterRail({
                 type="button"
                 aria-pressed={on}
                 data-testid={`radar-filter-remote-${mode}`}
-                onClick={() => set('remote', on ? filters.remote.filter((r) => r !== mode) : [...filters.remote, mode])}
+                onClick={() =>
+                  set(
+                    'remote',
+                    on ? filters.remote.filter((r) => r !== mode) : [...filters.remote, mode],
+                  )
+                }
                 className={cn(
                   'h-7 rounded-sm px-2.5 text-small transition-[background-color,transform] duration-fast active:scale-[0.97] focus-visible:focus-ring',
-                  on ? 'bg-accent-subtle text-accent-subtle-fg' : 'bg-surface-sunken text-fg-secondary hover:bg-surface-hover',
+                  on
+                    ? 'bg-accent-subtle text-accent-subtle-fg'
+                    : 'bg-surface-sunken text-fg-secondary hover:bg-surface-hover',
                 )}
               >
                 {remoteLabel(mode)}
@@ -486,7 +566,11 @@ export function FilterRail({
         />
       </Group>
 
-      <Group id="stipend" label="Stipend floor" count={<span className="text-fg-secondary">{stipendLabel(filters.minStipend ?? 0)}</span>}>
+      <Group
+        id="stipend"
+        label="Stipend floor"
+        count={<span className="text-fg-secondary">{stipendLabel(filters.minStipend ?? 0)}</span>}
+      >
         <Slider
           value={[filters.minStipend ?? 0]}
           min={0}
@@ -497,10 +581,12 @@ export function FilterRail({
           className="my-1"
           data-testid="radar-filter-stipend"
         />
-        <p className="mt-1 text-caption text-fg-tertiary">Monthly, in rupees. Hides unpaid and unstated.</p>
+        <p className="mt-1 text-caption text-fg-tertiary">
+          Monthly, in rupees. Hides unpaid and unstated.
+        </p>
       </Group>
 
-      <Group id="grad" label="Grad year">
+      <Group id="grad" label="Grad year" defaultClosed>
         <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Graduation year">
           {[null, ...GRAD_YEARS].map((year) => {
             const on = filters.gradYear === year;
@@ -513,7 +599,9 @@ export function FilterRail({
                 onClick={() => set('gradYear', year)}
                 className={cn(
                   'h-7 rounded-sm px-2 font-mono text-mono-sm transition-colors duration-fast focus-visible:focus-ring',
-                  on ? 'bg-accent-subtle text-accent-subtle-fg' : 'bg-surface-sunken text-fg-secondary hover:bg-surface-hover',
+                  on
+                    ? 'bg-accent-subtle text-accent-subtle-fg'
+                    : 'bg-surface-sunken text-fg-secondary hover:bg-surface-hover',
                   year == null && 'font-sans text-small',
                 )}
               >
@@ -524,7 +612,7 @@ export function FilterRail({
         </div>
       </Group>
 
-      <Group id="company" label="Company">
+      <Group id="company" label="Company" defaultClosed>
         <ChipInput
           label="Company"
           values={filters.companies}
@@ -534,7 +622,7 @@ export function FilterRail({
         />
       </Group>
 
-      <Group id="source" label="Source">
+      <Group id="source" label="Source" defaultClosed>
         {sources.data && sources.data.length > 0 ? (
           <ul className="flex flex-col gap-0.5">
             {sources.data.map((source) => {
@@ -552,7 +640,9 @@ export function FilterRail({
                       onCheckedChange={(value) =>
                         set(
                           'sourceIds',
-                          value === true ? [...filters.sourceIds, source.id] : filters.sourceIds.filter((s) => s !== source.id),
+                          value === true
+                            ? [...filters.sourceIds, source.id]
+                            : filters.sourceIds.filter((s) => s !== source.id),
                         )
                       }
                     />
@@ -563,18 +653,23 @@ export function FilterRail({
             })}
           </ul>
         ) : (
-          <p className="text-caption text-fg-tertiary">All your packs are included. Add a personal source to filter by it.</p>
+          <p className="text-caption text-fg-tertiary">
+            All your packs are included. Add a personal source to filter by it.
+          </p>
         )}
       </Group>
 
-      <Group id="fresh" label="Freshness">
+      <Group id="fresh" label="Freshness" defaultClosed>
         <RadioRows
           name="Posted within"
           value={filters.postedWithin}
           onChange={(value) => set('postedWithin', value)}
           options={[
             { value: null, label: 'Any time' },
-            ...FRESHNESS_WINDOWS.map((d) => ({ value: d, label: d === 1 ? 'Posted today' : `Last ${d} days` })),
+            ...FRESHNESS_WINDOWS.map((d) => ({
+              value: d,
+              label: d === 1 ? 'Posted today' : `Last ${d} days`,
+            })),
           ]}
         />
       </Group>
@@ -590,7 +685,6 @@ export function FilterRail({
           onCheckedChange={(value) => set('savedOnly', value)}
         />
       </section>
-
     </div>
   );
 }

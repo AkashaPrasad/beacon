@@ -2,6 +2,14 @@ import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
 
 import type { AiProvider, WeightsInput } from '@kestrel/shared';
 
+export interface HintsDoc {
+  tourStep?: string | number | null;
+  tour?: { offeredAt?: Date | null; completedAt?: Date | null; dismissedAt?: Date | null };
+  tips?: Record<string, Date>;
+  ui?: { railCollapsed?: boolean; radarView?: 'grid' | 'list' };
+  updatedAt?: Date;
+}
+
 export interface SettingsDoc {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
@@ -33,6 +41,8 @@ export interface SettingsDoc {
   };
   privacy: { sendResumeToAi: boolean };
   weights: WeightsInput;
+  /** Tour, tips and rail UI state (`/v1/settings/hints`); absent until the first save. */
+  hints?: HintsDoc;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,9 +77,11 @@ const settingsSchema = new Schema(
     },
     privacy: { sendResumeToAi: { type: Boolean, default: false } },
     weights: { type: Schema.Types.Mixed },
+    hints: { type: Schema.Types.Mixed },
   },
   { timestamps: true, collection: 'settings', minimize: false },
 );
 
 export const Settings: Model<SettingsDoc> =
-  (mongoose.models['Settings'] as Model<SettingsDoc> | undefined) ?? model<SettingsDoc>('Settings', settingsSchema as unknown as Schema<SettingsDoc>);
+  (mongoose.models['Settings'] as Model<SettingsDoc> | undefined) ??
+  model<SettingsDoc>('Settings', settingsSchema as unknown as Schema<SettingsDoc>);

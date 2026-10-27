@@ -1,9 +1,11 @@
+import { PUBLIC_PAGES } from '@/features/marketing/content/pages';
+
 import { LegalPage } from './LegalPage';
 
 /** `/terms`: short, plain terms for a free student tool. */
 export function Component() {
   return (
-    <LegalPage testId="terms-page" title="Terms" updated="27 Oct 2026">
+    <LegalPage page={PUBLIC_PAGES.terms} testId="terms-page" title="Terms" updated="27 Oct 2026">
       <p>
         Beacon is a free tool that helps students find and track opportunities. By using it you
         agree to these terms.

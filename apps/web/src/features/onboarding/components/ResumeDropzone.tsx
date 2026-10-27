@@ -4,7 +4,11 @@ import { useEffect, useId, useRef, useState, type DragEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { springs, tweens } from '@/features/onboarding/lib/motion';
-import { formatBytes, RESUME_ACCEPT, RESUME_MAX_BYTES } from '@/features/onboarding/lib/resume-file';
+import {
+  formatBytes,
+  RESUME_ACCEPT,
+  RESUME_MAX_BYTES,
+} from '@/features/onboarding/lib/resume-file';
 import { cn } from '@kestrel/ui';
 
 export type DropzonePhase = 'idle' | 'uploading' | 'reading' | 'done' | 'failed';
@@ -125,7 +129,10 @@ export function ResumeDropzone({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: tweens.fadeIn }}
             exit={{ opacity: 0, transition: tweens.fadeOut }}
-            className={cn('flex items-center gap-4', !compact && 'sm:flex-col sm:py-4 sm:text-center')}
+            className={cn(
+              'flex items-center gap-4',
+              !compact && 'sm:flex-col sm:py-4 sm:text-center',
+            )}
           >
             <m.span
               aria-hidden="true"
@@ -156,7 +163,8 @@ export function ResumeDropzone({
                 )}
               </p>
               <p id={hintId} className="text-small text-fg-tertiary">
-                PDF or DOCX, up to {formatBytes(RESUME_MAX_BYTES)}. You can also paste it.
+                PDF, DOCX or a photo (PNG, JPG), up to {formatBytes(RESUME_MAX_BYTES)}. You can also
+                paste it.
               </p>
             </div>
           </m.div>
@@ -169,22 +177,34 @@ export function ResumeDropzone({
             key="chip"
             layout
             initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0, transition: { y: springs.smooth, opacity: tweens.fadeIn } }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              transition: { y: springs.smooth, opacity: tweens.fadeIn },
+            }}
             exit={{ opacity: 0, transition: tweens.exit }}
             className="relative flex items-center gap-3 overflow-hidden rounded-md border border-border bg-surface-raised px-3 py-2.5"
             data-testid="onboarding-resume-file"
           >
-            <FileText className="size-5 shrink-0 text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />
+            <FileText
+              className="size-5 shrink-0 text-fg-secondary"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-body font-medium text-fg" title={file.name}>
                 {file.name}
               </span>
-              <span className="flex items-center gap-1.5 text-small text-fg-tertiary" aria-live="polite">
+              <span
+                className="flex items-center gap-1.5 text-small text-fg-tertiary"
+                aria-live="polite"
+              >
                 <span className="font-mono text-mono-sm">{formatBytes(file.size)}</span>
                 <span aria-hidden="true">·</span>
                 {phase === 'uploading' && (
                   <span>
-                    Uploading <span className="font-mono text-mono-sm">{Math.round(progress * 100)}%</span>
+                    Uploading{' '}
+                    <span className="font-mono text-mono-sm">{Math.round(progress * 100)}%</span>
                   </span>
                 )}
                 {phase === 'reading' && <span>Reading your resume…</span>}
@@ -217,18 +237,33 @@ export function ResumeDropzone({
               </Button>
             )}
             {phase === 'failed' && onRetry && (
-              <Button type="button" variant="ghost" size="sm" onClick={onRetry} data-testid="onboarding-resume-retry">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRetry}
+                data-testid="onboarding-resume-retry"
+              >
                 <RotateCw className="size-4" strokeWidth={1.5} aria-hidden="true" />
                 Retry
               </Button>
             )}
             {phase === 'done' && (
-              <Button type="button" variant="ghost" size="sm" onClick={openPicker} data-testid="onboarding-resume-replace">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={openPicker}
+                data-testid="onboarding-resume-replace"
+              >
                 Replace
               </Button>
             )}
             {(phase === 'uploading' || phase === 'reading') && (
-              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 bg-surface-sunken">
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-0.5 bg-surface-sunken"
+              >
                 <m.span
                   className="block h-full origin-left bg-accent-strong"
                   initial={false}

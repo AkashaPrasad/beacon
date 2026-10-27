@@ -58,16 +58,30 @@ function StatNumber({ value }: { value: number }) {
   return <m.span>{text}</m.span>;
 }
 
-function StatTile({ label, value, children, testId }: { label: string; value: ReactNode; children?: ReactNode; testId: string }) {
+function StatTile({
+  label,
+  value,
+  children,
+  testId,
+}: {
+  label: string;
+  value: ReactNode;
+  children?: ReactNode;
+  testId: string;
+}) {
   return (
     <section
       data-testid={testId}
       aria-label={label}
-      className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface-raised p-4"
+      className="flex min-w-0 flex-col gap-2 e2 rounded-xl border border-border-subtle p-4"
     >
       <h2 className="text-label uppercase text-fg-tertiary">{label}</h2>
       <p className="font-mono text-mono-lg tabular-nums text-fg">{value}</p>
-      {children && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-fg-secondary">{children}</div>}
+      {children && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-fg-secondary">
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -100,11 +114,19 @@ function Tiles({ data }: { data: AdminOverview }) {
           {fmt(users.withGoogle)} Google · {fmt(users.withPassword)} password
         </span>
       </StatTile>
-      <StatTile testId="admin-stat-listings" label="Active listings" value={<StatNumber value={listings.active} />}>
+      <StatTile
+        testId="admin-stat-listings"
+        label="Active listings"
+        value={<StatNumber value={listings.active} />}
+      >
         <span>{fmt(listings.total)} total</span>
         <span>{fmt(listings.archived)} archived</span>
       </StatTile>
-      <StatTile testId="admin-stat-sources" label="Sources" value={<StatNumber value={sources.total} />}>
+      <StatTile
+        testId="admin-stat-sources"
+        label="Sources"
+        value={<StatNumber value={sources.total} />}
+      >
         {HEALTH.filter((h) => (sources.byHealth[h.key] ?? 0) > 0).map((h) => (
           <span key={h.key} className="inline-flex items-center gap-1.5">
             <span className={cn('size-1.5 rounded-full', h.dot)} aria-hidden="true" />
@@ -136,18 +158,33 @@ function Tiles({ data }: { data: AdminOverview }) {
               {fmt(used)} / {fmt(crawler.cap)}
             </span>{' '}
             credits today
-            {crawler.selfHostedUsedToday > 0 ? ` · ${fmt(crawler.selfHostedUsedToday)} self-hosted` : ''}
+            {crawler.selfHostedUsedToday > 0
+              ? ` · ${fmt(crawler.selfHostedUsedToday)} self-hosted`
+              : ''}
           </span>
-          {crawler.backendReason && <span className="text-caption text-fg-tertiary">{crawler.backendReason}</span>}
+          {crawler.backendReason && (
+            <span className="text-caption text-fg-tertiary">{crawler.backendReason}</span>
+          )}
         </div>
       </StatTile>
     </div>
   );
 }
 
-function Panel({ title, children, meta }: { title: string; children: ReactNode; meta?: ReactNode }) {
+function Panel({
+  title,
+  children,
+  meta,
+}: {
+  title: string;
+  children: ReactNode;
+  meta?: ReactNode;
+}) {
   return (
-    <section aria-label={title} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface-raised">
+    <section
+      aria-label={title}
+      className="e2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-border-subtle"
+    >
       <header className="flex items-baseline justify-between gap-3 border-b border-border-subtle px-4 py-3">
         <h2 className="text-h3 text-fg">{title}</h2>
         {meta && <span className="font-mono text-mono-sm text-fg-tertiary">{meta}</span>}
@@ -167,7 +204,11 @@ function QueueTable({ queues, error }: { queues: AdminOverview['queues']; error:
     );
   }
   if (!queues.length) {
-    return <p className="px-4 py-8 text-center text-small text-fg-secondary">No queues reported. Is the worker running?</p>;
+    return (
+      <p className="px-4 py-8 text-center text-small text-fg-secondary">
+        No queues reported. Is the worker running?
+      </p>
+    );
   }
   const max = Math.max(1, ...queues.map((q) => q.waiting + q.delayed));
   return (
@@ -176,10 +217,18 @@ function QueueTable({ queues, error }: { queues: AdminOverview['queues']; error:
       <TableHeader>
         <TableRow>
           <TableHead scope="col">Queue</TableHead>
-          <TableHead scope="col" className="text-right">Waiting</TableHead>
-          <TableHead scope="col" className="text-right">Active</TableHead>
-          <TableHead scope="col" className="text-right">Delayed</TableHead>
-          <TableHead scope="col" className="text-right">Failed</TableHead>
+          <TableHead scope="col" className="text-right">
+            Waiting
+          </TableHead>
+          <TableHead scope="col" className="text-right">
+            Active
+          </TableHead>
+          <TableHead scope="col" className="text-right">
+            Delayed
+          </TableHead>
+          <TableHead scope="col" className="text-right">
+            Failed
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -188,7 +237,10 @@ function QueueTable({ queues, error }: { queues: AdminOverview['queues']; error:
             <TableCell className="font-mono">
               <span className="flex items-center gap-3">
                 <span className="w-24 shrink-0">{q.name}</span>
-                <span className="hidden h-1 flex-1 overflow-hidden rounded-full bg-surface-sunken sm:block" aria-hidden="true">
+                <span
+                  className="hidden h-1 flex-1 overflow-hidden rounded-full bg-surface-sunken sm:block"
+                  aria-hidden="true"
+                >
                   <span
                     className="block h-full w-full origin-left rounded-full bg-fg-tertiary"
                     style={{ transform: `scaleX(${(q.waiting + q.delayed) / max})` }}
@@ -199,7 +251,9 @@ function QueueTable({ queues, error }: { queues: AdminOverview['queues']; error:
             <TableCell className="text-right font-mono tabular-nums">{fmt(q.waiting)}</TableCell>
             <TableCell className="text-right font-mono tabular-nums">{fmt(q.active)}</TableCell>
             <TableCell className="text-right font-mono tabular-nums">{fmt(q.delayed)}</TableCell>
-            <TableCell className={cn('text-right font-mono tabular-nums', q.failed > 0 && 'text-danger')}>
+            <TableCell
+              className={cn('text-right font-mono tabular-nums', q.failed > 0 && 'text-danger')}
+            >
               {fmt(q.failed)}
             </TableCell>
           </TableRow>
@@ -224,9 +278,15 @@ function RunsTable({ runs, now }: { runs: AdminSourceRun[]; now: Date }) {
         <TableRow>
           <TableHead scope="col">Source</TableHead>
           <TableHead scope="col">Status</TableHead>
-          <TableHead scope="col" className="text-right">Found</TableHead>
-          <TableHead scope="col" className="text-right">Took</TableHead>
-          <TableHead scope="col" className="text-right">When</TableHead>
+          <TableHead scope="col" className="text-right">
+            Found
+          </TableHead>
+          <TableHead scope="col" className="text-right">
+            Took
+          </TableHead>
+          <TableHead scope="col" className="text-right">
+            When
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -253,14 +313,18 @@ function RunsTable({ runs, now }: { runs: AdminSourceRun[]; now: Date }) {
                 )}
               </TableCell>
               <TableCell>
-                <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap', status.tone)}>
+                <span
+                  className={cn('inline-flex items-center gap-1.5 whitespace-nowrap', status.tone)}
+                >
                   <Icon className="size-4" strokeWidth={1.5} aria-hidden="true" />
                   {status.label}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono tabular-nums">
                 {fmt(run.found)}
-                {run.new > 0 && <span className="block text-mono-sm text-success">+{fmt(run.new)} new</span>}
+                {run.new > 0 && (
+                  <span className="block text-mono-sm text-success">+{fmt(run.new)} new</span>
+                )}
               </TableCell>
               <TableCell className="text-right font-mono tabular-nums">
                 {run.durationMs == null
@@ -291,7 +355,10 @@ function LoadingState() {
     <div className="flex flex-col gap-6" data-testid="admin-loading">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-4">
+          <div
+            key={i}
+            className="flex flex-col gap-3 e2 rounded-xl border border-border-subtle p-4"
+          >
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-3 w-32" />
@@ -299,8 +366,8 @@ function LoadingState() {
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <TableSkeleton rows={6} columns={5} className="rounded-lg border border-border bg-surface-raised" />
-        <TableSkeleton rows={6} columns={5} className="rounded-lg border border-border bg-surface-raised" />
+        <TableSkeleton rows={6} columns={5} className="e2 rounded-xl border border-border-subtle" />
+        <TableSkeleton rows={6} columns={5} className="e2 rounded-xl border border-border-subtle" />
       </div>
     </div>
   );
@@ -342,7 +409,12 @@ export function Component() {
         title="Admin"
         meta={updated ? `Updated ${updated}` : undefined}
         actions={
-          <Button size="sm" onClick={() => void refetch()} disabled={isFetching} aria-label="Refresh overview">
+          <Button
+            size="sm"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            aria-label="Refresh overview"
+          >
             <RotateCw className={cn(isFetching && 'animate-spin')} strokeWidth={1.5} />
             Refresh
           </Button>
@@ -350,7 +422,10 @@ export function Component() {
       />
       <div className="flex flex-col gap-6 px-gutter">
         {isError && data && (
-          <p role="status" className="flex items-center gap-2 rounded-md bg-warning-subtle px-3 py-2 text-small text-warning">
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-md bg-warning-subtle px-3 py-2 text-small text-warning"
+          >
             <TriangleAlert className="size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
             Couldn't refresh. Showing numbers from {formatAbsolute(new Date(dataUpdatedAt))}.
             <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void refetch()}>
@@ -361,7 +436,11 @@ export function Component() {
         {isPending ? (
           <LoadingState />
         ) : isError && !data ? (
-          <div role="alert" data-testid="admin-error" className="flex flex-col items-center gap-3 py-16 text-center">
+          <div
+            role="alert"
+            data-testid="admin-error"
+            className="flex flex-col items-center gap-3 py-16 text-center"
+          >
             <h2 className="text-h2 text-fg">Couldn't load the overview.</h2>
             <p className="max-w-prose text-body text-fg-secondary">{errorMessage(error)}</p>
             <Button variant="primary" onClick={() => void refetch()}>
@@ -375,7 +454,10 @@ export function Component() {
               <Panel title="Queues" meta={`${data.queues.length} queues`}>
                 <QueueTable queues={data.queues} error={data.queuesError} />
               </Panel>
-              <Panel title="Recent source runs" meta={data.recentRuns.length ? `last ${data.recentRuns.length}` : undefined}>
+              <Panel
+                title="Recent source runs"
+                meta={data.recentRuns.length ? `last ${data.recentRuns.length}` : undefined}
+              >
                 <RunsTable runs={data.recentRuns} now={now} />
               </Panel>
             </div>

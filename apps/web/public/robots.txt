@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /radar
+Disallow: /onboarding
+Disallow: /tracker
+Disallow: /sources
+Disallow: /alerts
+Disallow: /settings
+Disallow: /profile
+Disallow: /notifications
+Disallow: /admin
+Disallow: /auth/
+
+Sitemap: https://beacon.spacesdrive.cc/sitemap.xml

@@ -31,7 +31,6 @@ import type { FeedItemDTO } from '@/api/types';
 import { cn } from '@/lib/utils';
 import { tweens } from '@kestrel/ui';
 
-
 import { RadarRow, type RowAction, type RowEnter } from './RadarRow';
 import { SwipeRow } from './SwipeRow';
 import { hasEntered, markEntered, SETTLE_MS } from '../lib/motion';
@@ -201,7 +200,8 @@ export const RadarFeed = forwardRef<RadarFeedHandle, RadarFeedProps>(function Ra
 
   // Infinite pagination.
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && lastIndex >= items.length - LOAD_AHEAD_ROWS) fetchNextPage();
+    if (hasNextPage && !isFetchingNextPage && lastIndex >= items.length - LOAD_AHEAD_ROWS)
+      fetchNextPage();
   }, [lastIndex, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // ── Enter animations: decided per id the first time it renders (MOTION §5.5) ──
@@ -229,7 +229,9 @@ export const RadarFeed = forwardRef<RadarFeedHandle, RadarFeedProps>(function Ra
     settledListKey = listKey;
     if (items.length > 0) firstListPlayed = true;
     // Everything rendered once counts as entered, so it never animates again this session.
-    markEntered(virtualItems.map((v) => items[v.index]?.listing.id).filter((id): id is string => Boolean(id)));
+    markEntered(
+      virtualItems.map((v) => items[v.index]?.listing.id).filter((id): id is string => Boolean(id)),
+    );
   }, [virtualItems, items, listKey]);
 
   // ── Settling: rows below a removed row glide up (transform transition for 300 ms) ──
@@ -297,9 +299,19 @@ export const RadarFeed = forwardRef<RadarFeedHandle, RadarFeedProps>(function Ra
   const tabbableId = cursorId ?? items[0]?.listing.id ?? null;
 
   return (
-    <div ref={wrapRef} className={cn('relative bg-surface', className)}>
+    <div
+      ref={wrapRef}
+      className={cn(
+        'e1 relative mx-gutter mb-6 overflow-hidden rounded-xl border border-border-subtle',
+        className,
+      )}
+    >
       {/* Probe: the row height token, measured once and on density / text-size changes. */}
-      <div ref={probeRef} aria-hidden="true" className="pointer-events-none invisible absolute h-[4.75rem] w-px md:h-row" />
+      <div
+        ref={probeRef}
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute h-[4.75rem] w-px md:h-row"
+      />
       <m.div
         key={listKey}
         role="feed"
@@ -323,7 +335,10 @@ export const RadarFeed = forwardRef<RadarFeedHandle, RadarFeedProps>(function Ra
               data-index={virtualRow.index}
               data-settling={settling ? '' : undefined}
               className="absolute top-0 left-0 w-full data-[settling]:transition-transform data-[settling]:duration-base data-[settling]:ease-spring motion-reduce:transition-none"
-              style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start - scrollMargin}px)` }}
+              style={{
+                height: virtualRow.size,
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+              }}
             >
               <SwipeRow
                 enabled={phone}
@@ -358,12 +373,17 @@ export const RadarFeed = forwardRef<RadarFeedHandle, RadarFeedProps>(function Ra
         })}
       </m.div>
       {isFetchingNextPage && (
-        <div role="status" className="flex h-12 items-center justify-center text-small text-fg-tertiary">
+        <div
+          role="status"
+          className="flex h-12 items-center justify-center text-small text-fg-tertiary"
+        >
           Loading more listings…
         </div>
       )}
       {!hasNextPage && items.length > 20 && (
-        <p className="py-6 text-center text-small text-fg-tertiary">That&apos;s everything that matches.</p>
+        <p className="py-6 text-center text-small text-fg-tertiary">
+          That&apos;s everything that matches.
+        </p>
       )}
     </div>
   );

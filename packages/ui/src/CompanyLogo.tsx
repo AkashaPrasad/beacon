@@ -3,7 +3,7 @@ import { useState, type ComponentProps } from 'react';
 import { cn } from './cn';
 import { hashString, isResolvableDomain } from './logo';
 
-export type CompanyLogoSize = 20 | 28 | 40;
+export type CompanyLogoSize = 20 | 24 | 28 | 36 | 40;
 
 const AVATAR_CLASSES = [
   'bg-avatar-1',

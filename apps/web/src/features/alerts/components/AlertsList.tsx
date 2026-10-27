@@ -2,7 +2,6 @@
  * /alerts: one calm column of rule cards, a one-line delivery summary, and [New rule]. Building and
  * editing happen on their own page (/alerts/new, /alerts/:id). DESIGN §6.1, USERFLOW §2 / §3.4 / §6.
  */
-import { EmptyState, ListSkeleton, PageHeader, Shortcut, useNow } from '@kestrel/ui';
 import { BellRing, Plus, Settings2 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -13,15 +12,21 @@ import { useSettings } from '@/api/settings';
 import { useCommandItems } from '@/components/command-palette/registry';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Headline, HeadlineNumber } from '@/features/sources/components/common/Headline';
 import { errorMessage } from '@/lib/api';
+import { cssEscape, useListMemory } from '@/lib/list-memory';
 import { useShortcut, useShortcutScope } from '@/lib/shortcuts';
+import { EmptyState, ListSkeleton, PageHeader, Shortcut, useNow } from '@kestrel/ui';
 
+import { DeliverySummary } from './DeliverySummary';
+import { RuleCard, type RuleCardActions } from './RuleCard';
 import { zoneLabel } from '../lib/delivery';
 import { readJustSaved } from '../lib/just-saved';
 import { pendingDeletesSnapshot, subscribePendingDeletes } from '../lib/pending-deletes';
 import { useRuleActions } from '../lib/use-rule-actions';
-import { DeliverySummary } from './DeliverySummary';
-import { RuleCard, type RuleCardActions } from './RuleCard';
+
+/** The editor returns here with history Back after a save (no second list entry). */
+const FROM_LIST = { fromList: true } as const;
 
 export function AlertsList() {
   const navigate = useNavigate();
@@ -29,7 +34,11 @@ export function AlertsList() {
   const settings = useSettings();
   const ruleActions = useRuleActions();
   const now = useNow(60_000);
-  const pendingDeletes = useSyncExternalStore(subscribePendingDeletes, pendingDeletesSnapshot, pendingDeletesSnapshot);
+  const pendingDeletes = useSyncExternalStore(
+    subscribePendingDeletes,
+    pendingDeletesSnapshot,
+    pendingDeletesSnapshot,
+  );
 
   // The card saved on the editor page joins the list one frame after it mounts, so it plays its enter
   // animation even though the list itself never animates on first paint (MOTION §6 rule 2).
@@ -49,6 +58,14 @@ export function AlertsList() {
   );
   const shown = revealed ? rules : rules.filter((r) => alertListKey(r.id) !== justSaved);
   const onCount = rules.filter((r) => r.enabled).length;
+  const withStats = rules.filter((r) => r.stats);
+  const matchesThisWeek = withStats.reduce((n, r) => n + (r.stats?.matchesLast7d ?? 0), 0);
+
+  // Back from a rule's page lands on its card again (UX restructure §1.1).
+  useListMemory('alerts', {
+    ready: rules.length > 0,
+    focus: (id) => `[data-testid="alerts-rule"][data-rule-id="${cssEscape(id)}"] h3 a`,
+  });
 
   const actions = useMemo<RuleCardActions>(
     () => ({
@@ -61,7 +78,7 @@ export function AlertsList() {
   );
 
   useShortcutScope('alerts');
-  useShortcut('n', () => void navigate('/alerts/new'), {
+  useShortcut('n', () => void navigate('/alerts/new', { state: FROM_LIST }), {
     scope: 'alerts',
     description: 'New alert rule',
     group: 'Alerts',
@@ -74,7 +91,7 @@ export function AlertsList() {
         label: 'New alert rule',
         shortcut: 'n',
         icon: Plus,
-        perform: () => void navigate('/alerts/new'),
+        perform: () => void navigate('/alerts/new', { state: FROM_LIST }),
       },
       {
         id: 'alerts.starter',
@@ -82,7 +99,7 @@ export function AlertsList() {
         label: 'Alert me about Strong fit internships',
         keywords: ['rule', 'notify', 'push'],
         icon: BellRing,
-        perform: () => void navigate('/alerts/new?preset=starter'),
+        perform: () => void navigate('/alerts/new?preset=starter', { state: FROM_LIST }),
       },
       {
         id: 'alerts.notification-settings',
@@ -107,12 +124,16 @@ export function AlertsList() {
       <div className="mx-auto flex w-full max-w-3xl flex-col">
         <PageHeader
           title="Alerts"
-          meta={loading || !hasRules ? undefined : `${rules.length} ${rules.length === 1 ? 'rule' : 'rules'} · ${onCount} on`}
+          className="pb-1"
           actions={
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild variant={emptyLoaded ? 'secondary' : 'primary'} aria-keyshortcuts="N">
-                  <Link to="/alerts/new" data-testid="alerts-new">
+                <Button
+                  asChild
+                  variant={emptyLoaded ? 'secondary' : 'primary'}
+                  aria-keyshortcuts="N"
+                >
+                  <Link to="/alerts/new" state={FROM_LIST} data-testid="alerts-new">
                     <Plus strokeWidth={1.5} /> <span className="max-sm:sr-only">New rule</span>
                   </Link>
                 </Button>
@@ -124,12 +145,32 @@ export function AlertsList() {
           }
         />
 
+        <Headline loading={loading} testId="alerts-headline" className="pb-4">
+          {!hasRules ? (
+            'No rules yet. One is enough to hear about the right listing the moment it opens.'
+          ) : (
+            <>
+              <HeadlineNumber>{rules.length}</HeadlineNumber>{' '}
+              {rules.length === 1 ? 'rule' : 'rules'}
+              {withStats.length > 0 ? (
+                <>
+                  , <HeadlineNumber>{matchesThisWeek.toLocaleString('en-IN')}</HeadlineNumber>{' '}
+                  {matchesThisWeek === 1 ? 'match' : 'matches'} this week.
+                </>
+              ) : (
+                '.'
+              )}
+              {onCount < rules.length ? (
+                <>
+                  {' '}
+                  <HeadlineNumber>{rules.length - onCount}</HeadlineNumber> paused.
+                </>
+              ) : null}
+            </>
+          )}
+        </Headline>
+
         <div className="flex flex-col gap-5 px-gutter pb-16">
-          {hasRules ? (
-            <p className="-mt-1 text-body text-fg-secondary">
-              Beacon checks every new listing against these and lets you know when one fits.
-            </p>
-          ) : null}
           <DeliverySummary className="-mx-3 w-[calc(100%+1.5rem)]" />
 
           {loading ? (
@@ -154,12 +195,16 @@ export function AlertsList() {
               data-testid="alerts-empty"
               action={
                 <Button asChild variant="primary">
-                  <Link to="/alerts/new?preset=starter">Create this rule</Link>
+                  <Link to="/alerts/new?preset=starter" state={FROM_LIST}>
+                    Create this rule
+                  </Link>
                 </Button>
               }
               secondaryAction={
                 <Button asChild variant="ghost">
-                  <Link to="/alerts/new">Build my own</Link>
+                  <Link to="/alerts/new" state={FROM_LIST}>
+                    Build my own
+                  </Link>
                 </Button>
               }
             />

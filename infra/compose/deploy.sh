@@ -11,7 +11,7 @@ set -euo pipefail
 TAG=${1:-latest}
 ROOT=/opt/beacon
 IN=$ROOT/incoming
-HEALTH_URL=${HEALTH_URL:-https://api.beacon.spacesdrive.cc/healthz}
+HEALTH_URL=${HEALTH_URL:-https://api-beacon.spacesdrive.cc/healthz}
 
 log() { printf '[deploy %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 

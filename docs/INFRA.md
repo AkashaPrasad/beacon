@@ -7,7 +7,7 @@ the owner can do. Day-2 operations (logs, rotation, scaling, restore, costs) are
 ```
 Browser ──► Cloudflare Pages  beacon.spacesdrive.cc  (project "beacon", Direct Upload)
    │
-   └──► api.beacon.spacesdrive.cc  (Cloudflare proxied, SSL Full (strict))
+   └──► api-beacon.spacesdrive.cc  (Cloudflare proxied, SSL Full (strict))
                 │  80/443 open to Cloudflare ranges only
         ┌───────▼──────────────── EC2 beacon-app · t4g.small · ap-south-1a · EIP ──────┐
         │ caddy :80/:443 (Let's Encrypt HTTP-01) ─► api :4000 ─┐                          │
@@ -29,7 +29,7 @@ Browser ──► Cloudflare Pages  beacon.spacesdrive.cc  (project "beacon", Di
 | `infra/terraform/files/`                           | first-boot bash (`common.sh`, `app-bootstrap.sh`, `firecrawl-bootstrap.sh`, `kc`) |
 | `infra/terraform/templates/`                       | cloud-init templates; Terraform embeds the files above and gzips the result       |
 | `infra/compose/docker-compose.prod.yml`            | app box stack (caddy, api, worker, redis)                                         |
-| `infra/compose/Caddyfile`                          | `api.beacon.spacesdrive.cc` → `api:4000`                                         |
+| `infra/compose/Caddyfile`                          | `api-beacon.spacesdrive.cc` → `api:4000`                                          |
 | `infra/compose/deploy.sh`                          | server-side deploy step shared by CI and the laptop script                        |
 | `infra/compose/firecrawl/`                         | standby compose file, `.env` template, `firecrawl.service`                        |
 | `scripts/lib/env.sh`                               | safe `secrets.env` loader, `PROD_ENV` composer, ssh helpers                       |
@@ -49,20 +49,20 @@ State is local (`infra/terraform/terraform.tfstate`, git-ignored, along with `te
 `terraform plan` on 2026-10-27 (aws provider 6.70.0, http 3.6.3): **63 to add, 0 to change,
 0 to destroy**. The account had no `beacon*` resources and no GitHub OIDC provider.
 
-| Count | Resource                                                  | Notes                                                                                                 |
-| ----- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1     | `aws_key_pair.beacon`                                    | `beacon-key`, from `SSH_PUBLIC_KEY`                                                                  |
+| Count | Resource                                                  | Notes                                                                                               |
+| ----- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1     | `aws_key_pair.beacon`                                     | `beacon-key`, from `SSH_PUBLIC_KEY`                                                                 |
 | 2     | `aws_security_group`                                      | `beacon-app`, `beacon-firecrawl` (default VPC)                                                      |
-| 44    | ingress `app_cloudflare[*]`                               | 80 + 443 from each Cloudflare range (15 v4 + 7 v6, fetched at plan time)                              |
-| 1     | ingress `app_ssh_admin`                                   | 22 from `admin_cidr` (current IP /32)                                                                 |
-| 1     | ingress `firecrawl_api_from_app`                          | 3002 from SG `beacon-app` only                                                                       |
-| 1     | ingress `firecrawl_ssh_admin`                             | 22 from `admin_cidr`                                                                                  |
-| 4     | egress rules                                              | all traffic, IPv4 + IPv6, on both SGs                                                                 |
-| 1     | `aws_iam_role.app` + 1 inline policy + 1 instance profile | Start/Stop on the standby ARN; DescribeInstances/DescribeInstanceStatus on `*`                        |
-| 1     | `aws_instance.firecrawl`                                  | t4g.large, 30 GB gp3 (encrypted), IMDSv2 hop 1, public IP for egress                                  |
-| 1     | `aws_instance.app`                                        | t4g.small, 20 GB gp3 (encrypted), IMDSv2 hop 2, instance profile                                      |
-| 1     | `aws_eip.app`                                             | the API origin IP                                                                                     |
-| 1     | `aws_iam_openid_connect_provider.github`                  | `token.actions.githubusercontent.com` (account-wide)                                                  |
+| 44    | ingress `app_cloudflare[*]`                               | 80 + 443 from each Cloudflare range (15 v4 + 7 v6, fetched at plan time)                            |
+| 1     | ingress `app_ssh_admin`                                   | 22 from `admin_cidr` (current IP /32)                                                               |
+| 1     | ingress `firecrawl_api_from_app`                          | 3002 from SG `beacon-app` only                                                                      |
+| 1     | ingress `firecrawl_ssh_admin`                             | 22 from `admin_cidr`                                                                                |
+| 4     | egress rules                                              | all traffic, IPv4 + IPv6, on both SGs                                                               |
+| 1     | `aws_iam_role.app` + 1 inline policy + 1 instance profile | Start/Stop on the standby ARN; DescribeInstances/DescribeInstanceStatus on `*`                      |
+| 1     | `aws_instance.firecrawl`                                  | t4g.large, 30 GB gp3 (encrypted), IMDSv2 hop 1, public IP for egress                                |
+| 1     | `aws_instance.app`                                        | t4g.small, 20 GB gp3 (encrypted), IMDSv2 hop 2, instance profile                                    |
+| 1     | `aws_eip.app`                                             | the API origin IP                                                                                   |
+| 1     | `aws_iam_openid_connect_provider.github`                  | `token.actions.githubusercontent.com` (account-wide)                                                |
 | 1     | `aws_iam_role.gha_deploy` + 1 inline policy               | OIDC, `repo:AkashaPrasad/beacon:ref:refs/heads/main` only; Authorize/Revoke ingress on `beacon-app` |
 
 AMI: latest Canonical `ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*`
@@ -127,11 +127,11 @@ startup); measure it in the first drill and record it in RUNBOOK.md.
 
 | Item              | Value                                                                                                                                                                                                                                                                                                                   |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Images            | `ghcr.io/akashaprasad/beacon-api`, `ghcr.io/akashaprasad/beacon-worker`; `apps/<app>/Dockerfile`, build context = repo root, `linux/arm64`; tags `sha-<40-hex>` + `latest`                                                                                                                                            |
+| Images            | `ghcr.io/akashaprasad/beacon-api`, `ghcr.io/akashaprasad/beacon-worker`; `apps/<app>/Dockerfile`, build context = repo root, `linux/arm64`; tags `sha-<40-hex>` + `latest`                                                                                                                                              |
 | API               | listens on **4000**; `/healthz` (liveness, used by the compose healthcheck and the deploy smoke test) and `/readyz`                                                                                                                                                                                                     |
 | Worker            | **4001**: `/healthz` (compose healthcheck), `/metrics`; not published outside the compose network                                                                                                                                                                                                                       |
 | Healthchecks      | run `node -e "fetch(...)"` inside the container, so images need no curl/wget, only `node` on PATH                                                                                                                                                                                                                       |
-| Env               | `env_file: /opt/beacon/.env`, shared by api and worker (keys below). Compose sets `NODE_OPTIONS=--max-old-space-size=384` (api) / `640` (worker). Don't hard-code a larger heap in the Dockerfile `CMD`.                                                                                                               |
+| Env               | `env_file: /opt/beacon/.env`, shared by api and worker (keys below). Compose sets `NODE_OPTIONS=--max-old-space-size=384` (api) / `640` (worker). Don't hard-code a larger heap in the Dockerfile `CMD`.                                                                                                                |
 | Client IP         | Caddy sends `X-Forwarded-For: <client>` (from `CF-Connecting-IP`) as a single hop, so use `app.set('trust proxy', 1)` in Express                                                                                                                                                                                        |
 | Body limit        | Caddy rejects bodies > 12 MB (resume upload limit is 10 MB)                                                                                                                                                                                                                                                             |
 | AWS               | worker uses `@aws-sdk/client-ec2` with the **default credential chain** (instance role via IMDSv2; hop limit 2 makes it reachable from containers) and `AWS_REGION`. No static keys. Allowed: Start/Stop on `FIRECRAWL_INSTANCE_ID`, Describe* on all.                                                                  |
@@ -219,8 +219,8 @@ Verification:
 
 ```bash
 ssh -i ~/.ssh/<key> ubuntu@$APP_PUBLIC_IP 'cat /var/lib/beacon/bootstrap.done; kc ps'
-curl -fsS https://api.beacon.spacesdrive.cc/healthz          # 200 through Cloudflare
-curl -sI http://api.beacon.spacesdrive.cc/.well-known/acme-challenge/x   # 404 from Caddy, not a 301
+curl -fsS https://api-beacon.spacesdrive.cc/healthz          # 200 through Cloudflare
+curl -sI http://api-beacon.spacesdrive.cc/.well-known/acme-challenge/x   # 404 from Caddy, not a 301
 curl -sI https://beacon.spacesdrive.cc | head -1             # 200 from Pages
 scripts/firecrawl-standby.sh start && scripts/firecrawl-standby.sh wait-ready && scripts/firecrawl-standby.sh stop
 scripts/cloudflare-setup.sh --check                           # records now present, proxied=true

@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <!-- 16/32 px drawing (not a scaled master): ring r 8.4 / stroke 3.2, source r 3.6, beam ±24°, gap ±44°. -->
-  <rect width="32" height="32" rx="7" fill="#F5A524"/>
-  <g transform="translate(1.4 -0.6)" fill="#1F1505">
-    <path d="M23 17.2A8.4 8.4 0 1 1 14.8 9" fill="none" stroke="#1F1505" stroke-width="3.2" stroke-linecap="round"/>
+  <rect width="32" height="32" rx="7" fill="#2f5bff"/>
+  <g transform="translate(1.4 -0.6)" fill="#ffffff">
+    <path d="M23 17.2A8.4 8.4 0 1 1 14.8 9" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
     <path d="M19.8 3.9A14.4 14.4 0 0 1 28.1 12.2L20.1 15.3A5.9 5.9 0 0 0 16.7 11.9Z"/>
     <circle cx="14.62" cy="17.38" r="3.6"/>
   </g>

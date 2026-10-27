@@ -16,6 +16,7 @@ import type { RouteObject } from 'react-router';
 import { PublicOnly } from '@/app/guards';
 import { RouteError } from '@/app/RouteError';
 import { LandingScreen } from '@/features/landing/LandingScreen';
+import { PUBLIC_PAGE_LIST, PUBLIC_PAGES, documentTitle } from '@/features/marketing/content/pages';
 
 const errorElement = <RouteError />;
 
@@ -26,15 +27,45 @@ export const publicRoutes: RouteObject[] = [
     children: [{ index: true, element: <LandingScreen />, handle: { title: null } }],
   },
   {
+    path: PUBLIC_PAGES.features.path.slice(1),
+    lazy: () => import('@/features/marketing/pages/FeaturesPage'),
+    handle: { title: PUBLIC_PAGES.features.title },
+    errorElement,
+  },
+  {
+    path: PUBLIC_PAGES.howItWorks.path.slice(1),
+    lazy: () => import('@/features/marketing/pages/HowItWorksPage'),
+    handle: { title: PUBLIC_PAGES.howItWorks.title },
+    errorElement,
+  },
+  {
+    path: PUBLIC_PAGES.sources.path.slice(1),
+    lazy: () => import('@/features/marketing/pages/SourcesPage'),
+    handle: { title: PUBLIC_PAGES.sources.title },
+    errorElement,
+  },
+  {
+    path: PUBLIC_PAGES.pricing.path.slice(1),
+    lazy: () => import('@/features/marketing/pages/PricingPage'),
+    handle: { title: PUBLIC_PAGES.pricing.title },
+    errorElement,
+  },
+  {
+    path: PUBLIC_PAGES.about.path.slice(1),
+    lazy: () => import('@/features/marketing/pages/AboutPage'),
+    handle: { title: PUBLIC_PAGES.about.title },
+    errorElement,
+  },
+  {
     path: 'privacy',
     lazy: () => import('@/features/legal/PrivacyScreen'),
-    handle: { title: 'Privacy' },
+    handle: { title: PUBLIC_PAGES.privacy.title },
     errorElement,
   },
   {
     path: 'terms',
     lazy: () => import('@/features/legal/TermsScreen'),
-    handle: { title: 'Terms' },
+    handle: { title: PUBLIC_PAGES.terms.title },
     errorElement,
   },
 ];
@@ -51,8 +82,9 @@ export interface PrerenderPage {
 }
 
 /** Public pages written as static HTML at build time (scripts/prerender.mjs). */
-export const prerenderPages: PrerenderPage[] = [
-  { path: '/', file: 'index.html' },
-  { path: '/privacy', file: 'privacy.html', title: 'Privacy · Beacon' },
-  { path: '/terms', file: 'terms.html', title: 'Terms · Beacon' },
-];
+export const prerenderPages: PrerenderPage[] = PUBLIC_PAGE_LIST.map((page) => ({
+  path: page.path,
+  file: page.file,
+  ...(page.title ? { title: documentTitle(page) } : {}),
+  description: page.description,
+}));

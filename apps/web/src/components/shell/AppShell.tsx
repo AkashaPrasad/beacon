@@ -54,7 +54,7 @@ function Layout() {
           aria-label="Filters"
           data-collapsed={railCollapsed || undefined}
           className={cn(
-            'sticky top-(--topbar-h) hidden h-[calc(100dvh-var(--topbar-h))] shrink-0 overflow-y-auto overscroll-contain border-r border-border-subtle bg-bg',
+            'sticky top-(--topbar-h) hidden h-[calc(100dvh-var(--topbar-h))] shrink-0 overflow-y-auto overscroll-contain border-r border-border-subtle bg-bg/40',
             hasRail && 'lg:block',
             railCollapsed ? 'w-rail-collapsed' : 'w-rail',
           )}
@@ -65,7 +65,7 @@ function Layout() {
           id="main"
           tabIndex={-1}
           style={{ viewTransitionName: 'main' }}
-          className="min-w-0 flex-1 bg-surface pb-[calc(var(--tabbar-h)+var(--safe-bottom))] outline-none md:pb-0"
+          className="min-w-0 flex-1 bg-surface/55 pb-[calc(var(--tabbar-h)+var(--safe-bottom))] outline-none md:pb-0"
         >
           <Outlet />
         </main>

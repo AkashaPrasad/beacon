@@ -28,7 +28,7 @@ Google sign-in and email/password; conversational onboarding from a resume; Rada
 
 ## Brand Commitments
 
-Name: Beacon. Mark: dot + ring + one beam (brand/). Tagline: "Every opportunity that fits you. Nothing that doesn't." Owner's binding visual direction (2026-10-27): **not flat, not basic; depth and layered surfaces; a new, more vivid colour system (replace the amber-on-paper look); rich, seamless motion and transitions everywhere; professional and polished like Linear/Vercel/Arc/Apple; uncluttered yet complete; keep the Radar's left filter rail; detail views are full pages.** Previous DESIGN.md bans on multi-hue gradient heroes, emoji icons and stock illustrations still stand; the ban on depth/glow/atmosphere does not.
+Name: Beacon. Mark: dot + ring + one beam (brand/). Tagline: "Every opportunity that fits you. Nothing that doesn't." Owner's binding visual direction (2026-10-27, revised late evening): **NO blue accent, NO gradients anywhere; professional, seamless, minimalist colours** (graphite primary actions, warm-neutral canvas, flat white surfaces with hairline borders, one restrained evergreen accent, very muted type tints). Earlier direction: **not flat, not basic; depth and layered surfaces; a new, more vivid colour system (replace the amber-on-paper look); rich, seamless motion and transitions everywhere; professional and polished like Linear/Vercel/Arc/Apple; uncluttered yet complete; keep the Radar's left filter rail; detail views are full pages.** Previous DESIGN.md bans on multi-hue gradient heroes, emoji icons and stock illustrations still stand; the ban on depth/glow/atmosphere does not.
 
 ## Evidence on Hand
 

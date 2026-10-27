@@ -488,6 +488,64 @@ function detect(input: string) {
 
 // ── Handlers ─────────────────────────────────────────────────────────────────────────────────
 
+const INTERVAL_MS: Record<MockSource['refreshInterval'], number> = {
+  '1h': HOUR,
+  '6h': 6 * HOUR,
+  daily: DAY,
+  weekly: 7 * DAY,
+};
+
+/**
+ * Recent checks for `GET /v1/sources/:id/runs` (the route is requested from the API; WORKER.md
+ * `sourceRuns` shape). Deterministic per source: the newest run matches its health and listings,
+ * older ones are mostly quiet `not_modified` checks with the odd new listing.
+ */
+function runsFor(s: MockSource, limit: number) {
+  if (!s.lastCheckedAt) return [];
+  const last = new Date(s.lastCheckedAt).getTime();
+  const step = INTERVAL_MS[s.refreshInterval];
+  const crawled = s.kind === 'firecrawl';
+  const out = [];
+  for (let i = 0; i < limit; i += 1) {
+    const startedAt = last - i * step;
+    if (startedAt < new Date(s.createdAt).getTime()) break;
+    const h = hash(`${s.id}:${i}`);
+    const first = i === 0;
+    const failing = first ? s.health === 'failing' : s.health === 'failing' && i < 3;
+    const paused = first && s.healthCode === 'paused:credits';
+    const fresh = !failing && !paused && (first ? s.listingsFound > 0 && h % 3 !== 0 : h % 4 === 0);
+    const added = fresh ? (h % 5) + 1 : 0;
+    const durationMs = crawled ? 4_000 + (h % 9_000) : 300 + (h % 1_400);
+    out.push({
+      id: `${s.id.slice(0, 12)}${(i + 1).toString(16).padStart(12, '0')}`,
+      sourceId: s.id,
+      reason:
+        i === limit - 1 && startedAt - step < new Date(s.createdAt).getTime()
+          ? 'created'
+          : 'scheduled',
+      status: paused ? 'deferred' : failing ? 'error' : fresh ? 'ok' : 'not_modified',
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date(startedAt + durationMs).toISOString(),
+      durationMs,
+      found: failing || paused ? 0 : s.listingsFound,
+      new: added,
+      updated: fresh ? h % 3 : 0,
+      unchanged: failing || paused ? 0 : Math.max(0, s.listingsFound - added),
+      errors: failing
+        ? [
+            {
+              kind: s.healthCode ?? 'network',
+              message: s.errorReason ?? 'The page did not answer.',
+            },
+          ]
+        : [],
+      backend: crawled ? (paused ? null : 'cloud') : null,
+      creditsUsed: crawled && !failing && !paused ? 1 : 0,
+    });
+  }
+  return out;
+}
+
 export const sourcesHandlers = [
   http.get('*/v1/sources', async () => {
     await delay(120);
@@ -653,6 +711,19 @@ export const sourcesHandlers = [
     };
     d.personal.unshift(source);
     return HttpResponse.json({ source: publicSource(source), detection: det }, { status: 201 });
+  }),
+
+  http.get('*/v1/sources/:id/runs', async ({ params, request }) => {
+    await delay(220);
+    const d = getDb();
+    const s =
+      d.personal.find((x) => x.id === params.id) ?? d.community.find((x) => x.id === params.id);
+    if (!s) return notFound();
+    const limit = Math.min(
+      50,
+      Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 10),
+    );
+    return HttpResponse.json({ items: runsFor(settle(s), limit) });
   }),
 
   http.get('*/v1/sources/:id', ({ params }) => {

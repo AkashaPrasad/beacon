@@ -49,7 +49,9 @@ describe('filtersFromSearchParams', () => {
   });
 
   it('drops unknown and malformed values instead of throwing', () => {
-    const f = parse('types=internship,spaceship&deadline=9&remote=moon&grad=abc&fresh=2&sort=random&stipend=-5');
+    const f = parse(
+      'types=internship,spaceship&deadline=9&remote=moon&grad=abc&fresh=2&sort=random&stipend=-5',
+    );
     expect(f.types).toEqual(['internship']);
     expect(f.deadlineWithin).toBeNull();
     expect(f.remote).toEqual([]);
@@ -98,7 +100,7 @@ describe('filtersToSearchParams', () => {
     expect(next.get('view')).toBe('board');
     expect(next.get('types')).toBe('internship');
     expect(viewFromSearchParams(next)).toBe('board');
-    expect(viewFromSearchParams(new URLSearchParams('view=nope'))).toBe('list');
+    expect(viewFromSearchParams(new URLSearchParams('view=nope'))).toBe('grid');
   });
 
   it('writes minFit 0 explicitly (it differs from the default)', () => {
@@ -108,7 +110,10 @@ describe('filtersToSearchParams', () => {
 
 describe('filtersToFeedQuery (API mapping, docs/API.md §6)', () => {
   it('maps the defaults to sort + minFit only', () => {
-    expect(filtersToFeedQuery({ ...DEFAULT_FILTERS })).toEqual({ sort: 'fit', minFit: DEFAULT_MIN_FIT });
+    expect(filtersToFeedQuery({ ...DEFAULT_FILTERS })).toEqual({
+      sort: 'fit',
+      minFit: DEFAULT_MIN_FIT,
+    });
   });
 
   it('uses the API parameter names', () => {

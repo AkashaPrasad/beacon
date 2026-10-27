@@ -88,10 +88,16 @@ export function Component() {
       <header className="flex h-16 items-center px-gutter pt-safe">
         <span className="flex items-center gap-2 text-fg">
           <BeaconMark className="size-6 text-accent-strong" />
-          <span className="font-display text-[1.375rem] leading-none tracking-[-0.009em]">Beacon</span>
+          <span className="font-display text-[1.375rem] leading-none tracking-[-0.009em]">
+            Beacon
+          </span>
         </span>
       </header>
-      <main id="main" tabIndex={-1} className="mx-auto flex max-w-[42rem] flex-col gap-12 px-gutter pt-8 pb-24 outline-none sm:pt-14">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto flex max-w-[42rem] flex-col gap-12 px-gutter pt-8 pb-24 outline-none sm:pt-14"
+      >
         <div className="flex flex-col gap-4">
           {firstName && <p className="text-body-lg text-fg-tertiary">Welcome, {firstName}.</p>}
           <h1 className="font-display text-display text-fg">Before we start</h1>
@@ -101,7 +107,7 @@ export function Component() {
           </p>
         </div>
 
-        <ul className="flex flex-col divide-y divide-border-subtle rounded-xl border border-border bg-surface-raised">
+        <ul className="e2 flex flex-col divide-y divide-border-subtle rounded-xl border border-border-subtle">
           {FACTS.map(({ icon: Icon, title, body }) => (
             <li key={title} className="flex gap-4 px-5 py-4">
               <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-surface-sunken text-fg-secondary">
@@ -123,7 +129,9 @@ export function Component() {
         >
           <fieldset className="flex flex-col gap-4">
             <legend className="mb-1 text-h2 text-fg">How should Beacon use AI?</legend>
-            <p className="-mt-2 text-small text-fg-tertiary">You can change this later in Settings.</p>
+            <p className="-mt-2 text-small text-fg-tertiary">
+              You can change this later in Settings.
+            </p>
             <RadioGroup
               value={mode ?? ''}
               onValueChange={(v) => setMode(v as AiMode)}
@@ -137,11 +145,15 @@ export function Component() {
                     'flex flex-col gap-3 rounded-lg border p-4 transition-colors duration-fast sm:p-5',
                     mode === option.value
                       ? 'border-accent-strong bg-accent-subtle/40'
-                      : 'border-border bg-surface-raised hover:border-border-strong',
+                      : 'e2 border-border-subtle hover:border-border-strong',
                   )}
                 >
                   <div className="flex gap-3">
-                    <RadioGroupItem value={option.value} id={`ai-${option.value}`} className="mt-1" />
+                    <RadioGroupItem
+                      value={option.value}
+                      id={`ai-${option.value}`}
+                      className="mt-1"
+                    />
                     <Label
                       htmlFor={`ai-${option.value}`}
                       className="flex flex-col items-start gap-1 font-normal"
@@ -161,7 +173,10 @@ export function Component() {
                         onCheckedChange={(v) => setAgreed(v === true)}
                         className="mt-0.5"
                       />
-                      <Label htmlFor="consent-resume-to-ai" className="font-normal text-fg-secondary">
+                      <Label
+                        htmlFor="consent-resume-to-ai"
+                        className="font-normal text-fg-secondary"
+                      >
                         I agree that my resume text is sent to Meta for this. (Required for this
                         option.)
                       </Label>

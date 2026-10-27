@@ -50,7 +50,9 @@ export type MockUserScenario = 'returning' | 'admin' | 'new' | 'consent' | 'sign
 
 function readScenario(): MockUserScenario {
   const value = read('beacon:mock:user');
-  return value === 'admin' || value === 'new' || value === 'consent' || value === 'signed-out' ? value : 'returning';
+  return value === 'admin' || value === 'new' || value === 'consent' || value === 'signed-out'
+    ? value
+    : 'returning';
 }
 
 export const MOCK_USER_ID = '65f0c0ffee0000000000a001';
@@ -185,7 +187,7 @@ function createState() {
       email: 'aarav.mehta@example.com',
       name: 'Aarav Mehta',
       avatarUrl: null,
-      role: (scenario === 'admin' ? 'admin' : 'user') as 'user' | 'admin',
+      role: scenario === 'admin' ? ('admin' as const) : ('user' as const),
       onboardingCompletedAt: fresh ? null : ago(20),
       lastLoginAt: ago(1),
       createdAt: fresh ? new Date() : ago(30),

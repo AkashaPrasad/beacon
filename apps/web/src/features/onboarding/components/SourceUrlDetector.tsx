@@ -88,8 +88,9 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
   return (
     <div className="flex flex-col gap-3" data-testid="onboarding-own-url">
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="text-body font-medium text-fg">
-          Add your own URL <span className="text-caption font-normal text-fg-tertiary">Optional</span>
+        <label htmlFor={inputId} className="text-small text-fg-secondary">
+          Paste a careers page{' '}
+          <span className="text-caption font-normal text-fg-tertiary">Optional</span>
         </label>
         <div className="relative">
           <Globe
@@ -127,7 +128,13 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
       <div id={resultId} aria-live="polite" className="min-h-0">
         <AnimatePresence initial={false} mode="popLayout">
           {showInvalid ? (
-            <m.p key="invalid" {...inlineReveal} className="text-small text-danger" data-testid="source-detect-result" data-tone="invalid">
+            <m.p
+              key="invalid"
+              {...inlineReveal}
+              className="text-small text-danger"
+              data-testid="source-detect-result"
+              data-tone="invalid"
+            >
               Enter a web address, like acme.dev/careers.
             </m.p>
           ) : detecting ? (
@@ -138,13 +145,24 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
               data-testid="source-detect-result"
               data-tone="detecting"
             >
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-none"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
               Detecting…
             </m.p>
           ) : failed ? (
-            <m.p key="error" {...inlineReveal} className="flex items-start gap-2 text-small text-danger" data-testid="source-detect-result" data-tone="failure">
+            <m.p
+              key="error"
+              {...inlineReveal}
+              className="flex items-start gap-2 text-small text-danger"
+              data-testid="source-detect-result"
+              data-tone="failure"
+            >
               <CircleX className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
-              We couldn&apos;t find listings on that page. Try the company&apos;s careers page, or a Greenhouse, Lever or Ashby link.
+              We couldn&apos;t find listings on that page. Try the company&apos;s careers page, or a
+              Greenhouse, Lever or Ashby link.
             </m.p>
           ) : described && result ? (
             <m.div
@@ -154,19 +172,40 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
               data-tone={described.tone}
               className={cn(
                 'flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center',
-                described.tone === 'failure' ? 'border-danger/40 bg-danger-subtle' : 'border-border bg-surface-raised',
+                described.tone === 'failure'
+                  ? 'border-danger/40 bg-danger-subtle'
+                  : 'border-border bg-surface-raised',
               )}
             >
               <div className="flex min-w-0 flex-1 items-start gap-2">
                 {described.tone === 'success' ? (
-                  <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+                  <CircleCheck
+                    className="mt-0.5 size-4 shrink-0 text-success"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
                 ) : described.tone === 'crawl' ? (
-                  <Globe className="mt-0.5 size-4 shrink-0 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+                  <Globe
+                    className="mt-0.5 size-4 shrink-0 text-fg-tertiary"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
                 ) : (
-                  <CircleX className="mt-0.5 size-4 shrink-0 text-danger" strokeWidth={1.5} aria-hidden="true" />
+                  <CircleX
+                    className="mt-0.5 size-4 shrink-0 text-danger"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
                 )}
                 <div className="min-w-0">
-                  <p className={cn('text-small', described.tone === 'success' ? 'font-mono text-mono text-fg' : 'text-fg-secondary')}>
+                  <p
+                    className={cn(
+                      'text-small',
+                      described.tone === 'success'
+                        ? 'font-mono text-mono text-fg'
+                        : 'text-fg-secondary',
+                    )}
+                  >
                     {described.text}
                   </p>
                   {result.finalUrl && result.finalUrl !== url && (
@@ -204,7 +243,11 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
       </div>
 
       {added.length > 0 && (
-        <ul className="flex flex-col gap-1.5" aria-label="Your sources" data-testid="onboarding-added-sources">
+        <ul
+          className="flex flex-col gap-1.5"
+          aria-label="Your sources"
+          data-testid="onboarding-added-sources"
+        >
           <AnimatePresence initial={false} mode="popLayout">
             {added.map((s) => (
               <m.li
@@ -218,7 +261,12 @@ export function SourceUrlDetector({ added, onAdded, onRemove }: SourceUrlDetecto
                 <span className="hidden truncate font-mono text-mono-sm text-fg-tertiary sm:block">
                   {s.url.replace(/^https?:\/\//, '')}
                 </span>
-                <Button variant="ghost" size="icon-sm" aria-label={`Remove ${s.name}`} onClick={() => onRemove(s)}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${s.name}`}
+                  onClick={() => onRemove(s)}
+                >
                   <X className="size-4" strokeWidth={1.5} aria-hidden="true" />
                 </Button>
               </m.li>

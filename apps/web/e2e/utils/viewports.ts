@@ -37,3 +37,50 @@ export async function horizontalOverflow(page: Page): Promise<number> {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
 }
+
+export interface OverflowReport {
+  /** scrollWidth − clientWidth of the document, in CSS px (0 = no horizontal page scroll). */
+  overflow: number;
+  /** The widest elements that stick out past the right edge, for the failure message. */
+  offenders: string[];
+}
+
+/**
+ * Horizontal overflow with the culprits named: elements whose right edge passes the viewport,
+ * ignoring ones inside a horizontally scrollable container (carousels, tables) or clipped by an
+ * `overflow: hidden` ancestor, and anything `position: fixed` off-canvas (closed sheets).
+ */
+export async function overflowReport(page: Page): Promise<OverflowReport> {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    const overflow = doc.scrollWidth - doc.clientWidth;
+    if (overflow <= 0) return { overflow: 0, offenders: [] };
+    const vw = doc.clientWidth;
+    const clipped = (el: Element): boolean => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (/(auto|scroll|hidden|clip)/.test(cs.overflowX)) return true;
+        if (cs.position === 'fixed') return true;
+      }
+      return false;
+    };
+    const describe = (el: Element) => {
+      const tid = el.getAttribute('data-testid');
+      const cls = (el.getAttribute('class') ?? '').split(/\s+/).slice(0, 3).join('.');
+      const text = (el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 50);
+      return `${el.tagName.toLowerCase()}${tid ? `[data-testid=${tid}]` : ''}${cls ? `.${cls}` : ''}${text ? ` "${text}"` : ''}`;
+    };
+    const offenders: { right: number; desc: string }[] = [];
+    for (const el of document.body.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.right <= vw + 1) continue;
+      if (getComputedStyle(el).position === 'fixed' || clipped(el)) continue;
+      offenders.push({ right: Math.round(r.right), desc: describe(el) });
+    }
+    offenders.sort((a, b) => b.right - a.right);
+    return {
+      overflow,
+      offenders: offenders.slice(0, 5).map((o) => `${o.desc} (right edge ${o.right}px > ${vw}px)`),
+    };
+  });
+}

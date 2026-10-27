@@ -1,7 +1,8 @@
 /**
- * Tracker stage presentation (DESIGN §10.4, UX restructure): four active columns, Saved → Applied →
- * OA / Test → Interview, then "More" (Outcomes: Offer, Rejected, Ghosted behind a segmented control,
- * collapsed by default). The data model keeps all seven stages (shared `TRACKER_STAGES`).
+ * Tracker stage presentation (UX restructure v2 §2.10, D10): five active columns, Saved → Applied →
+ * OA / Test → Interview → Offer, then a collapsed "Closed" column holding Rejected and Ghosted (one at
+ * a time behind a segmented control once unfolded). The data model keeps all seven stages (shared
+ * `TRACKER_STAGES`, whose order also drives the table and the stage timeline).
  */
 import {
   Award,
@@ -16,12 +17,18 @@ import {
 
 import { TRACKER_STAGE_LABELS, TRACKER_STAGES, type TrackerStage } from '@kestrel/shared';
 
-/** Terminal stages live behind "More" so the board shows the four active columns first. */
-export type OutcomeStage = Extract<TrackerStage, 'offer' | 'rejected' | 'ghosted'>;
-export const OUTCOME_STAGES: readonly OutcomeStage[] = ['offer', 'rejected', 'ghosted'];
-export const ACTIVE_STAGES = ['saved', 'applied', 'oa', 'interview'] as const satisfies readonly TrackerStage[];
+/** Closed for good: folded into "Closed", so the board dwells on what can still move. */
+export type ClosedStage = Extract<TrackerStage, 'rejected' | 'ghosted'>;
+export const CLOSED_STAGES: readonly ClosedStage[] = ['rejected', 'ghosted'];
+export const ACTIVE_STAGES = [
+  'saved',
+  'applied',
+  'oa',
+  'interview',
+  'offer',
+] as const satisfies readonly TrackerStage[];
 
-export type ColumnKey = (typeof ACTIVE_STAGES)[number] | 'outcomes';
+export type ColumnKey = (typeof ACTIVE_STAGES)[number] | 'closed';
 
 export interface ColumnDef {
   key: ColumnKey;
@@ -35,8 +42,19 @@ export const COLUMNS: readonly ColumnDef[] = [
   { key: 'applied', label: 'Applied', stages: ['applied'] },
   { key: 'oa', label: 'OA / Test', stages: ['oa'] },
   { key: 'interview', label: 'Interview', stages: ['interview'] },
-  { key: 'outcomes', label: 'Outcomes', stages: OUTCOME_STAGES },
+  { key: 'offer', label: 'Offer', stages: ['offer'] },
+  { key: 'closed', label: 'Closed', stages: CLOSED_STAGES },
 ];
+
+/** Cards in "Closed". */
+export function closedTotal(counts: Record<TrackerStage, number>): number {
+  return CLOSED_STAGES.reduce((n, s) => n + counts[s], 0);
+}
+
+/** The "Closed" stage to unfold on: the first one with cards, else Rejected. */
+export function firstClosedStage(counts: Record<TrackerStage, number>): ClosedStage {
+  return CLOSED_STAGES.find((s) => counts[s] > 0) ?? 'rejected';
+}
 
 export const STAGE_LABEL: Record<TrackerStage, string> = TRACKER_STAGE_LABELS;
 
@@ -69,17 +87,13 @@ export function historyLabel(stage: TrackerStage, first: boolean): string {
   }
 }
 
-export function isOutcomeStage(stage: TrackerStage): stage is OutcomeStage {
-  return stage === 'offer' || stage === 'rejected' || stage === 'ghosted';
-}
-
-/** Closed for good (the move-on flow applies). */
-export function isClosedStage(stage: TrackerStage): boolean {
+/** Closed for good (the "Closed" column; the move-on flow applies). */
+export function isClosedStage(stage: TrackerStage): stage is ClosedStage {
   return stage === 'rejected' || stage === 'ghosted';
 }
 
 export function columnOf(stage: TrackerStage): ColumnKey {
-  return isOutcomeStage(stage) ? 'outcomes' : stage;
+  return isClosedStage(stage) ? 'closed' : stage;
 }
 
 /** Stages a reply can move an Applied card to ("Got a reply", USERFLOW §4.2). */

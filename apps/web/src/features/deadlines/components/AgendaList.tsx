@@ -9,11 +9,9 @@ import { RowDeadline } from '@/features/radar/components/RadarRow';
 import { cn } from '@/lib/utils';
 import { TYPE_META } from '@kestrel/ui';
 
-
 import { MiniFitRing } from './TimelinePill';
 import { typeColor, type TimelineItem, type TimelineModel } from '../lib/timeline';
 import { diffDays, formatDayKey } from '../lib/weeks';
-
 
 function AgendaRow({
   item,
@@ -32,7 +30,12 @@ function AgendaRow({
   const closed = Boolean(item.deadlineAt && item.deadlineAt.getTime() < now.getTime());
   const tracked = Boolean(item.trackerItemId);
   return (
-    <li className={cn('flex items-center border-b border-border-subtle bg-surface', closed && 'opacity-60')}>
+    <li
+      className={cn(
+        'flex items-center border-b border-border-subtle bg-transparent pointer-fine:hover:bg-surface-hover',
+        closed && 'text-fg-secondary',
+      )}
+    >
       <button
         type="button"
         data-testid="deadlines-pill"
@@ -41,7 +44,11 @@ function AgendaRow({
         onClick={() => onOpen(item.id)}
         className="relative flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 pr-2 pl-4 text-left active:bg-surface-active focus-visible:focus-ring-inset"
       >
-        <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-r-full" style={{ background: typeColor(item.type) }} />
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-2 left-0 w-[3px] rounded-r-full"
+          style={{ background: typeColor(item.type) }}
+        />
         <Icon
           className="size-4 shrink-0"
           strokeWidth={1.5}
@@ -93,29 +100,46 @@ export function AgendaList({
   onOpen: (id: string) => void;
   onTrack: (item: TimelineItem) => void;
 }) {
-  const days = model.weeks.flatMap((w) => w.days).filter((d) => (model.byDay.get(d)?.length ?? 0) > 0);
+  const days = model.weeks
+    .flatMap((w) => w.days)
+    .filter((d) => (model.byDay.get(d)?.length ?? 0) > 0);
   return (
     <div data-testid="deadlines-timeline" data-layout="agenda" className="flex flex-col">
       {days.map((day) => {
         const items = model.byDay.get(day) ?? [];
         const offset = diffDays(model.todayKey, day);
-        const label = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : offset === -1 ? 'Yesterday' : null;
+        const label =
+          offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : offset === -1 ? 'Yesterday' : null;
         return (
-          <section key={day} aria-label={`${formatDayKey(day)}${label ? `, ${label}` : ''}: ${items.length} deadlines`}>
+          <section
+            key={day}
+            aria-label={`${formatDayKey(day)}${label ? `, ${label}` : ''}: ${items.length} deadlines`}
+          >
             <h3
               className={cn(
                 'sticky z-sticky flex h-9 items-center gap-2 border-b border-border-subtle bg-bg/95 px-4 font-mono text-mono-sm',
-                offset < 0 ? 'text-fg-disabled' : 'text-fg-secondary',
+                offset < 0 ? 'text-fg-tertiary' : 'text-fg-secondary',
               )}
               style={{ top: stickyTop }}
             >
               <span className={cn(offset === 0 && 'text-accent-strong')}>{formatDayKey(day)}</span>
-              {label && <span className={cn(offset === 0 ? 'text-accent-strong' : 'text-fg-tertiary')}>· {label}</span>}
+              {label && (
+                <span className={cn(offset === 0 ? 'text-accent-strong' : 'text-fg-tertiary')}>
+                  · {label}
+                </span>
+              )}
               <span className="ml-auto text-fg-tertiary">{items.length}</span>
             </h3>
             <ul>
               {items.map((item) => (
-                <AgendaRow key={item.id} item={item} now={now} open={openId === item.id} onOpen={onOpen} onTrack={onTrack} />
+                <AgendaRow
+                  key={item.id}
+                  item={item}
+                  now={now}
+                  open={openId === item.id}
+                  onOpen={onOpen}
+                  onTrack={onTrack}
+                />
               ))}
             </ul>
           </section>

@@ -23,7 +23,7 @@ permissions:
 env:
   IMAGE_PREFIX: ghcr.io/akashaprasad/beacon
   TAG: sha-${{ github.sha }}
-  API_HEALTH_URL: https://api.beacon.spacesdrive.cc/healthz
+  API_HEALTH_URL: https://api-beacon.spacesdrive.cc/healthz
 
 jobs:
   build:

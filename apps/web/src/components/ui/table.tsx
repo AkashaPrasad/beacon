@@ -5,7 +5,13 @@ import { cn } from '@/lib/utils';
 /** Vercel-style dense table: `h-row-table` rows, `border-subtle` dividers, `label`-style headers. */
 function Table({ className, ...props }: React.ComponentProps<'table'>) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      data-slot="table-container"
+      tabIndex={0}
+      role="region"
+      aria-label={props['aria-label'] ?? 'Scrollable data table'}
+      className="relative w-full overflow-x-auto focus-visible:focus-ring-inset"
+    >
       <table
         data-slot="table"
         className={cn('w-full caption-bottom text-small', className)}

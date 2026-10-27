@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 // ── Reduced motion: OS preference unless <html data-motion> overrides it ─────────────────────────
 
@@ -81,7 +81,7 @@ const frozen: ClockStore = { subscribe: () => () => undefined, getSnapshot: () =
 export function useNow(intervalMs = 60_000, fixed?: Date): Date {
   const clock = fixed ? frozen : clockFor(intervalMs);
   const value = useSyncExternalStore(clock.subscribe, clock.getSnapshot, clock.getSnapshot);
-  return fixed ?? new Date(value);
+  return useMemo(() => fixed ?? new Date(value), [fixed, value]);
 }
 
 /** Becomes true after `delayMs` (used so skeletons never flash for fast loads). */

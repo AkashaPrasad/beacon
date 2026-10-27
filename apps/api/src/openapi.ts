@@ -3,7 +3,11 @@
  * (zod-openapi on zod 4). Served at /openapi.json; Scalar renders it at /docs.
  */
 import { z } from 'zod';
-import { createDocument, type ZodOpenApiOperationObject, type ZodOpenApiPathsObject } from 'zod-openapi';
+import {
+  createDocument,
+  type ZodOpenApiOperationObject,
+  type ZodOpenApiPathsObject,
+} from 'zod-openapi';
 
 import {
   alertConditionsSchema,
@@ -31,6 +35,7 @@ import {
   communitySourcesQuerySchema,
   feedQueryApiSchema,
   googleAuthSchema,
+  hintsPatchSchema,
   loginSchema,
   mePatchSchema,
   notificationsQuerySchema,
@@ -53,7 +58,15 @@ const errorSchema = z
     error: z.object({
       code: z.string(),
       message: z.string(),
-      issues: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), code: z.string(), message: z.string() })).optional(),
+      issues: z
+        .array(
+          z.object({
+            path: z.array(z.union([z.string(), z.number()])),
+            code: z.string(),
+            message: z.string(),
+          }),
+        )
+        .optional(),
       details: z.unknown().optional(),
     }),
   })
@@ -73,12 +86,21 @@ const meResponseSchema = z
     }),
     onboarding: z.object({
       completed: z.boolean(),
-      step: z.string().describe("Legacy 'consent'|'resume'|'preferences'|'sources'|'done', or a step id saved by PATCH /v1/profile/onboarding"),
+      step: z
+        .string()
+        .describe(
+          "Legacy 'consent'|'resume'|'preferences'|'sources'|'done', or a step id saved by PATCH /v1/profile/onboarding",
+        ),
       answers: z.record(z.string(), z.unknown()),
       updatedAt: isoDate.nullable(),
       completedAt: isoDate.nullable(),
       consent: z
-        .object({ version: z.string(), aiMode: z.enum(['beacon', 'byok', 'off']), resumeToAi: z.boolean(), at: isoDate })
+        .object({
+          version: z.string(),
+          aiMode: z.enum(['beacon', 'byok', 'off']),
+          resumeToAi: z.boolean(),
+          at: isoDate,
+        })
         .nullable(),
       hasProfile: z.boolean(),
       hasResume: z.boolean(),
@@ -102,12 +124,47 @@ const meResponseSchema = z
   })
   .meta({ id: 'MeResponse' });
 
+const countList = z.array(z.object({ days: z.number().int(), count: z.number().int() }));
+const feedFacetsSchema = z
+  .object({
+    warmingUp: z.boolean(),
+    total: z.number().int(),
+    fit: z
+      .array(z.object({ min: z.number(), label: z.string(), count: z.number().int() }))
+      .nullable(),
+    types: z.record(z.string(), z.number().int()),
+    remote: z.record(z.string(), z.number().int()),
+    deadline: z.object({ within: countList, none: z.number().int() }),
+    freshness: z.object({ within: countList }),
+  })
+  .meta({ id: 'FeedFacets' });
+
+const hintsSchema = z
+  .object({
+    tourDone: z.boolean(),
+    tourStep: z.union([z.string(), z.number()]).nullable(),
+    tour: z.object({
+      offeredAt: isoDate.nullable(),
+      completedAt: isoDate.nullable(),
+      dismissedAt: isoDate.nullable(),
+    }),
+    tips: z.record(z.string(), isoDate),
+    ui: z.object({
+      railCollapsed: z.boolean().nullable(),
+      radarView: z.enum(['grid', 'list']).nullable(),
+    }),
+    updatedAt: isoDate.nullable(),
+  })
+  .meta({ id: 'Hints' });
+
 const resumeUploadResponseSchema = resumeParseResultSchema
   .omit({ method: true })
   .extend({
     parsedFrom: z.enum(['deterministic', 'llm']),
     phones: z.array(z.string()),
-    extraction: z.enum(['text', 'ocr']).describe('ocr = read from a scanned PDF or a PNG/JPEG image'),
+    extraction: z
+      .enum(['text', 'ocr'])
+      .describe('ocr = read from a scanned PDF or a PNG/JPEG image'),
     ocr: z.object({ pages: z.number().int(), confidence: z.number() }).nullable(),
     saved: z.boolean(),
   })
@@ -131,105 +188,532 @@ interface RouteSpec {
 const idPath = z.object({ id: z.string().regex(/^[a-f0-9]{24}$/) });
 
 const ROUTES: RouteSpec[] = [
-  { method: 'get', path: '/healthz', tag: 'Platform', summary: 'Liveness', auth: false, response: z.object({ ok: z.boolean() }) },
-  { method: 'get', path: '/readyz', tag: 'Platform', summary: 'Readiness (Mongo + Redis ping)', auth: false, response: z.object({ ok: z.boolean(), mongo: z.string(), redis: z.string() }) },
-  { method: 'get', path: '/v1/meta', tag: 'Platform', summary: 'Enumerations for the UI', auth: false },
+  {
+    method: 'get',
+    path: '/healthz',
+    tag: 'Platform',
+    summary: 'Liveness',
+    auth: false,
+    response: z.object({ ok: z.boolean() }),
+  },
+  {
+    method: 'get',
+    path: '/readyz',
+    tag: 'Platform',
+    summary: 'Readiness (Mongo + Redis ping)',
+    auth: false,
+    response: z.object({ ok: z.boolean(), mongo: z.string(), redis: z.string() }),
+  },
+  {
+    method: 'get',
+    path: '/v1/meta',
+    tag: 'Platform',
+    summary: 'Enumerations for the UI',
+    auth: false,
+  },
 
-  { method: 'get', path: '/v1/auth/google/url', tag: 'Auth', summary: 'Google authorization URL (redirect flow)', auth: false, query: z.object({ state: z.string().optional(), redirectUri: z.string().optional() }), response: z.object({ url: z.string(), redirectUri: z.string() }) , errors: [503] },
-  { method: 'post', path: '/v1/auth/google', tag: 'Auth', summary: 'Sign in with a Google ID token or auth code', auth: false, body: googleAuthSchema, response: z.object({ user: publicUserSchema, isNew: z.boolean() }) },
-  { method: 'post', path: '/v1/auth/register', tag: 'Auth', summary: 'Create an email + password account (no verification)', auth: false, body: registerSchema, status: 201 , errors: [409] },
-  { method: 'post', path: '/v1/auth/login', tag: 'Auth', summary: 'Sign in with email + password', auth: false, body: loginSchema },
-  { method: 'post', path: '/v1/auth/password', tag: 'Auth', summary: 'Set or change the password of the signed-in account', body: passwordSetSchema },
-  { method: 'post', path: '/v1/auth/logout', tag: 'Auth', summary: 'Clear the session cookie', auth: false, status: 204 },
-  { method: 'get', path: '/v1/me', tag: 'Auth', summary: 'Current user, onboarding state, settings summary', response: meResponseSchema },
-  { method: 'patch', path: '/v1/me', tag: 'Auth', summary: 'Update name, onboarding step or consent', body: mePatchSchema, response: meResponseSchema },
+  {
+    method: 'get',
+    path: '/v1/auth/google/url',
+    tag: 'Auth',
+    summary: 'Google authorization URL (redirect flow)',
+    auth: false,
+    query: z.object({ state: z.string().optional(), redirectUri: z.string().optional() }),
+    response: z.object({ url: z.string(), redirectUri: z.string() }),
+    errors: [503],
+  },
+  {
+    method: 'post',
+    path: '/v1/auth/google',
+    tag: 'Auth',
+    summary: 'Sign in with a Google ID token or auth code',
+    auth: false,
+    body: googleAuthSchema,
+    response: z.object({ user: publicUserSchema, isNew: z.boolean() }),
+  },
+  {
+    method: 'post',
+    path: '/v1/auth/register',
+    tag: 'Auth',
+    summary: 'Create an email + password account (no verification)',
+    auth: false,
+    body: registerSchema,
+    status: 201,
+    errors: [409],
+  },
+  {
+    method: 'post',
+    path: '/v1/auth/login',
+    tag: 'Auth',
+    summary: 'Sign in with email + password',
+    auth: false,
+    body: loginSchema,
+  },
+  {
+    method: 'post',
+    path: '/v1/auth/password',
+    tag: 'Auth',
+    summary: 'Set or change the password of the signed-in account',
+    body: passwordSetSchema,
+  },
+  {
+    method: 'post',
+    path: '/v1/auth/logout',
+    tag: 'Auth',
+    summary: 'Clear the session cookie',
+    auth: false,
+    status: 204,
+  },
+  {
+    method: 'get',
+    path: '/v1/me',
+    tag: 'Auth',
+    summary: 'Current user, onboarding state, settings summary',
+    response: meResponseSchema,
+  },
+  {
+    method: 'patch',
+    path: '/v1/me',
+    tag: 'Auth',
+    summary: 'Update name, onboarding step or consent',
+    body: mePatchSchema,
+    response: meResponseSchema,
+  },
 
   { method: 'get', path: '/v1/profile', tag: 'Profile', summary: 'Get the profile' },
-  { method: 'put', path: '/v1/profile', tag: 'Profile', summary: 'Replace the profile', body: profileInputSchema },
-  { method: 'patch', path: '/v1/profile', tag: 'Profile', summary: 'Patch the profile', body: profilePatchSchema },
-  { method: 'post', path: '/v1/profile/resume', tag: 'Profile', summary: 'Upload and parse a resume (multipart field "file": PDF, DOCX, PNG or JPEG; scans are OCR-read)', query: z.object({ save: z.enum(['true', 'false']).optional() }), response: resumeUploadResponseSchema, errors: [413, 415, 422] },
-  { method: 'patch', path: '/v1/profile/onboarding', tag: 'Profile', summary: 'Save onboarding progress: current step plus answers to merge (null removes one)', body: onboardingProgressSchema, response: meResponseSchema, errors: [413] },
-  { method: 'post', path: '/v1/profile/onboarding/complete', tag: 'Profile', summary: 'Finish onboarding (idempotent); queues embed + match when a profile exists', body: onboardingCompleteSchema, response: meResponseSchema },
+  {
+    method: 'put',
+    path: '/v1/profile',
+    tag: 'Profile',
+    summary: 'Replace the profile',
+    body: profileInputSchema,
+  },
+  {
+    method: 'patch',
+    path: '/v1/profile',
+    tag: 'Profile',
+    summary: 'Patch the profile',
+    body: profilePatchSchema,
+  },
+  {
+    method: 'post',
+    path: '/v1/profile/resume',
+    tag: 'Profile',
+    summary:
+      'Upload and parse a resume (multipart field "file": PDF, DOCX, PNG or JPEG; scans are OCR-read)',
+    query: z.object({ save: z.enum(['true', 'false']).optional() }),
+    response: resumeUploadResponseSchema,
+    errors: [413, 415, 422],
+  },
+  {
+    method: 'patch',
+    path: '/v1/profile/onboarding',
+    tag: 'Profile',
+    summary: 'Save onboarding progress: current step plus answers to merge (null removes one)',
+    body: onboardingProgressSchema,
+    response: meResponseSchema,
+    errors: [413],
+  },
+  {
+    method: 'post',
+    path: '/v1/profile/onboarding/complete',
+    tag: 'Profile',
+    summary: 'Finish onboarding (idempotent); queues embed + match when a profile exists',
+    body: onboardingCompleteSchema,
+    response: meResponseSchema,
+  },
 
-  { method: 'get', path: '/v1/sources', tag: 'Sources', summary: 'List personal sources', response: z.object({ items: z.array(sourceSchema) }) },
-  { method: 'post', path: '/v1/sources', tag: 'Sources', summary: 'Add a personal source', body: sourceCreateBodySchema, status: 201 },
-  { method: 'get', path: '/v1/sources/community', tag: 'Sources', summary: 'Community sources (read-only)', query: communitySourcesQuerySchema },
-  { method: 'get', path: '/v1/sources/packs', tag: 'Sources', summary: 'Source packs with enabled state' },
-  { method: 'post', path: '/v1/sources/packs/{packId}/enable', tag: 'Sources', summary: 'Subscribe to a pack' },
-  { method: 'post', path: '/v1/sources/packs/{packId}/disable', tag: 'Sources', summary: 'Unsubscribe from a pack' },
-  { method: 'post', path: '/v1/sources/detect', tag: 'Sources', summary: 'Detect source kind and preview count', body: detectSourceRequestSchema, response: detectSourceResponseSchema },
+  {
+    method: 'get',
+    path: '/v1/sources',
+    tag: 'Sources',
+    summary: 'List personal sources',
+    response: z.object({ items: z.array(sourceSchema) }),
+  },
+  {
+    method: 'post',
+    path: '/v1/sources',
+    tag: 'Sources',
+    summary: 'Add a personal source',
+    body: sourceCreateBodySchema,
+    status: 201,
+  },
+  {
+    method: 'get',
+    path: '/v1/sources/community',
+    tag: 'Sources',
+    summary: 'Community sources (read-only)',
+    query: communitySourcesQuerySchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/sources/packs',
+    tag: 'Sources',
+    summary: 'Source packs with enabled state',
+  },
+  {
+    method: 'post',
+    path: '/v1/sources/packs/{packId}/enable',
+    tag: 'Sources',
+    summary: 'Subscribe to a pack',
+  },
+  {
+    method: 'post',
+    path: '/v1/sources/packs/{packId}/disable',
+    tag: 'Sources',
+    summary: 'Unsubscribe from a pack',
+  },
+  {
+    method: 'post',
+    path: '/v1/sources/detect',
+    tag: 'Sources',
+    summary: 'Detect source kind and preview count',
+    body: detectSourceRequestSchema,
+    response: detectSourceResponseSchema,
+  },
   { method: 'get', path: '/v1/sources/credits', tag: 'Sources', summary: 'Crawl credit meter' },
   { method: 'get', path: '/v1/sources/{id}', tag: 'Sources', summary: 'Get a source' },
-  { method: 'patch', path: '/v1/sources/{id}', tag: 'Sources', summary: 'Update a personal source', body: sourceUpdateSchema },
-  { method: 'delete', path: '/v1/sources/{id}', tag: 'Sources', summary: 'Delete a personal source', status: 204 },
-  { method: 'post', path: '/v1/sources/{id}/refresh', tag: 'Sources', summary: 'Queue an ingest now (own source, or a subscribed community source not checked in 15 min)', status: 202 , errors: [404, 409, 503] },
+  {
+    method: 'patch',
+    path: '/v1/sources/{id}',
+    tag: 'Sources',
+    summary: 'Update a personal source',
+    body: sourceUpdateSchema,
+  },
+  {
+    method: 'delete',
+    path: '/v1/sources/{id}',
+    tag: 'Sources',
+    summary: 'Delete a personal source',
+    status: 204,
+  },
+  {
+    method: 'post',
+    path: '/v1/sources/{id}/refresh',
+    tag: 'Sources',
+    summary:
+      'Queue an ingest now (own source, or a subscribed community source not checked in 15 min)',
+    status: 202,
+    errors: [404, 409, 503],
+  },
 
-  { method: 'get', path: '/v1/feed', tag: 'Feed', summary: 'Ranked feed (cursor pagination)', query: feedQueryApiSchema },
-  { method: 'get', path: '/v1/feed/summary', tag: 'Feed', summary: 'Counts by type, deadlines this week, new since last visit' },
-  { method: 'post', path: '/v1/feed/seen', tag: 'Feed', summary: 'Mark the feed as seen now', status: 204 },
+  {
+    method: 'get',
+    path: '/v1/feed',
+    tag: 'Feed',
+    summary: 'Ranked feed (cursor pagination)',
+    query: feedQueryApiSchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/feed/facets',
+    tag: 'Feed',
+    summary:
+      'Conditional filter-rail counts for the current query (each facet ignores only its own filter)',
+    query: feedQueryApiSchema,
+    response: feedFacetsSchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/feed/summary',
+    tag: 'Feed',
+    summary:
+      'Counts by type, deadlines this week, next deadline, follow-ups due, new since last visit',
+  },
+  {
+    method: 'post',
+    path: '/v1/feed/seen',
+    tag: 'Feed',
+    summary: 'Mark the feed as seen now',
+    status: 204,
+  },
   { method: 'get', path: '/v1/listings/{id}', tag: 'Feed', summary: 'Listing detail' },
   { method: 'post', path: '/v1/listings/{id}/save', tag: 'Feed', summary: 'Save' },
   { method: 'post', path: '/v1/listings/{id}/unsave', tag: 'Feed', summary: 'Unsave' },
   { method: 'post', path: '/v1/listings/{id}/hide', tag: 'Feed', summary: 'Hide' },
   { method: 'post', path: '/v1/listings/{id}/unhide', tag: 'Feed', summary: 'Unhide' },
-  { method: 'post', path: '/v1/listings/{id}/explain', tag: 'Feed', summary: 'Why it fits / gaps / tailoring tips' },
+  {
+    method: 'post',
+    path: '/v1/listings/{id}/explain',
+    tag: 'Feed',
+    summary: 'Why it fits / gaps / tailoring tips',
+  },
 
-  { method: 'get', path: '/v1/tracker', tag: 'Tracker', summary: 'List tracker items', query: trackerListQuerySchema, response: z.object({ items: z.array(trackerItemSchema) }) },
-  { method: 'post', path: '/v1/tracker', tag: 'Tracker', summary: 'Track a listing or a manual application', body: trackerCreateBodySchema, status: 201 },
+  {
+    method: 'get',
+    path: '/v1/tracker',
+    tag: 'Tracker',
+    summary: 'List tracker items',
+    query: trackerListQuerySchema,
+    response: z.object({ items: z.array(trackerItemSchema) }),
+  },
+  {
+    method: 'post',
+    path: '/v1/tracker',
+    tag: 'Tracker',
+    summary: 'Track a listing or a manual application',
+    body: trackerCreateBodySchema,
+    status: 201,
+  },
   { method: 'get', path: '/v1/tracker/analytics', tag: 'Tracker', summary: 'Outcome analytics' },
   { method: 'get', path: '/v1/tracker/{id}', tag: 'Tracker', summary: 'Get an item' },
-  { method: 'patch', path: '/v1/tracker/{id}', tag: 'Tracker', summary: 'Update an item', body: trackerPatchSchema },
-  { method: 'post', path: '/v1/tracker/{id}/move', tag: 'Tracker', summary: 'Move to a stage/position (409 when fromStage/ifUnmodifiedSince is stale)', body: trackerMoveBodySchema },
-  { method: 'delete', path: '/v1/tracker/{id}', tag: 'Tracker', summary: 'Delete an item', status: 204 },
+  {
+    method: 'patch',
+    path: '/v1/tracker/{id}',
+    tag: 'Tracker',
+    summary: 'Update an item',
+    body: trackerPatchSchema,
+  },
+  {
+    method: 'post',
+    path: '/v1/tracker/{id}/move',
+    tag: 'Tracker',
+    summary: 'Move to a stage/position (409 when fromStage/ifUnmodifiedSince is stale)',
+    body: trackerMoveBodySchema,
+  },
+  {
+    method: 'delete',
+    path: '/v1/tracker/{id}',
+    tag: 'Tracker',
+    summary: 'Delete an item',
+    status: 204,
+  },
 
-  { method: 'get', path: '/v1/alerts', tag: 'Alerts', summary: 'List alert rules', response: z.object({ items: z.array(alertRuleSchema) }) },
-  { method: 'post', path: '/v1/alerts', tag: 'Alerts', summary: 'Create an alert rule', body: alertRuleInputSchema, status: 201 },
-  { method: 'post', path: '/v1/alerts/preview', tag: 'Alerts', summary: 'Count matches the conditions would have alerted on in the last 7 days', body: z.object({ conditions: alertConditionsSchema.optional() }) },
+  {
+    method: 'get',
+    path: '/v1/alerts',
+    tag: 'Alerts',
+    summary: 'List alert rules',
+    response: z.object({ items: z.array(alertRuleSchema) }),
+  },
+  {
+    method: 'post',
+    path: '/v1/alerts',
+    tag: 'Alerts',
+    summary: 'Create an alert rule',
+    body: alertRuleInputSchema,
+    status: 201,
+  },
+  {
+    method: 'post',
+    path: '/v1/alerts/preview',
+    tag: 'Alerts',
+    summary: 'Count matches the conditions would have alerted on in the last 7 days',
+    body: z.object({ conditions: alertConditionsSchema.optional() }),
+  },
   { method: 'get', path: '/v1/alerts/{id}', tag: 'Alerts', summary: 'Get an alert rule' },
-  { method: 'patch', path: '/v1/alerts/{id}', tag: 'Alerts', summary: 'Update an alert rule', body: alertRulePatchSchema },
-  { method: 'delete', path: '/v1/alerts/{id}', tag: 'Alerts', summary: 'Delete an alert rule', status: 204 },
-  { method: 'post', path: '/v1/alerts/{id}/test', tag: 'Alerts', summary: 'Send a test notification', status: 202 , errors: [404, 503] },
-  { method: 'get', path: '/v1/push/vapid-public-key', tag: 'Alerts', summary: 'VAPID public key', auth: false, response: z.object({ publicKey: z.string() }) , errors: [503] },
-  { method: 'post', path: '/v1/push/test', tag: 'Alerts', summary: 'Send a test push + in-app notification', status: 202 , errors: [503] },
-  { method: 'get', path: '/v1/push/subscriptions', tag: 'Alerts', summary: 'List push subscriptions' },
-  { method: 'post', path: '/v1/push/subscriptions', tag: 'Alerts', summary: 'Register a push subscription', body: pushSubscriptionSchema, status: 201 },
-  { method: 'delete', path: '/v1/push/subscriptions', tag: 'Alerts', summary: 'Remove a push subscription by endpoint', body: pushUnsubscribeSchema, status: 204 },
-  { method: 'delete', path: '/v1/push/subscriptions/{id}', tag: 'Alerts', summary: 'Remove a push subscription', status: 204 },
-  { method: 'get', path: '/v1/notifications', tag: 'Notifications', summary: 'In-app notifications', query: notificationsQuerySchema, response: z.object({ items: z.array(notificationSchema), nextCursor: z.string().nullable(), unreadCount: z.number() }) },
-  { method: 'post', path: '/v1/notifications/read', tag: 'Notifications', summary: 'Mark notifications read', body: notificationsReadSchema },
+  {
+    method: 'patch',
+    path: '/v1/alerts/{id}',
+    tag: 'Alerts',
+    summary: 'Update an alert rule',
+    body: alertRulePatchSchema,
+  },
+  {
+    method: 'delete',
+    path: '/v1/alerts/{id}',
+    tag: 'Alerts',
+    summary: 'Delete an alert rule',
+    status: 204,
+  },
+  {
+    method: 'post',
+    path: '/v1/alerts/{id}/test',
+    tag: 'Alerts',
+    summary: 'Send a test notification',
+    status: 202,
+    errors: [404, 503],
+  },
+  {
+    method: 'get',
+    path: '/v1/push/vapid-public-key',
+    tag: 'Alerts',
+    summary: 'VAPID public key',
+    auth: false,
+    response: z.object({ publicKey: z.string() }),
+    errors: [503],
+  },
+  {
+    method: 'post',
+    path: '/v1/push/test',
+    tag: 'Alerts',
+    summary: 'Send a test push + in-app notification',
+    status: 202,
+    errors: [503],
+  },
+  {
+    method: 'get',
+    path: '/v1/push/subscriptions',
+    tag: 'Alerts',
+    summary: 'List push subscriptions',
+  },
+  {
+    method: 'post',
+    path: '/v1/push/subscriptions',
+    tag: 'Alerts',
+    summary: 'Register a push subscription',
+    body: pushSubscriptionSchema,
+    status: 201,
+  },
+  {
+    method: 'delete',
+    path: '/v1/push/subscriptions',
+    tag: 'Alerts',
+    summary: 'Remove a push subscription by endpoint',
+    body: pushUnsubscribeSchema,
+    status: 204,
+  },
+  {
+    method: 'delete',
+    path: '/v1/push/subscriptions/{id}',
+    tag: 'Alerts',
+    summary: 'Remove a push subscription',
+    status: 204,
+  },
+  {
+    method: 'get',
+    path: '/v1/notifications',
+    tag: 'Notifications',
+    summary: 'In-app notifications',
+    query: notificationsQuerySchema,
+    response: z.object({
+      items: z.array(notificationSchema),
+      nextCursor: z.string().nullable(),
+      unreadCount: z.number(),
+    }),
+  },
+  {
+    method: 'post',
+    path: '/v1/notifications/read',
+    tag: 'Notifications',
+    summary: 'Mark notifications read',
+    body: notificationsReadSchema,
+  },
 
-  { method: 'get', path: '/v1/settings', tag: 'Settings', summary: 'Get settings', response: settingsSchema },
-  { method: 'patch', path: '/v1/settings', tag: 'Settings', summary: 'Patch settings', body: settingsPatchSchema, response: settingsSchema },
-  { method: 'put', path: '/v1/settings/ai', tag: 'Settings', summary: 'Set AI provider / BYOK key', body: aiSettingsPutSchema },
-  { method: 'post', path: '/v1/settings/ai/test', tag: 'Settings', summary: 'Test the AI provider (1-token completion)', body: aiTestSchema },
-  { method: 'get', path: '/v1/settings/ai/usage', tag: 'Settings', summary: "Today's AI calls and tokens against the daily cap", response: z.object({ date: z.string(), calls: z.number(), cap: z.number(), tokens: z.object({ prompt: z.number(), completion: z.number(), total: z.number() }) }) },
-  { method: 'delete', path: '/v1/settings/ai/key', tag: 'Settings', summary: 'Delete the saved API key' },
-  { method: 'put', path: '/v1/settings/weights', tag: 'Settings', summary: 'Set scoring weights', body: weightsInputSchema },
-  { method: 'get', path: '/v1/settings/export', tag: 'Settings', summary: 'Download all your data (JSON)' },
-  { method: 'delete', path: '/v1/account', tag: 'Settings', summary: 'Delete the account and all data', status: 204 },
+  {
+    method: 'get',
+    path: '/v1/settings',
+    tag: 'Settings',
+    summary: 'Get settings',
+    response: settingsSchema,
+  },
+  {
+    method: 'patch',
+    path: '/v1/settings',
+    tag: 'Settings',
+    summary: 'Patch settings',
+    body: settingsPatchSchema,
+    response: settingsSchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/settings/hints',
+    tag: 'Settings',
+    summary: 'Tour, tips and rail UI state',
+    response: hintsSchema,
+  },
+  {
+    method: 'patch',
+    path: '/v1/settings/hints',
+    tag: 'Settings',
+    summary: 'Update tour progress, dismiss or restore tips, rail state',
+    body: hintsPatchSchema,
+    response: hintsSchema,
+  },
+  {
+    method: 'put',
+    path: '/v1/settings/ai',
+    tag: 'Settings',
+    summary: 'Set AI provider / BYOK key',
+    body: aiSettingsPutSchema,
+  },
+  {
+    method: 'post',
+    path: '/v1/settings/ai/test',
+    tag: 'Settings',
+    summary: 'Test the AI provider (1-token completion)',
+    body: aiTestSchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/settings/ai/usage',
+    tag: 'Settings',
+    summary: "Today's AI calls and tokens against the daily cap",
+    response: z.object({
+      date: z.string(),
+      calls: z.number(),
+      cap: z.number(),
+      tokens: z.object({ prompt: z.number(), completion: z.number(), total: z.number() }),
+    }),
+  },
+  {
+    method: 'delete',
+    path: '/v1/settings/ai/key',
+    tag: 'Settings',
+    summary: 'Delete the saved API key',
+  },
+  {
+    method: 'put',
+    path: '/v1/settings/weights',
+    tag: 'Settings',
+    summary: 'Set scoring weights',
+    body: weightsInputSchema,
+  },
+  {
+    method: 'get',
+    path: '/v1/settings/export',
+    tag: 'Settings',
+    summary: 'Download all your data (JSON)',
+  },
+  {
+    method: 'delete',
+    path: '/v1/account',
+    tag: 'Settings',
+    summary: 'Delete the account and all data',
+    status: 204,
+  },
 
-  { method: 'get', path: '/v1/admin/overview', tag: 'Admin', summary: 'Ops overview (role admin): users, listings, sources, queues, crawler, recent runs', errors: [403] },
+  {
+    method: 'get',
+    path: '/v1/admin/overview',
+    tag: 'Admin',
+    summary: 'Ops overview (role admin): users, listings, sources, queues, crawler, recent runs',
+    errors: [403],
+  },
 ];
 
 function operation(route: RouteSpec): ZodOpenApiOperationObject {
   const params = /\{(\w+)\}/g.exec(route.path);
-  const path = params?.[1] === 'id' ? idPath : params?.[1] ? z.object({ [params[1]]: z.string() }) : undefined;
+  const path =
+    params?.[1] === 'id' ? idPath : params?.[1] ? z.object({ [params[1]]: z.string() }) : undefined;
   const status = route.status ?? 200;
   const responses: ZodOpenApiOperationObject['responses'] = {
-    [status]: status === 204
-      ? { description: 'No content' }
-      : { description: 'OK', ...json(route.response ?? anyJson) },
+    [status]:
+      status === 204
+        ? { description: 'No content' }
+        : { description: 'OK', ...json(route.response ?? anyJson) },
     400: { description: 'Validation error', ...json(errorSchema) },
-    ...(route.auth === false ? {} : { 401: { description: 'Not signed in', ...json(errorSchema) } }),
+    ...(route.auth === false
+      ? {}
+      : { 401: { description: 'Not signed in', ...json(errorSchema) } }),
     429: { description: 'Rate limited', ...json(errorSchema) },
-    ...Object.fromEntries((route.errors ?? []).map((code) => [code, { description: 'Error', ...json(errorSchema) }])),
+    ...Object.fromEntries(
+      (route.errors ?? []).map((code) => [code, { description: 'Error', ...json(errorSchema) }]),
+    ),
   };
   return {
     tags: [route.tag],
     summary: route.summary,
     ...(route.auth === false ? { security: [] } : {}),
     ...(route.body ? { requestBody: json(route.body) } : {}),
-    ...(route.query || path ? { requestParams: { ...(route.query ? { query: route.query } : {}), ...(path ? { path } : {}) } } : {}),
+    ...(route.query || path
+      ? {
+          requestParams: {
+            ...(route.query ? { query: route.query } : {}),
+            ...(path ? { path } : {}),
+          },
+        }
+      : {}),
     responses,
   };
 }

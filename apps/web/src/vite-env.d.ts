@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** API origin, no trailing slash (dev http://localhost:4000, prod https://api.beacon.spacesdrive.cc). */
+  /** API origin, no trailing slash (dev http://localhost:4000, prod https://api-beacon.spacesdrive.cc). */
   readonly VITE_API_URL?: string;
   /** Public web origin used for canonical/OG URLs. */
   readonly VITE_WEB_URL?: string;

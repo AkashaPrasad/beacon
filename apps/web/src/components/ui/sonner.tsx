@@ -23,6 +23,7 @@ function Toaster(props: ToasterProps) {
         right: 12,
       }}
       visibleToasts={3}
+      expand
       duration={5000}
       gap={8}
       containerAriaLabel="Notifications"

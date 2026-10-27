@@ -7,12 +7,13 @@ import { fitRingOnce } from './fit-session';
 import { usePrefersReducedMotion } from './hooks';
 import { springs, tweens } from './motion';
 
-export type FitRingSize = 24 | 28 | 40 | 64 | 160;
+export type FitRingSize = 24 | 28 | 32 | 40 | 64 | 160;
 
 /** DESIGN §6.2 ScoreRing geometry: stroke widths and number sizes per ring size. */
 const GEOMETRY: Record<FitRingSize, { stroke: number; font: number }> = {
   24: { stroke: 3, font: 10 },
   28: { stroke: 3, font: 11 },
+  32: { stroke: 3.5, font: 12 },
   40: { stroke: 3.5, font: 14 },
   64: { stroke: 5, font: 20 },
   160: { stroke: 10, font: 48 },
@@ -178,10 +179,8 @@ export function FitRing({
           aria-hidden="true"
           className={cn(
             'whitespace-nowrap text-caption',
-            band.key === 'great' && 'text-fit-great',
-            band.key === 'good' && 'text-fit-good',
-            band.key === 'mid' && 'text-fit-mid',
-            band.key === 'low' && 'text-fit-low',
+            // Labels read in fg-secondary (AA); the band colour lives in the stroke. Strong fit keeps evergreen.
+            band.key === 'great' ? 'text-fit-great' : 'text-fg-secondary',
           )}
         >
           {label === 'right' ? `${target} · ${band.label}` : band.label}

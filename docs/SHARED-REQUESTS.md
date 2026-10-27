@@ -109,10 +109,10 @@ journeys complete end to end; what fails is axe serious/critical and console err
 
 ## qa → infra
 
-1. **`api.beacon.spacesdrive.cc` fails the TLS handshake at Cloudflare** (2026-10-27 19:51 IST,
+1. **`api-beacon.spacesdrive.cc` fails the TLS handshake at Cloudflare** (2026-10-27 19:51 IST,
    `scripts/smoke-prod.sh`): `curl` → `sslv3 alert handshake failure` (alert 40) while
    `beacon.spacesdrive.cc` gets a valid edge certificate. Universal SSL (Free plan) covers the apex
-   and **one** subdomain level (`*.spacesdrive.cc`); `api.beacon.spacesdrive.cc` is two levels
+   and **one** subdomain level (`*.spacesdrive.cc`); `api-beacon.spacesdrive.cc` is two levels
    deep, so no edge certificate exists for it. Options: Advanced Certificate Manager for
    `*.beacon.spacesdrive.cc` (paid), enable Total TLS (needs ACM), or move the API to a first-level
    name such as `beacon-api.spacesdrive.cc` (then update `API_HOST`, the Caddyfile, CORS, the
@@ -127,7 +127,7 @@ journeys complete end to end; what fails is axe serious/critical and console err
    `apps/worker/src/models/source.ts`). The UI needs it to show a paused source distinctly from
    a failing one. Please expose it (nullable) in `GET /v1/sources` and `/v1/sources/:id`.
 2. **[dropped 2026-10-27: load/soak tests are out of Phase B scope]** **Memory sample for the soak test**: `GET /healthz?mem=1` → `{ ok, mem: { rss, heapUsed,
-   heapTotal, external } }` (bytes, `process.memoryUsage()`), or a `/metrics` route. Public is
+heapTotal, external } }` (bytes, `process.memoryUsage()`), or a `/metrics` route. Public is
    fine if it reveals nothing else; otherwise require `Authorization: Bearer` with an admin user.
    `scripts/load-test.mjs --soak` samples it every 10 s.
 3. **[dropped 2026-10-27: load and contract tests are out of Phase B scope]** **A way to mint a local token for load and contract tests**: e.g.
@@ -144,18 +144,18 @@ journeys complete end to end; what fails is axe serious/critical and console err
    `import { model, models, Schema } from 'mongoose'`, and mongoose 9's ESM entry has no named
    export `models` (`node --input-type=module -e "import * as m from 'mongoose'; console.log('models' in m)"`
    → `false`). Boot dies with `SyntaxError: The requested module 'mongoose' does not provide an
-   export named 'models'`. Fix: `import mongoose, { model, Schema } from 'mongoose'` and
+export named 'models'`. Fix: `import mongoose, { model, Schema } from 'mongoose'` and
    `mongoose.models['User'] ?? model(...)`. Please add a boot smoke test (e.g. CI step
    `node dist/index.js` + `curl /healthz`) so it cannot regress. QA ran the API for load,
    security and contract checks through a scratch ESM resolve hook that re-exports `models`.
 6. **[done (fit path): `services/feed.ts` sorts + applies the keyset on `matches` before the `$lookup` for `sort=fit` (new index `{userId, score:-1, listingId:-1}`), `total` cached 60 s in Redis, `maxTimeMS` 5 s on every feed aggregation; `deadline`/`posted` sorts still join first. Load test not re-run by the api agent]** **`GET /v1/feed` collapses under concurrency** (load test 2026-10-27, local API + docker
    mongo 8, 2,000 match docs for one user; `docs/TESTING.md` "Load"). One request: ~110 ms per
-   page plus ~100 ms more on the first page for `total`. Throughput then *falls* with concurrency:
+   page plus ~100 ms more on the first page for `total`. Throughput then _falls_ with concurrency:
    1 conn 4.5 req/s (p95 234 ms), 4 conns 4 req/s (p95 1,036 ms), 10 conns 2 req/s (p95 3,569 ms),
    50 conns 12 responses in 30 s and the rest timed out; mongod sat at ~850 % CPU and a single
    request after the run took 21 s while the backlog drained. SPEC target: p95 < 300 ms at 50.
    Cause (`src/services/feed.ts` `getFeed`): the pipeline `$lookup`s **every** match of the user
-   into `listings` (plus the interactions lookup) *before* `$sort`/`$limit`, and runs the whole
+   into `listings` (plus the interactions lookup) _before_ `$sort`/`$limit`, and runs the whole
    thing a second time for `total`. Suggested fix: have the worker denormalise the filter/sort
    fields onto `matches` (`type`, `deadlineAt`, `archived`, `postedAt`, `sourceId`, `remote`,
    `country`, stipend floor fields), index `{ userId: 1, score: -1, listingId: -1 }` (+ a deadline
@@ -166,20 +166,20 @@ journeys complete end to end; what fails is axe serious/critical and console err
    plus `computeFit` match docs for one user; re-run with `LOAD_TOKEN=… node scripts/load-test.mjs`.)
 7. **[done: `pnpm test:contract` 10/10 with and without `CONTRACT_TOKEN` (2026-10-27): a. 70/70 operations have an API test, lines 87.6 % (floor 85); b. 503 documented for both routes; c. unknown `/v1/*` → 404 before auth (`AUTHED_PREFIXES`); d. partly: `MeResponse` and `ResumeUploadResponse` are typed, 44 operations still document a generic object]** **OpenAPI vs behaviour** (`pnpm test:contract`, 3 of 10 failing):
    a. Only **12 / 60** operations are exercised by an API test (`src/**/*.test.ts`); the 48
-      untested ones are printed by the suite (all of sources, feed, listings, tracker, alerts,
-      push, notifications, settings, account). SPEC §8 asks for every route incl. ownership
-      (user A vs user B), pagination edges and zod errors. The coverage gate also fails:
-      lines 57.89 % < 85 %.
+   untested ones are printed by the suite (all of sources, feed, listings, tracker, alerts,
+   push, notifications, settings, account). SPEC §8 asks for every route incl. ownership
+   (user A vs user B), pagination edges and zod errors. The coverage gate also fails:
+   lines 57.89 % < 85 %.
    b. `GET /v1/auth/google/url` and `GET /v1/push/vapid-public-key` return **503** when Google /
-      VAPID are not configured; neither 503 is in `/openapi.json` (API.md documents it for
-      `/auth/google/url` only). Add the 503 responses (and to API.md for the VAPID route).
+   VAPID are not configured; neither 503 is in `/openapi.json` (API.md documents it for
+   `/auth/google/url` only). Add the 503 responses (and to API.md for the VAPID route).
    c. Unknown routes under `/v1` answer **401** without a session (the `authed` router's
-      `requireAuth` runs before `notFoundHandler`); API.md §1.4 says unknown route → 404
-      `NOT_FOUND`. Either mount the 404 for unknown `/v1/*` paths before `requireAuth`, or
-      change API.md to say 401 first (then tell QA and the test follows).
+   `requireAuth` runs before `notFoundHandler`); API.md §1.4 says unknown route → 404
+   `NOT_FOUND`. Either mount the 404 for unknown `/v1/*` paths before `requireAuth`, or
+   change API.md to say 401 first (then tell QA and the test follows).
    d. **39 / 60** operations document their 2xx body as a bare `{ type: object }`, so
-      response validation is vacuous for them. Please give them real response schemas in
-      `src/openapi.ts` (the zod DTOs already exist for most).
+   response validation is vacuous for them. Please give them real response schemas in
+   `src/openapi.ts` (the zod DTOs already exist for most).
 8. **[done: `middleware/rateLimit.ts` keys the global limiter by user id (1,000 / 15 min) when a validly signed session is present, per IP (300 / 15 min) otherwise]** **Global limiter is per IP** (300 / 15 min, API.md §1.5). Behind a campus or office NAT every
    student shares one bucket, and one active user scrolling a large radar (25 items per page,
    plus prefetch, summary, notifications, me) can spend 300 requests in a few minutes. Suggest
@@ -259,7 +259,7 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    delete, enqueue `match {userId, reason:'sources'}` as documented (already done) and the warm feed follows.
 3. **`listings.applyCheck`** is written exactly as `ApplyCheck` (plus `error`). `routes/feed.ts` needs no change.
 4. **[done: `services/serialize.ts` `toSourceDTO` (+ `lastSuccessAt`, `consecutiveFailures`); test `routes/sources.test.ts`]** **`SourceDTO.healthCode`** (same as qa → api #1): values `ok | not_modified | auth | notfound |
-   ratelimited | network | parse | blocked | paused:credits`, nullable before the first run. Also
+ratelimited | network | parse | blocked | paused:credits`, nullable before the first run. Also
    available: `lastSuccessAt`, `consecutiveFailures`.
 5. **[done: `GET /v1/sources/credits` and `/v1/admin/overview` return `backendReason` and `cloudRemaining`]** **Optional for the credit meter UI:** `crawler:cloud:remaining` (last `/v2/team/credit-usage`
    result, refreshed hourly) and `crawler:backend:reason` (`payment_required | daily_cap | low_balance:<n>`).
@@ -268,7 +268,7 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    Both sides could then filter visibility inside `$vectorSearch` instead of post-filtering.
 8. **[done: `services/admin.ts` (sourceRuns last 20 with source name/kind, `getJobCounts` on the 7 queues + `dead`, crawler keys); verified live against `beacon_dev`]** **For `GET /v1/admin/overview` (BRIEF addendum):** recent source runs come from the
    worker-owned `sourceRuns` collection (`{sourceId, reason, status, startedAt, finishedAt,
-   durationMs, found, new, updated, unchanged, errors[], backend, creditsUsed}`, index
+durationMs, found, new, updated, unchanged, errors[], backend, creditsUsed}`, index
    `{sourceId, startedAt:-1}`, 30-day retention). Queue depths: `Queue.getJobCounts()` on the 7
    queues plus `dead` (prefix `bull`). The crawler state is the Redis keys in WORKER.md §7, the
    same ones behind `/v1/sources/credits`. The worker's `GET :4001/metrics` has all of it too, but
@@ -282,16 +282,16 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    test), `/radar?sort=fit` (rule digest), `/radar` (daily card). Please route these (`listing`,
    `item` and `rule` open the drawer, item or rule). Push payload: `{title, body, url, tag, notificationId, kind}`,
    which `src/sw.ts` already reads.
-7. **[web-radar] `?listing=` deep links.** The worker writes notification links as
+2. **[web-radar] `?listing=` deep links.** The worker writes notification links as
    `/radar?listing=<id>`. The root layout now rewrites that to `/radar/<id>` (replace) on arrival,
    and the service worker / bell do the same, so the radar only has to render `ListingPage` for the
    `:listingId` param (#9), including on a cold load and when the id is not in the current feed page
    (fetch `GET /v1/listings/:id`; a 404 shows "This listing is no longer available").
-8. **[web-workspace] `/tracker?item=<id>`** must open that item: the root layout already rewrites it to `/tracker/<id>` (#9), so the
+3. **[web-workspace] `/tracker?item=<id>`** must open that item: the root layout already rewrites it to `/tracker/<id>` (#9), so the
    item page handles it, cold load too; unknown id → quiet toast "That tracker item was removed." and the board), and
    **`/alerts?rule=<id>`** must scroll to and briefly highlight that rule (`accent-subtle` fade,
    reduced motion: static outline). `/settings/notifications` is already a route.
-9. **[web-radar, web-workspace] Page-based detail views (owner requirement).** Detail views are
+4. **[web-radar, web-workspace] Page-based detail views (owner requirement).** Detail views are
    full pages with Back, not drawers/sheets. Routes now in `src/app/routes.tsx` (lazy, named
    `Component`): `/radar/:listingId` → `features/radar/ListingPage.tsx`, `/tracker/:id` →
    `features/tracker/TrackerItemPage.tsx`, `/sources/:id` → `features/sources/SourcePage.tsx`,
@@ -302,7 +302,7 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    page-root testid. `/sources/packs` renders `SourcesScreen` (Packs tab). The splat routes
    (`sources/*`, `alerts/*`, `tracker/:itemId?`, `radar/:listingId?`) were replaced by these.
    Use `<DetailPageHeader parent={{ label: 'Radar', to: '/radar' }} trail={[title]} title={…}
-   pager={{ onPrev, onNext, position: '3 of 142' }} actions={…} />` (`@/components/detail-page-header`,
+pager={{ onPrev, onNext, position: '3 of 142' }} actions={…} />` (`@/components/detail-page-header`,
    Back = in-app history else the parent, `Esc`/`Backspace` back, `k`/`j` prev/next) or
    `PageHeader` from `@kestrel/ui` with `back` / `breadcrumbs` / `pager`. `useBackNavigation(fallback?)`
    is in `@/lib/use-back-navigation`. Keep `ShellSlot name="drawer"` for small tasks only
@@ -330,14 +330,16 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
 3. **`POST /v1/settings/ai/test`** reports `provider: 'server'` when it tested Beacon's default LLM.
 
 ## ux-spec → api (from docs/UX-RESTRUCTURE.md §6)
-1. Accurate per-option filter counts on `GET /v1/feed/facets` (or embedded in `/v1/feed` as `facets`), scoped to the user's current filters.
-2. Server-side tour/tip state: `GET/PATCH /v1/settings/hints` `{tourDone, tourStep, tips: {[id]: dismissedAt}}`.
-3. `POST /v1/listings/:id/save` also creates/returns the tracker item in stage `saved` (idempotent); unsave removes it if still in `saved`.
-4. Feed items include `tracker: {id, stage} | null`.
-5. `GET /v1/feed/summary` includes `followUpsDue` (tracker items idle ≥ 10 d).
-Each has a client-side fallback documented in the spec; implement server-side where cheap.
+
+1. **[done: `GET /v1/feed/facets?<feed query>` → `FeedFacets` (API.md §6): fit presets (FIT_BANDS 80/60/40/0, cumulative, null while warming up), types, remote modes, deadline 7/14/30 + none, freshness 1/7/30; each facet ignores only its own filter; cached 60 s]** Accurate per-option filter counts on `GET /v1/feed/facets` (or embedded in `/v1/feed` as `facets`), scoped to the user's current filters.
+2. **[done: `GET/PATCH /v1/settings/hints` → `{ tourDone, tourStep, tour { offeredAt, completedAt, dismissedAt }, tips { id: dismissedAt }, ui { railCollapsed, radarView: 'grid'|'list' }, updatedAt }` (API.md §10); this also covers the spec's A2 (`tour`, coach marks = `tips`, rail state = `ui`) without touching the shared `Settings` schema]** Server-side tour/tip state: `GET/PATCH /v1/settings/hints` `{tourDone, tourStep, tips: {[id]: dismissedAt}}`.
+3. **[done: response adds `trackerItemId` + `tracker {id, stage}`; an already-tracked listing keeps its stage; unsave deletes only a `saved` item and re-numbers the column]** `POST /v1/listings/:id/save` also creates/returns the tracker item in stage `saved` (idempotent); unsave removes it if still in `saved`.
+4. **[done: `FeedItemDTO.tracker` and `ListingDetail.tracker` (spec A4's `trackerStage` = `tracker.stage`)]** Feed items include `tracker: {id, stage} | null`.
+5. **[done: `followUpsDue` = tracker items in `applied` with `lastActivityAt` ≥ 10 d ago (analytics followUp + moveOn), plus the spec's A5 `nextDeadlineAt`]** `GET /v1/feed/summary` includes `followUpsDue` (tracker items idle ≥ 10 d).
+   Each has a client-side fallback documented in the spec; implement server-side where cheap.
 
 ## orchestrator → all web agents (binding reconciliation, 2026-10-27 late)
+
 - Radar default view = **card grid** (owner), list view as a toggle; apply the spec's element budget per CARD (≤ 5 + one state slot). Keep the rail per spec §1 (5 open facets, fit presets, saved views on top). Drop the separate "Tune" popover only if sort + view toggle move into the page header.
 - Save = add to Tracker as Saved (single verb everywhere); `a` = mark applied.
 - Light mode default; muted professional palette as tints; type→colour map from docs/DESIGN.md.

@@ -12,10 +12,18 @@ import { cn } from '@/lib/utils';
 import type { TrackerStage } from '@kestrel/shared';
 import { press, tweens } from '@kestrel/ui';
 
-import { OUTCOME_STAGES, STAGE_ICONS, STAGE_LABEL, type ColumnDef, type OutcomeStage } from '../lib/stages';
+import {
+  firstClosedStage,
+  CLOSED_STAGES,
+  closedTotal,
+  STAGE_ICONS,
+  STAGE_LABEL,
+  type ColumnDef,
+  type ClosedStage,
+} from '../lib/stages';
 
 const columnDroppableId = (stage: TrackerStage) => `col:${stage}`;
-const segmentDroppableId = (stage: OutcomeStage) => `seg:${stage}`;
+const segmentDroppableId = (stage: ClosedStage) => `seg:${stage}`;
 
 const COLUMN_SHELL = cn(
   'relative flex h-full shrink-0 snap-start flex-col rounded-lg bg-surface-sunken',
@@ -25,7 +33,7 @@ const COLUMN_SHELL = cn(
 
 /**
  * One Kanban column (DESIGN §10.4): `surface-sunken`, `rounded-lg`, min 272 px; header with the
- * label and a rolling count. The Outcomes column ("More") holds Offer, Rejected and Ghosted behind a
+ * label and a rolling count. The "Closed" column holds Rejected and Ghosted behind a
  * segmented control whose segments are drop targets too. The list scrolls on its own.
  */
 export function BoardColumn({
@@ -38,12 +46,12 @@ export function BoardColumn({
   keyboardDragging,
   flash,
   onAdd,
-  onOutcomeStageChange,
+  onClosedStageChange,
   onCollapse,
   children,
 }: {
   column: ColumnDef;
-  /** The stage this column shows now (Outcomes: the active segment). */
+  /** The stage this column shows now (Closed: the active segment). */
   stage: TrackerStage;
   ids: string[];
   counts: Record<TrackerStage, number>;
@@ -54,16 +62,16 @@ export function BoardColumn({
   /** Increments when a card lands here: the header flashes `accent-subtle` once (MOTION §5.10). */
   flash: number;
   onAdd: (stage: TrackerStage) => void;
-  onOutcomeStageChange: (stage: OutcomeStage) => void;
-  /** Outcomes only: fold back into the narrow "More" column. */
+  onClosedStageChange: (stage: ClosedStage) => void;
+  /** Closed only: fold back into the narrow "Closed" rail. */
   onCollapse?: () => void;
   children: ReactNode;
 }) {
   const headingId = useId();
   const { setNodeRef } = useDroppable({ id: columnDroppableId(stage), data: { stage } });
-  const outcomes = column.key === 'outcomes';
-  const total = outcomes ? counts.offer + counts.rejected + counts.ghosted : counts[stage];
-  const Icon = STAGE_ICONS[outcomes ? stage : column.stages[0]!];
+  const closed = column.key === 'closed';
+  const total = closed ? closedTotal(counts) : counts[stage];
+  const Icon = STAGE_ICONS[closed ? stage : column.stages[0]!];
 
   return (
     <section
@@ -84,10 +92,14 @@ export function BoardColumn({
             animate={{ opacity: [0, 1, 0], transition: { ...tweens.count, times: [0, 0.3, 1] } }}
           />
         ) : null}
-        <Icon className="relative size-4 shrink-0 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+        <Icon
+          className="relative size-4 shrink-0 text-fg-tertiary"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
         <h2 id={headingId} className="relative truncate text-label text-fg-secondary uppercase">
-          {outcomes ? <span className="sr-only">{`Outcomes, ${STAGE_LABEL[stage]}`}</span> : null}
-          <span aria-hidden={outcomes || undefined}>{column.label}</span>
+          {closed ? <span className="sr-only">{`Closed, ${STAGE_LABEL[stage]}`}</span> : null}
+          <span aria-hidden={closed || undefined}>{column.label}</span>
         </h2>
         <Ticker
           value={total}
@@ -95,27 +107,38 @@ export function BoardColumn({
           label={`${total} ${total === 1 ? 'card' : 'cards'}`}
         />
         <div className="relative ml-auto flex items-center">
-          <Button variant="ghost" size="icon-sm" aria-label={`Add to ${STAGE_LABEL[stage]}`} onClick={() => onAdd(stage)}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Add to ${STAGE_LABEL[stage]}`}
+            onClick={() => onAdd(stage)}
+          >
             <Plus strokeWidth={1.5} />
           </Button>
-          {outcomes && onCollapse ? (
-            <Button variant="ghost" size="icon-sm" aria-label="Fold outcomes away" aria-expanded onClick={onCollapse}>
+          {closed && onCollapse ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Fold Closed away"
+              aria-expanded
+              onClick={onCollapse}
+            >
               <ChevronsRight strokeWidth={1.5} />
             </Button>
           ) : null}
         </div>
       </header>
-      {outcomes ? (
+      {closed ? (
         <div className="relative px-2 pb-2">
           <ToggleGroup
             type="single"
             segmented
             value={stage}
-            onValueChange={(v) => v && onOutcomeStageChange(v as OutcomeStage)}
-            aria-label="Outcome"
+            onValueChange={(v) => v && onClosedStageChange(v as ClosedStage)}
+            aria-label="Closed stages"
             className="w-full"
           >
-            {OUTCOME_STAGES.map((s) => (
+            {CLOSED_STAGES.map((s) => (
               <SegmentItem key={s} stage={s} count={counts[s]} pointerDragging={pointerDragging} />
             ))}
           </ToggleGroup>
@@ -154,7 +177,7 @@ function SegmentItem({
   count,
   pointerDragging,
 }: {
-  stage: OutcomeStage;
+  stage: ClosedStage;
   count: number;
   pointerDragging: boolean;
 }) {
@@ -174,10 +197,11 @@ function SegmentItem({
 }
 
 /**
- * "More": the folded Outcomes column. Each outcome is a tile with its count; click to unfold on it,
- * or drag a card onto it (the column unfolds under the pointer, like a spring-loaded folder).
+ * "Closed", folded: a narrow 56 px column (desktop) with Rejected and Ghosted as icon + count tiles;
+ * click one to unfold on it, or drag a card onto it (the column unfolds under the pointer, like a
+ * spring-loaded folder). On phones it is a full-width column in the swipe row with labelled tiles.
  */
-export function OutcomesRail({
+export function ClosedRail({
   counts,
   isOver,
   pointerDragging,
@@ -186,82 +210,97 @@ export function OutcomesRail({
   counts: Record<TrackerStage, number>;
   isOver: boolean;
   pointerDragging: boolean;
-  onOpen: (stage: OutcomeStage) => void;
+  onOpen: (stage: ClosedStage) => void;
 }) {
   const headingId = useId();
-  const total = counts.offer + counts.rejected + counts.ghosted;
+  const total = closedTotal(counts);
   return (
     <section
       data-testid="tracker-column"
-      data-column="outcomes"
+      data-column="closed"
       data-collapsed="true"
       data-over={isOver || undefined}
       aria-labelledby={headingId}
-      className={cn(COLUMN_SHELL, 'w-[min(85vw,20rem)] md:w-44')}
+      className={cn(COLUMN_SHELL, 'w-[min(85vw,20rem)] md:w-14')}
     >
-      <header className="relative flex h-11 shrink-0 items-center gap-2 pr-1.5 pl-3">
-        <h2 id={headingId} className="truncate text-label text-fg-secondary uppercase">
-          More
-        </h2>
-        <span className="font-mono text-mono-sm text-fg-tertiary">{total}</span>
+      <header className="relative flex h-11 shrink-0 items-center gap-2 pr-1.5 pl-3 md:h-auto md:flex-col md:gap-1 md:px-0 md:pt-2">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon-sm"
-              className="ml-auto"
-              aria-label="Show outcomes"
+              className="max-md:order-last max-md:ml-auto"
+              aria-label={`Show closed applications, ${total}`}
               aria-expanded={false}
-              data-testid="tracker-more"
-              onClick={() => onOpen(counts.offer > 0 || total === 0 ? 'offer' : counts.rejected > 0 ? 'rejected' : 'ghosted')}
+              data-testid="tracker-closed"
+              onClick={() => onOpen(firstClosedStage(counts))}
             >
               <ChevronsLeft strokeWidth={1.5} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Offers and closed applications</TooltipContent>
+          <TooltipContent side="left">Rejected and ghosted applications</TooltipContent>
         </Tooltip>
+        <h2
+          id={headingId}
+          className="truncate text-label text-fg-secondary uppercase md:[writing-mode:vertical-rl] md:rotate-180"
+        >
+          Closed
+        </h2>
+        <span className="font-mono text-mono-sm text-fg-tertiary" aria-hidden="true">
+          {total}
+        </span>
       </header>
-      <ul className="relative flex flex-col gap-2 px-2 pb-2" aria-label="Outcomes">
-        {OUTCOME_STAGES.map((s) => (
-          <OutcomeTile key={s} stage={s} count={counts[s]} pointerDragging={pointerDragging} onOpen={onOpen} />
+      <ul
+        className="relative flex flex-col gap-2 px-2 pt-1 pb-2 md:items-center md:px-1.5"
+        aria-label="Closed stages"
+      >
+        {CLOSED_STAGES.map((s) => (
+          <ClosedTile
+            key={s}
+            stage={s}
+            count={counts[s]}
+            pointerDragging={pointerDragging}
+            onOpen={onOpen}
+          />
         ))}
       </ul>
-      <p className="relative mt-auto px-3 pb-3 text-caption text-pretty text-fg-tertiary">
-        Offers and closed applications live here, out of your way.
+      <p className="relative mt-auto px-3 pb-3 text-caption text-pretty text-fg-tertiary md:hidden">
+        Rejected and ghosted applications rest here, out of your way.
       </p>
     </section>
   );
 }
 
-function OutcomeTile({
+function ClosedTile({
   stage,
   count,
   pointerDragging,
   onOpen,
 }: {
-  stage: OutcomeStage;
+  stage: ClosedStage;
   count: number;
   pointerDragging: boolean;
-  onOpen: (stage: OutcomeStage) => void;
+  onOpen: (stage: ClosedStage) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: segmentDroppableId(stage), data: { stage } });
   const Icon = STAGE_ICONS[stage];
   return (
-    <li ref={setNodeRef} className="list-none">
+    <li ref={setNodeRef} className="w-full list-none">
       <m.button
         type="button"
         {...press.card}
         onClick={() => onOpen(stage)}
+        title={STAGE_LABEL[stage]}
         aria-label={`${STAGE_LABEL[stage]}, ${count} ${count === 1 ? 'card' : 'cards'}`}
         className={cn(
-          'flex h-11 w-full items-center gap-2 rounded-md border bg-surface-raised px-3 text-small text-fg-secondary transition-colors duration-fast hover:border-border-strong hover:text-fg focus-visible:focus-ring',
-          pointerDragging ? 'border-dashed border-border-strong' : 'border-border',
+          'e2 flex h-11 w-full items-center gap-2 rounded-md border px-3 text-small text-fg-secondary transition-colors duration-fast hover:border-border-strong hover:text-fg focus-visible:focus-ring md:h-14 md:flex-col md:justify-center md:gap-0.5 md:px-0',
+          pointerDragging ? 'border-dashed border-border-strong' : 'border-border-subtle',
           pointerDragging && isOver && 'border-solid border-accent-strong text-fg',
         )}
       >
         <Icon className="size-4 shrink-0 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
-        <span className="truncate">{STAGE_LABEL[stage]}</span>
-        <span className="ml-auto font-mono text-mono-sm text-fg-tertiary">{count}</span>
+        <span className="truncate md:sr-only">{STAGE_LABEL[stage]}</span>
+        <span className="font-mono text-mono-sm text-fg-tertiary max-md:ml-auto">{count}</span>
       </m.button>
     </li>
   );

@@ -3,8 +3,6 @@
  * days before · Quiet hours off"). The details open on demand: web push for this browser, deadline
  * reminders, quiet hours and tracker-nudge pushes, saved on change (USERFLOW §2, §3.3).
  */
-import type { Settings, SettingsPatch } from '@kestrel/shared';
-import { Skeleton, tweens } from '@kestrel/ui';
 import { BellRing, ChevronDown, ChevronRight, CircleCheck, Moon, Timer } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -19,6 +17,8 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { Settings, SettingsPatch } from '@kestrel/shared';
+import { Skeleton, tweens } from '@kestrel/ui';
 
 import {
   REMINDER_STEPS,
@@ -42,10 +42,24 @@ function useSavedFlash() {
   return { saved: at > 0, flash: () => setAt(Date.now()) };
 }
 
-function Row({ icon: Icon, title, aside, children }: { icon: typeof BellRing; title: string; aside?: ReactNode; children: ReactNode }) {
+function Row({
+  icon: Icon,
+  title,
+  aside,
+  children,
+}: {
+  icon: typeof BellRing;
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="flex gap-3 py-3">
-      <Icon className="mt-0.5 size-4 shrink-0 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+      <Icon
+        className="mt-0.5 size-4 shrink-0 text-fg-tertiary"
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex min-h-6 items-center gap-2">
           <h3 className="flex-1 text-small font-medium text-fg">{title}</h3>
@@ -96,7 +110,8 @@ export function DeliverySummary({ className }: { className?: string }) {
       .catch((error: unknown) => {
         const now = getPushSupport();
         setSupport(now);
-        if (now !== 'denied') toast.error(`Couldn't turn on push. ${errorMessage(error)}`, { duration: 8000 });
+        if (now !== 'denied')
+          toast.error(`Couldn't turn on push. ${errorMessage(error)}`, { duration: 8000 });
       });
   };
 
@@ -118,9 +133,17 @@ export function DeliverySummary({ className }: { className?: string }) {
             className,
           )}
         >
-          <BellRing className="size-4 shrink-0 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+          <BellRing
+            className="size-4 shrink-0 text-fg-tertiary"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
           <span className="min-w-0 flex-1 truncate">
-            {parts.length > 1 ? parts.join(' · ') : <Skeleton className="inline-block h-3 w-56 align-middle" />}
+            {parts.length > 1 ? (
+              parts.join(' · ')
+            ) : (
+              <Skeleton className="inline-block h-3 w-56 align-middle" />
+            )}
           </span>
           <span className="shrink-0 text-accent-strong">Delivery settings</span>
           <ChevronDown
@@ -166,8 +189,16 @@ export function DeliverySummary({ className }: { className?: string }) {
               ) : null
             }
           >
-            <p className="text-small text-fg-secondary" data-testid="alerts-push-status" data-status={status.kind}>
-              <span className={cn('font-medium', status.kind === 'on' ? 'text-success' : 'text-fg')}>{status.label}.</span>{' '}
+            <p
+              className="text-small text-fg-secondary"
+              data-testid="alerts-push-status"
+              data-status={status.kind}
+            >
+              <span
+                className={cn('font-medium', status.kind === 'on' ? 'text-success' : 'text-fg')}
+              >
+                {status.label}.
+              </span>{' '}
               {status.detail}
             </p>
             {status.kind === 'blocked' ? (
@@ -183,7 +214,9 @@ export function DeliverySummary({ className }: { className?: string }) {
                 <ToggleGroup
                   type="multiple"
                   value={n.deadlineReminders.map(String)}
-                  onValueChange={(values) => save({ deadlineReminders: parseReminderValues(values) })}
+                  onValueChange={(values) =>
+                    save({ deadlineReminders: parseReminderValues(values) })
+                  }
                   aria-label="Deadline reminders"
                   className="flex-wrap"
                   data-testid="alerts-reminders"
@@ -216,8 +249,8 @@ export function DeliverySummary({ className }: { className?: string }) {
             <p className="text-small text-fg-secondary" data-testid="alerts-quiet-hours">
               {quiet ? (
                 <>
-                  <span className="font-mono text-mono-sm text-fg">{quiet}</span>. Pushes wait until they end, and
-                  deadline reminders move to the end of them.
+                  <span className="font-mono text-mono-sm text-fg">{quiet}</span>. Pushes wait until
+                  they end, and deadline reminders move to the end of them.
                 </>
               ) : (
                 'Off. Pushes can arrive at any hour.'
@@ -229,10 +262,18 @@ export function DeliverySummary({ className }: { className?: string }) {
             icon={BellRing}
             title="Tracker nudges by push"
             aside={
-              n ? <Switch checked={n.nudges} onCheckedChange={(nudges) => save({ nudges })} aria-label="Tracker nudges by push" /> : null
+              n ? (
+                <Switch
+                  checked={n.nudges}
+                  onCheckedChange={(nudges) => save({ nudges })}
+                  aria-label="Tracker nudges by push"
+                />
+              ) : null
             }
           >
-            <p className="text-caption text-fg-tertiary">Gentle follow-up reminders. At most one push a day.</p>
+            <p className="text-caption text-fg-tertiary">
+              Gentle follow-up reminders. At most one push a day.
+            </p>
           </Row>
         </div>
 

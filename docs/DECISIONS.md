@@ -177,3 +177,21 @@ them. They are kept verbatim.
 - **LLM calls accept an overall deadline: each attempt gets `min(LLM_TIMEOUT_MS, time left)` and no attempt starts with under 2 s left.** Keeps the resume upload inside its budget after OCR. Rejected: a fixed shorter timeout for every caller.
 - **Description links keep `rel="noopener noreferrer nofollow" target="_blank"`.** The sanitize-html allowlist dropped the attributes its own transform added; `rel` and `target` are now allowed and the transform overwrites any value the source sent.
 - **Coverage floor back to 85 % lines (SPEC §8); every documented operation has an API test (contract suite 70/70).**
+
+### Visual system v3 (2026-10-27, design lead on Fable)
+
+- **Light is the default theme; dark is a full theme** — owner pivot ("minimalist, good light, professional"); `appearance.theme` defaults to `light`, `system` only when chosen. Alternative rejected: OS-following default (surprised the owner on a dark laptop).
+- **Muted role palette used as tints** (cobalt/indigo/violet/teal/orange/pink/lime/amber, each base + 10% tint + AA text) with a fixed opportunity-type → colour map and tracker-stage colours — owner: "full palette, not one hue", then "not too bold". Rejected: saturated fills (too loud) and single-accent (owner: too plain).
+- **Radar default view = card grid** (`RadarGrid`, 1/2/3 columns, ≤ 5 elements + one state slot per card); list/timeline/board stay behind the view switch. Rejected: list-first (owner: "too basic").
+- **Elevation system e1/e2/e3 + glass chrome + barely-there canvas washes** instead of flat hairline panels; shadows soft and short, neutral.
+- **Geist for all app display type**; Instrument Serif reserved for marketing and onboarding prompts (`font-serif`).
+- **Boot skeleton in index.html** so no route renders blank while the mock worker / lazy route / data load (QA found 17/18 blank captures).
+- **`/me` page + 4 mobile tabs** (Radar · Deadlines · Tracker · Me); Alerts/Sources/Notifications/Profile/Settings/Admin/tour live under Me on phones.
+
+## Public API hostname (2026-10-27 release)
+
+Use `api-beacon.spacesdrive.cc`. The legacy nested API hostname is two levels below
+`spacesdrive.cc`; the zone's free Universal SSL certificate does not cover it, and its public
+TLS handshake fails. A first-level hostname uses the existing certificate without adding a
+paid service. Caddy, GitHub health checks, frontend API configuration, CSP and operational
+documentation use the new hostname. The existing DNS record is left intact for reference.

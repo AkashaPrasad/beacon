@@ -15,7 +15,7 @@
 	}
 }
 
-api.beacon.spacesdrive.cc {
+api-beacon.spacesdrive.cc {
 	tls {
 		issuer acme {
 			dir https://acme-v02.api.letsencrypt.org/directory

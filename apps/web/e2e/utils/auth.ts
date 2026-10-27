@@ -1,18 +1,27 @@
 /**
- * Mocked Google sign-in and session helpers.
+ * Sign-in helpers for both e2e transports.
  *
- * - `mockGoogle()` intercepts accounts.google.com: the GIS client script is replaced by a stub
- *   (ID-token, code and token clients), and the OAuth redirect endpoint answers with a 302 back
- *   to the app's `redirect_uri` carrying `code` and the echoed `state` (or `error`). The app
- *   then calls `POST /v1/auth/google`, which the fake API answers from `state.googleLogin`.
- * - `loginAs()` skips the Google round trip and sets the session in the fake API directly, the
- *   way a returning user arrives with a valid `beacon_session` cookie.
+ * **MSW mode** (`VITE_MOCK_API=1`, the app's own mock API in a service worker; `smoke-all`,
+ * `a11y`): `seedMock()` picks the mock scenario before any app code runs, and
+ * `loginAs(page, { as, via })` signs in the way a student does:
+ *   - `via: 'form'` (default): the email + password form on `/login` (MSW `POST /v1/auth/login`;
+ *     an `admin@…` email signs in as admin). Deterministic: no redirect, no third-party script.
+ *   - `via: 'register'`: "Create an account" on the same form (new accounts start at consent).
+ *   - `via: 'google'`: [Continue with Google]; in mock mode the button goes straight to
+ *     `/auth/callback?code=mock-google-code` (a full page load), then `POST /v1/auth/google`.
+ *   - `via: 'session'`: no UI; the tab starts signed in (`beacon:mock:user`), for specs that only
+ *     need a signed-in page.
+ *   Returns the pathname the app landed on (`/radar`, `/welcome`, …).
+ *
+ * **Fake-API mode** (`page.route`, `e2e/utils/mock-api.ts`; the older QA specs):
+ * `mockGoogle()` intercepts accounts.google.com (GIS stub + OAuth redirect), and
+ * `loginAs(target, api, user)` sets the session in the fake API directly.
  *
  * Nothing here talks to Google; no real credentials exist in the e2e environment.
  */
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 
-import type { MockApi } from './mock-api';
+import { MockApi } from './mock-api';
 import { fixtureUsers, type FixtureUser, type FixtureUserName } from './mock-data';
 import { byTestId } from './routes';
 
@@ -107,7 +116,7 @@ export async function mockGoogle(
  * session hint (`localStorage['beacon:session']`, see apps/web/src/lib/storage.ts) is set once
  * per tab, so public pages call `GET /v1/me` the way they do after a real sign-in.
  */
-export async function loginAs(
+async function loginAsFake(
   target: Page | BrowserContext,
   api: MockApi,
   user: FixtureUser | FixtureUserName = 'aarav',
@@ -153,4 +162,153 @@ export async function signInWithGoogle(
   await page.waitForURL((url) => !['/', '/login', '/auth/callback'].includes(url.pathname), {
     timeout: 15_000,
   });
+}
+
+// ── MSW mode (VITE_MOCK_API=1) ──────────────────────────────────────────────────────────────────
+
+/** `localStorage['beacon:mock:user']` values (apps/web/src/mocks/state.ts). */
+export type MockScenario = 'returning' | 'admin' | 'new' | 'consent' | 'signed-out';
+
+export interface MockAppearance {
+  theme?: 'light' | 'dark' | 'system';
+  density?: 'comfortable' | 'compact';
+  accent?: string;
+  fontSize?: 'sm' | 'md' | 'lg';
+  reducedMotion?: 'system' | 'reduce' | 'no-preference';
+}
+
+export interface MockSeed {
+  scenario: MockScenario;
+  /** Extra mock switches (docs/WEB.md §6), e.g. `{ 'beacon:mock:radar': 'large' }`. */
+  storage?: Record<string, string>;
+  /** Written to `beacon:appearance` (read by index.html's inline script before first paint). */
+  appearance?: MockAppearance;
+}
+
+/** The fixture account MSW signs in (src/mocks/state.ts). */
+export const MOCK_USER = {
+  id: '65f0c0ffee0000000000a001',
+  name: 'Aarav Mehta',
+  email: 'aarav.mehta@example.com',
+  adminEmail: 'admin@beacon.test',
+  /** MSW accepts any password of ≥ 8 characters that does not contain "wrong". */
+  password: 'correct-horse-battery',
+} as const;
+
+/**
+ * Pick the MSW scenario for this tab before any app code runs. Applied once per tab
+ * (sessionStorage guard), so reloads keep whatever the app wrote since (sign-in/out, theme).
+ */
+export async function seedMock(target: Page | BrowserContext, seed: MockSeed): Promise<void> {
+  await target.addInitScript((s: MockSeed) => {
+    try {
+      if (sessionStorage.getItem('qa:mock-seeded')) return;
+      sessionStorage.setItem('qa:mock-seeded', '1');
+      localStorage.setItem('beacon:mock:user', s.scenario);
+      localStorage.removeItem('beacon:mock:session');
+      const signedIn =
+        s.scenario === 'returning' || s.scenario === 'admin' || s.scenario === 'consent';
+      if (signedIn) localStorage.setItem('beacon:session', 'true');
+      else localStorage.removeItem('beacon:session');
+      for (const [k, v] of Object.entries(s.storage ?? {})) localStorage.setItem(k, v);
+      if (s.appearance) {
+        const current = JSON.parse(localStorage.getItem('beacon:appearance') ?? '{}') as object;
+        localStorage.setItem('beacon:appearance', JSON.stringify({ ...current, ...s.appearance }));
+      }
+    } catch {
+      /* storage blocked: the mock defaults apply (returning, signed in) */
+    }
+  }, seed);
+}
+
+/**
+ * Wait until the app has booted: MSW answering (mock mode) and React attached to `selector`
+ * (prerendered pages show their markup before hydration; a click before that does nothing).
+ */
+export async function waitForApp(page: Page, selector = '#root > *'): Promise<void> {
+  await page.waitForFunction(
+    (sel) => {
+      const w = window as Window & { __BEACON_MOCK__?: boolean };
+      const el = document.querySelector(sel);
+      const reactReady = Boolean(el && Object.keys(el).some((k) => k.startsWith('__react')));
+      return reactReady && w.__BEACON_MOCK__ === true;
+    },
+    selector,
+    { timeout: 20_000 },
+  );
+}
+
+export interface MockLoginOptions {
+  /** Which account: onboarded student (default), admin, or a brand-new student (lands on consent). */
+  as?: 'returning' | 'admin' | 'new';
+  via?: 'form' | 'register' | 'google' | 'session';
+  storage?: MockSeed['storage'];
+  appearance?: MockAppearance;
+  /** Sign in from `/login?next=…` (safe in-app path to continue to). */
+  next?: string;
+}
+
+async function loginWithMsw(page: Page, opts: MockLoginOptions = {}): Promise<string> {
+  const as = opts.as ?? 'returning';
+  const via = opts.via ?? 'form';
+  if (via === 'session') {
+    await seedMock(page, {
+      scenario: as === 'new' ? 'consent' : as,
+      storage: opts.storage,
+      appearance: opts.appearance,
+    });
+    return '';
+  }
+  await seedMock(page, {
+    scenario: as === 'new' ? 'new' : 'signed-out',
+    storage: opts.storage,
+    appearance: opts.appearance,
+  });
+  await page.goto(opts.next ? `/login?next=${encodeURIComponent(opts.next)}` : '/login');
+  await expect(page.getByTestId('login-page')).toBeVisible({ timeout: 20_000 });
+
+  if (via === 'google') {
+    await waitForApp(page, '[data-testid="google-sign-in"]');
+    await page.getByTestId('google-sign-in').first().click();
+  } else {
+    await waitForApp(page, '[data-testid="email-auth-form"]');
+    const form = page.getByTestId('email-auth-form');
+    if (via === 'register') {
+      await form.getByTestId('email-auth-toggle').click();
+      await expect(form).toHaveAttribute('data-mode', 'register');
+      await form.getByTestId('email-auth-name').fill(MOCK_USER.name);
+    }
+    await form
+      .getByTestId('email-auth-email')
+      .fill(as === 'admin' ? MOCK_USER.adminEmail : MOCK_USER.email);
+    await form.getByTestId('email-auth-password').fill(MOCK_USER.password);
+    await form.getByTestId('email-auth-submit').click();
+  }
+  await page.waitForURL((url) => !['/login', '/auth/callback'].includes(url.pathname), {
+    timeout: 20_000,
+  });
+  return new URL(page.url()).pathname;
+}
+
+/**
+ * Sign in.
+ *   loginAs(page)                                   MSW: onboarded student via the email form → /radar
+ *   loginAs(page, { as: 'new', via: 'google' })     MSW: new student via mock Google → /welcome
+ *   loginAs(page, { via: 'session' })               MSW: no UI, the tab starts signed in
+ *   loginAs(context, api, fixtureUsers.newbie)      fake API (page.route): session set directly
+ */
+export function loginAs(page: Page, opts?: MockLoginOptions): Promise<string>;
+export function loginAs(
+  target: Page | BrowserContext,
+  api: MockApi,
+  user?: FixtureUser | FixtureUserName,
+): Promise<FixtureUser>;
+export function loginAs(
+  target: Page | BrowserContext,
+  apiOrOpts?: MockApi | MockLoginOptions,
+  user?: FixtureUser | FixtureUserName,
+): Promise<string | FixtureUser> {
+  if (apiOrOpts instanceof MockApi) return loginAsFake(target, apiOrOpts, user);
+  if (!('goto' in target)) throw new Error('loginAs (MSW mode) needs a Page, not a BrowserContext');
+  return loginWithMsw(target, apiOrOpts);
 }

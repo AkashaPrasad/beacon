@@ -26,7 +26,17 @@ import {
   variants,
 } from '@kestrel/ui';
 
-import { COMPONENTS, DEFAULT_WEIGHTS, DEMO_NOW, daysFromNow, FEED, scoreOf, STATS, STUDENT, type DemoListing } from '../data';
+import {
+  COMPONENTS,
+  DEFAULT_WEIGHTS,
+  DEMO_NOW,
+  daysFromNow,
+  FEED,
+  scoreOf,
+  STATS,
+  STUDENT,
+  type DemoListing,
+} from '../data';
 import { usePageVisible } from '../lib/hooks';
 import { countTween, drawTween, pingTween, timing } from '../lib/timing';
 
@@ -65,7 +75,9 @@ function CountUp({ value, reduced }: { value: number; reduced: boolean }) {
 }
 
 function deadlineOf(l: DemoListing) {
-  return l.deadlineDays === null ? { at: null, kind: 'rolling' as const } : { at: daysFromNow(l.deadlineDays), kind: 'date' as const };
+  return l.deadlineDays === null
+    ? { at: null, kind: 'rolling' as const }
+    : { at: daysFromNow(l.deadlineDays), kind: 'date' as const };
 }
 
 interface RowProps {
@@ -109,7 +121,6 @@ function Row({ slot, index, assemble, showGhost, open, panelId, onInspect, onRel
       >
         <button
           type="button"
-          aria-label={`${l.title}, ${l.company}. ${fitAccessibleLabel(score)}. Show why it fits`}
           aria-expanded={open}
           aria-describedby={open ? panelId : undefined}
           onPointerEnter={(e) => e.pointerType === 'mouse' && onInspect(slot.key)}
@@ -147,6 +158,7 @@ function Row({ slot, index, assemble, showGhost, open, panelId, onInspect, onRel
             >
               <span className="font-medium text-fg">{l.title}</span>
               <span className="text-fg-secondary"> · {l.company}</span>
+              <span className="sr-only">. {fitAccessibleLabel(score)}. Show why it fits</span>
             </m.span>
             <span className="flex min-w-0 items-center gap-2 text-small text-fg-tertiary">
               <AnimatePresence initial={false}>
@@ -177,7 +189,10 @@ function Row({ slot, index, assemble, showGhost, open, panelId, onInspect, onRel
                     className="inline-flex h-5 items-center rounded-xs bg-surface-sunken px-1.5 text-caption text-fg-secondary"
                     initial={from({ x: 6, opacity: 0 })}
                     animate={{ x: 0, opacity: 1 }}
-                    transition={{ ...springs.snappy, delay: delay + durations.fast + (stagger(j, timing.chipStagger) ?? 0) }}
+                    transition={{
+                      ...springs.snappy,
+                      delay: delay + durations.fast + (stagger(j, timing.chipStagger) ?? 0),
+                    }}
                   >
                     {chip}
                   </m.span>
@@ -188,7 +203,11 @@ function Row({ slot, index, assemble, showGhost, open, panelId, onInspect, onRel
                     className="inline-flex h-5 items-center rounded-xs border border-dashed border-border-strong px-1.5 text-caption text-fg-tertiary"
                     initial={from({ x: 6, opacity: 0 })}
                     animate={{ x: 0, opacity: 1 }}
-                    transition={{ ...springs.snappy, delay: delay + durations.fast + (stagger(l.why.length, timing.chipStagger) ?? 0) }}
+                    transition={{
+                      ...springs.snappy,
+                      delay:
+                        delay + durations.fast + (stagger(l.why.length, timing.chipStagger) ?? 0),
+                    }}
                   >
                     –{gap}
                   </m.span>
@@ -212,7 +231,10 @@ function Row({ slot, index, assemble, showGhost, open, panelId, onInspect, onRel
                 className="[&>span+span]:hidden md:[&>span+span]:inline"
               />
             ) : (
-              <span aria-hidden="true" className="size-7 rounded-full border-[3px] border-fit-track md:mb-4.5" />
+              <span
+                aria-hidden="true"
+                className="size-7 rounded-full border-[3px] border-fit-track md:mb-4.5"
+              />
             )}
           </span>
         </button>
@@ -256,13 +278,18 @@ function Breakdown({ listing, index, id }: { listing: DemoListing; index: number
               <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                 <m.span
                   className="block h-full origin-left rounded-full"
-                  style={{ backgroundColor: k === largest ? `var(${band.colorVar})` : 'var(--color-fg-secondary)' }}
+                  style={{
+                    backgroundColor:
+                      k === largest ? `var(${band.colorVar})` : 'var(--color-fg-secondary)',
+                  }}
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: max ? Math.min(1, part / max) : 0 }}
                   transition={{ ...springs.data, delay: stagger(k, timing.revealStagger) ?? 0 }}
                 />
               </span>
-              <span className="w-10 shrink-0 text-right font-mono text-mono-sm text-fg">+{part.toFixed(1)}</span>
+              <span className="w-10 shrink-0 text-right font-mono text-mono-sm text-fg">
+                +{part.toFixed(1)}
+              </span>
             </li>
           );
         })}
@@ -310,7 +337,12 @@ export default function LiveRadar() {
       nextIndex.current += 1;
       serial.current += 1;
       setLive(true);
-      setRows((current) => [{ key: `${listing.id}-${serial.current}`, listing, live: true }, ...current].slice(0, KEEP));
+      setRows((current) =>
+        [{ key: `${listing.id}-${serial.current}`, listing, live: true }, ...current].slice(
+          0,
+          KEEP,
+        ),
+      );
       if (!reduced) setPing((n) => n + 1);
     }, wait * 1000);
     return () => clearTimeout(t);
@@ -332,11 +364,17 @@ export default function LiveRadar() {
   }, [inspect?.pinned]);
 
   const onInspect = (key: string, pin = false) =>
-    setInspect((current) => (pin && current?.key === key && current.pinned ? null : { key, pinned: pin || (current?.key === key && current.pinned) }));
-  const onRelease = (key: string) => setInspect((current) => (current?.key === key && !current.pinned ? null : current));
+    setInspect((current) =>
+      pin && current?.key === key && current.pinned
+        ? null
+        : { key, pinned: pin || (current?.key === key && current.pinned) },
+    );
+  const onRelease = (key: string) =>
+    setInspect((current) => (current?.key === key && !current.pinned ? null : current));
 
   const inspectedIndex = inspect ? rows.findIndex((r) => r.key === inspect.key) : -1;
-  const inspected = inspectedIndex >= 0 && inspectedIndex < MAX_ROWS ? rows[inspectedIndex] : undefined;
+  const inspected =
+    inspectedIndex >= 0 && inspectedIndex < MAX_ROWS ? rows[inspectedIndex] : undefined;
 
   return (
     <m.div
@@ -370,7 +408,8 @@ export default function LiveRadar() {
         </span>
         <p className="min-w-0 truncate">
           <span className="hidden sm:inline">Watching </span>
-          <CountUp value={STATS.sources} reduced={reduced} /> sources · <CountUp value={STATS.listings} reduced={reduced} />
+          <CountUp value={STATS.sources} reduced={reduced} /> sources ·{' '}
+          <CountUp value={STATS.listings} reduced={reduced} />
           <span className="hidden sm:inline"> open</span> listings
           <span className="hidden md:inline"> · updated {STATS.updated}</span>
         </p>
@@ -413,7 +452,14 @@ export default function LiveRadar() {
       </p>
 
       <AnimatePresence>
-        {inspected && <Breakdown key={inspected.key} listing={inspected.listing} index={inspectedIndex} id={panelId} />}
+        {inspected && (
+          <Breakdown
+            key={inspected.key}
+            listing={inspected.listing}
+            index={inspectedIndex}
+            id={panelId}
+          />
+        )}
       </AnimatePresence>
     </m.div>
   );

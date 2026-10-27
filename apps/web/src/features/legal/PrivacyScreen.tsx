@@ -1,9 +1,16 @@
+import { PUBLIC_PAGES } from '@/features/marketing/content/pages';
+
 import { LegalPage } from './LegalPage';
 
 /** `/privacy`: the same facts as the consent screen (USERFLOW §1.2), in full. */
 export function Component() {
   return (
-    <LegalPage testId="privacy-page" title="Privacy" updated="27 Oct 2026">
+    <LegalPage
+      page={PUBLIC_PAGES.privacy}
+      testId="privacy-page"
+      title="Privacy"
+      updated="27 Oct 2026"
+    >
       <p>
         Beacon ranks opportunities against your resume and preferences. This page says what it
         stores, where, who else sees it, and how to take it back.

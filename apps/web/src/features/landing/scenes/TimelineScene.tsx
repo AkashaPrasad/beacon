@@ -34,7 +34,8 @@ const DAY_MS = 86_400_000;
 const ZONE = 'Asia/Kolkata';
 
 const dayDate = (day: number) => new Date(TIMELINE_START.getTime() + day * DAY_MS);
-const deadlineOf = (day: number) => new Date(TIMELINE_START.getTime() + (day + 1) * DAY_MS - 60_000);
+const deadlineOf = (day: number) =>
+  new Date(TIMELINE_START.getTime() + (day + 1) * DAY_MS - 60_000);
 const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: ZONE });
 const dayNumber = new Intl.DateTimeFormat('en-GB', { day: 'numeric', timeZone: ZONE });
 
@@ -51,12 +52,20 @@ const PILLS = (() => {
 const LANES = Math.max(...PILLS.map((p) => p.lane)) + 1;
 
 function Pill({ pill, className }: { pill: (typeof PILLS)[number]; className?: string }) {
-  const { icon: Icon, label } = TYPE_META[pill.type];
+  const { label } = TYPE_META[pill.type];
   const band = fitBandOf(pill.fit);
   return (
-    <div className={cn('relative flex h-11 items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface-raised pr-2 pl-3', className)}>
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: `var(${band.colorVar})` }} />
-      <Icon className="size-4 shrink-0 text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />
+    <div
+      className={cn(
+        'relative flex h-11 items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface-raised pr-2 pl-3',
+        className,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-[2px]"
+        style={{ backgroundColor: `var(${band.colorVar})` }}
+      />
       <span className="sr-only">{label}: </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-caption font-medium text-fg">{pill.title}</span>
@@ -69,7 +78,13 @@ function Pill({ pill, className }: { pill: (typeof PILLS)[number]; className?: s
   );
 }
 
-function PillOnStrip({ pill, sweep }: { pill: (typeof PILLS)[number]; sweep?: MotionValue<number> }) {
+function PillOnStrip({
+  pill,
+  sweep,
+}: {
+  pill: (typeof PILLS)[number];
+  sweep?: MotionValue<number>;
+}) {
   const t = (pill.day * DAY_W + DAY_W / 2) / STRIP_W;
   const fallback = useTransform(() => 1);
   const source = sweep ?? fallback;
@@ -77,7 +92,11 @@ function PillOnStrip({ pill, sweep }: { pill: (typeof PILLS)[number]; sweep?: Mo
   const scale = useTransform(source, ...fullRange([t - 0.03, t], [0.85, 1]), { clamp: true });
   return (
     <m.div
-      style={sweep ? { opacity, scale, left: pill.day * DAY_W + 4, top: HEADER_H + 8 + pill.lane * LANE_H } : { left: pill.day * DAY_W + 4, top: HEADER_H + 8 + pill.lane * LANE_H }}
+      style={
+        sweep
+          ? { opacity, scale, left: pill.day * DAY_W + 4, top: HEADER_H + 8 + pill.lane * LANE_H }
+          : { left: pill.day * DAY_W + 4, top: HEADER_H + 8 + pill.lane * LANE_H }
+      }
       className="absolute w-[184px] origin-left"
     >
       <Pill pill={pill} />
@@ -85,7 +104,15 @@ function PillOnStrip({ pill, sweep }: { pill: (typeof PILLS)[number]; sweep?: Mo
   );
 }
 
-function Strip({ sweep, lineX, lineLabel }: { sweep?: MotionValue<number>; lineX?: MotionValue<number>; lineLabel?: MotionValue<string> }) {
+function Strip({
+  sweep,
+  lineX,
+  lineLabel,
+}: {
+  sweep?: MotionValue<number>;
+  lineX?: MotionValue<number>;
+  lineLabel?: MotionValue<string>;
+}) {
   const height = HEADER_H + 40 + LANES * LANE_H;
   return (
     <div className="relative" style={{ width: STRIP_W, height }}>
@@ -96,7 +123,10 @@ function Strip({ sweep, lineX, lineLabel }: { sweep?: MotionValue<number>; lineX
         return (
           <div
             key={day}
-            className={cn('absolute inset-y-0 border-r border-border-subtle', weekend && 'bg-surface-sunken')}
+            className={cn(
+              'absolute inset-y-0 border-r border-border-subtle',
+              weekend && 'bg-surface-sunken',
+            )}
             style={{ left: day * DAY_W, width: DAY_W }}
           >
             <p
@@ -112,12 +142,20 @@ function Strip({ sweep, lineX, lineLabel }: { sweep?: MotionValue<number>; lineX
         );
       })}
       {/* Today, fixed in place. */}
-      <div aria-hidden="true" className="absolute inset-y-0 w-0.5 bg-accent-strong opacity-30" style={{ left: TIMELINE_TODAY * DAY_W }} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-y-0 w-0.5 bg-accent-strong opacity-30"
+        style={{ left: TIMELINE_TODAY * DAY_W }}
+      />
       {PILLS.map((pill) => (
         <PillOnStrip key={pill.title} pill={pill} sweep={sweep} />
       ))}
       {lineX && (
-        <m.div aria-hidden="true" style={{ x: lineX }} className="absolute inset-y-0 left-0 w-0.5 bg-accent-strong">
+        <m.div
+          aria-hidden="true"
+          style={{ x: lineX }}
+          className="absolute inset-y-0 left-0 w-0.5 bg-accent-strong"
+        >
           <m.span className="absolute bottom-2 left-1.5 rounded-xs bg-accent-subtle px-1 font-mono text-mono-sm whitespace-nowrap text-accent-subtle-fg">
             {lineLabel}
           </m.span>
@@ -142,7 +180,8 @@ function Heading() {
 function Counter({ className }: { className?: string }) {
   return (
     <p className={cn('text-body text-fg-secondary', className)}>
-      <span className="font-mono text-mono-lg text-fg">{TIMELINE.counter.value}</span> {TIMELINE.counter.rest}
+      <span className="font-mono text-mono-lg text-fg">{TIMELINE.counter.value}</span>{' '}
+      {TIMELINE.counter.rest}
     </p>
   );
 }
@@ -153,9 +192,14 @@ function TimelinePinned() {
   const { w: vw } = useElementSize(viewport, { w: 1100, h: 260 });
   const { scrollYProgress: p } = useScroll({ target: ref, offset: landing.timeline.offset });
   const sweep = useTransform(p, ...fullRange(landing.timeline.sweep, [0, 1]), { clamp: true });
-  const stripX = useTransform([sweep, vw], ([s = 0, v = 0]: number[]) => -Math.max(0, STRIP_W - v) * s);
+  const stripX = useTransform(
+    [sweep, vw],
+    ([s = 0, v = 0]: number[]) => -Math.max(0, STRIP_W - v) * s,
+  );
   const lineX = useTransform(sweep, (s) => s * (STRIP_W - 2));
-  const lineLabel = useTransform(sweep, (s) => formatShortDate(dayDate(Math.min(TIMELINE_DAYS - 1, Math.floor(s * TIMELINE_DAYS))), ZONE));
+  const lineLabel = useTransform(sweep, (s) =>
+    formatShortDate(dayDate(Math.min(TIMELINE_DAYS - 1, Math.floor(s * TIMELINE_DAYS))), ZONE),
+  );
   const end = landing.timeline.sweep[1];
   const counterOpacity = useTransform(p, ...fullRange([end, end + 0.1], [0, 1]), { clamp: true });
   const counterY = useTransform(p, ...fullRange([end, end + 0.1], [8, 0]), { clamp: true });
@@ -165,7 +209,10 @@ function TimelinePinned() {
       <div className="sticky top-0 flex h-svh flex-col justify-center gap-8 overflow-hidden pt-14">
         <Heading />
         <div className="mx-auto w-full max-w-content px-gutter">
-          <div ref={viewport} className="relative overflow-hidden rounded-xl border border-border bg-surface">
+          <div
+            ref={viewport}
+            className="relative overflow-hidden rounded-xl border border-border bg-surface"
+          >
             <m.div style={{ x: stripX }}>
               <Strip sweep={sweep} lineX={lineX} lineLabel={lineLabel} />
             </m.div>
@@ -201,7 +248,10 @@ function TimelineStatic() {
 
 const agendaReveal = {
   hidden: variants.reveal.hidden,
-  visible: (i: number) => ({ ...variants.reveal.visible, transition: { ...springs.smooth, delay: stagger(i, timing.revealStagger) ?? 0 } }),
+  visible: (i: number) => ({
+    ...variants.reveal.visible,
+    transition: { ...springs.smooth, delay: stagger(i, timing.revealStagger) ?? 0 },
+  }),
 };
 
 /** Phones: a vertical agenda; day groups reveal as they scroll in. */
@@ -212,8 +262,17 @@ function TimelineAgenda() {
       <Heading />
       <ol className="mx-auto mt-8 flex w-full max-w-content flex-col gap-5 px-gutter">
         {days.map((day, i) => (
-          <m.li key={day} custom={i} variants={agendaReveal} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}>
-            <p className="mb-2 font-mono text-mono-sm text-fg-tertiary uppercase">{formatShortDate(dayDate(day), ZONE)}</p>
+          <m.li
+            key={day}
+            custom={i}
+            variants={agendaReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.5 }}
+          >
+            <p className="mb-2 font-mono text-mono-sm text-fg-tertiary uppercase">
+              {formatShortDate(dayDate(day), ZONE)}
+            </p>
             <ul className="flex flex-col gap-2">
               {PILLS.filter((p) => p.day === day).map((pill) => (
                 <li key={pill.title}>
@@ -235,4 +294,3 @@ export default function TimelineScene() {
   if (!desktop) return <TimelineAgenda />;
   return reduced ? <TimelineStatic /> : <TimelinePinned />;
 }
-

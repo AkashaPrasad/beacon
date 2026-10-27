@@ -1,4 +1,15 @@
-import { Activity, Bell, Keyboard, LogOut, Rss, Settings, User, type LucideIcon } from 'lucide-react';
+import {
+  Activity,
+  Bell,
+  BellRing,
+  Compass,
+  Keyboard,
+  LogOut,
+  Rss,
+  Settings,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 import { isAdmin, useMe } from '@/api/me';
@@ -8,7 +19,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/compone
 import { openSheet, useOpenSheet } from './shell-state';
 import { useSignOut } from './use-sign-out';
 
-/** Mobile "Me" tab: Profile, Sources, Settings, Notifications, Shortcuts, Sign out (DESIGN §10.1). */
+/** Mobile "Me" tab: Alerts, Sources, Notifications, Profile, Settings, Admin (admins), Show me around, Shortcuts, Sign out. */
 export function MeSheet() {
   const open = useOpenSheet() === 'me';
   const navigate = useNavigate();
@@ -19,11 +30,14 @@ export function MeSheet() {
     void navigate(to);
   };
   const rows: { icon: LucideIcon; label: string; action: () => void }[] = [
-    { icon: User, label: 'Profile', action: () => go('/profile') },
+    { icon: BellRing, label: 'Alerts', action: () => go('/alerts') },
     { icon: Rss, label: 'Sources', action: () => go('/sources') },
-    { icon: Settings, label: 'Settings', action: () => go('/settings/appearance') },
     { icon: Bell, label: 'Notifications', action: () => go('/notifications') },
+    { icon: User, label: 'Profile', action: () => go('/profile') },
+    { icon: Settings, label: 'Settings', action: () => go('/settings/appearance') },
     ...(isAdmin(me) ? [{ icon: Activity, label: 'Admin', action: () => go('/admin') }] : []),
+    // The spotlight tour listens for `?tour=1` on the radar (features/onboarding/tour).
+    { icon: Compass, label: 'Show me around', action: () => go('/radar?tour=1') },
     { icon: Keyboard, label: 'Shortcuts', action: () => openSheet('shortcuts') },
     {
       icon: LogOut,
@@ -50,7 +64,7 @@ export function MeSheet() {
               <button
                 type="button"
                 onClick={action}
-                className="flex h-touch w-full items-center gap-3 rounded-md px-3 text-body text-fg active:bg-surface-active focus-visible:focus-ring-inset"
+                className="press flex h-touch w-full items-center gap-3 rounded-md px-3 text-body text-fg hover:bg-surface-hover active:bg-surface-active focus-visible:focus-ring-inset"
               >
                 <Icon className="size-5 text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />
                 {label}

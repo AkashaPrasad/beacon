@@ -1,4 +1,14 @@
-import { Activity, Keyboard, LogOut, Monitor, Moon, Settings, Sun, User } from 'lucide-react';
+import {
+  Compass,
+  Activity,
+  Keyboard,
+  LogOut,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  User,
+} from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 import { isAdmin, useMe } from '@/api/me';
@@ -18,6 +28,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useTour } from '@/features/onboarding/tour/SpotlightTour';
 import type { ThemePref } from '@/lib/theme/appearance';
 import { useTheme } from '@/lib/theme/context';
 import { Shortcut } from '@kestrel/ui';
@@ -32,6 +43,7 @@ export function UserMenu() {
   const navigate = useNavigate();
   const { appearance, setAppearance } = useTheme();
   const signOut = useSignOut();
+  const tour = useTour();
   const user = me?.user;
 
   return (
@@ -76,6 +88,9 @@ export function UserMenu() {
           <DropdownMenuShortcut>
             <Shortcut keys="g ," />
           </DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => tour.start()}>
+          <Compass /> Show me around
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => openSheet('shortcuts')}>
           <Keyboard /> Shortcuts

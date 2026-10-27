@@ -67,9 +67,13 @@ function base({ tsconfigRootDir, globals: extraGlobals = {} }) {
     {
       plugins: { 'import-x': importX },
       settings: {
-        'import-x/internal-regex': '^@kestrel/',
+        'import-x/internal-regex': '^(@kestrel/|@/)',
         'import-x/resolver-next': [
-          createTypeScriptImportResolver({ alwaysTryTypes: true, noWarnOnMultipleProjects: true }),
+          createTypeScriptImportResolver({
+            project: `${tsconfigRootDir}/tsconfig.json`,
+            alwaysTryTypes: true,
+            noWarnOnMultipleProjects: true,
+          }),
         ],
       },
       rules: {

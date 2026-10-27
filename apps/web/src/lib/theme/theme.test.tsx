@@ -54,7 +54,7 @@ describe('appearance model', () => {
         motion: 'full',
       }),
     ).toEqual({
-      theme: 'system',
+      theme: 'light',
       accent: 'amber',
       density: 'comfortable',
       fontSize: 'xl',

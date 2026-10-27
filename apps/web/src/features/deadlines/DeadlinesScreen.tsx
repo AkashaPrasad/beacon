@@ -1,12 +1,12 @@
 /**
  * Deadlines: `/deadlines` (DESIGN §10.3, USERFLOW §3.3). Week strips for the next 4 / 8 / 12 weeks
- * (one past week for context), filters in the URL (`types`, `minFit`, `weeks`, `saved`), and the
- * listing drawer on `?open=<id>` so Back closes it. Pills drag to the tracker dock; `a` tracks the
+ * (one past week for context), filters in the URL (`types`, `minFit`, `weeks`, `saved`); a pill
+ * opens the full listing page (`/radar/:id`). Pills drag to the tracker dock; `a` tracks the
  * focused pill; `t` jumps to today; `[` / `]` page weeks. Phones get the vertical agenda.
  */
 import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import { useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import { useMe } from '@/api/me';
 import { useCommandItems } from '@/components/command-palette/registry';
@@ -22,9 +22,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { ListingDrawer } from '@/features/radar/components/drawer/ListingDrawer';
 import { FitThreshold, ViewSwitch } from '@/features/radar/components/RadarToolbar';
 import { useListingActions } from '@/features/radar/hooks/useListingActions';
+import { setListingContext } from '@/features/radar/lib/listingContext';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { OPPORTUNITY_TYPES } from '@kestrel/shared';
 import { TYPE_META, useNow } from '@kestrel/ui';
@@ -35,7 +35,6 @@ import {
   deadlineFeedQuery,
   deadlineParamsFrom,
   deadlineParamsTo,
-  timelineOrder,
   WEEK_OPTIONS,
   type DeadlineParams,
   type TimelineItem,
@@ -49,11 +48,13 @@ export function Component() {
 function DeadlinesScreen() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const me = useMe();
   const now = useNow(60_000);
-  const nowMs = Math.floor(now.getTime() / 60_000) * 60_000;
-  const timeZone = me.data?.settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
-  const aiEnabled = me.data?.settings.aiEnabled ?? true;
+  const timeZone =
+    me.data?.settings.timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'Asia/Kolkata';
   const phone = !useMediaQuery('(min-width: 768px)');
   const actions = useListingActions();
   const headerRef = useRef<HTMLDivElement>(null);
@@ -63,50 +64,35 @@ function DeadlinesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const query = useMemo(() => deadlineFeedQuery(value), [key]);
   const feed = useDeadlineFeed(query, { now, timeZone, weeks: value.weeks });
-  const openId = params.get('open');
-
   const update = useCallback(
     (patch: Partial<DeadlineParams>) =>
-      setParams((prev) => deadlineParamsTo({ ...deadlineParamsFrom(prev), ...patch }, prev), { replace: true }),
+      setParams((prev) => deadlineParamsTo({ ...deadlineParamsFrom(prev), ...patch }, prev), {
+        replace: true,
+      }),
     [setParams],
   );
+  // Page-based navigation (UX-RESTRUCTURE §1.1): a pill opens the full listing page; Back returns here.
   const openListing = useCallback(
-    (id: string, replace = false) =>
-      setParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('open', id);
-          return next;
-        },
-        // Opening pushes history (Back closes the drawer); swapping listings replaces it.
-        { replace: replace || params.has('open') },
-      ),
-    [setParams, params],
+    (id: string) => {
+      setListingContext({
+        origin: `${location.pathname}${location.search}`,
+        ids: feed.rows.map((row) => row.listing.id),
+        scrollY: window.scrollY,
+      });
+      void navigate(`/radar/${id}`, { viewTransition: true, state: { fromList: true } });
+    },
+    [navigate, location.pathname, location.search, feed.rows],
   );
-  const closeListing = () => {
-    const id = openId;
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('open');
-      return next;
-    });
-    if (id) {
-      requestAnimationFrame(() =>
-        document.querySelector<HTMLElement>(`[data-testid="deadlines-pill"][data-listing-id="${CSS.escape(id)}"]`)?.focus(),
-      );
-    }
-  };
-
-  const order = useMemo(() => timelineOrder(feed.model), [feed.model]);
-  const index = openId ? order.indexOf(openId) : -1;
-  const prevId = index > 0 ? (order[index - 1] ?? null) : null;
-  const nextId = index >= 0 ? (order[index + 1] ?? null) : null;
 
   const track = (item: TimelineItem) =>
     actions.track({ id: item.id, title: item.title, trackerItemId: item.trackerItemId });
 
   const toggleType = (type: (typeof OPPORTUNITY_TYPES)[number]) =>
-    update({ types: value.types.includes(type) ? value.types.filter((t) => t !== type) : [...value.types, type] });
+    update({
+      types: value.types.includes(type)
+        ? value.types.filter((t) => t !== type)
+        : [...value.types, type],
+    });
 
   useCommandItems(
     () => [
@@ -132,7 +118,7 @@ function DeadlinesScreen() {
         perform: () => toggleType(type),
       })),
     ],
-     
+
     [key],
   );
 
@@ -145,7 +131,7 @@ function DeadlinesScreen() {
 
   return (
     <div data-testid="deadlines-page" className="flex min-h-full flex-col">
-      <div ref={headerRef} className="border-b border-border-subtle bg-surface">
+      <div ref={headerRef} className="glass sticky top-(--topbar-h) z-sticky border-b">
         <div className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 px-gutter py-2 md:px-8">
           <h1 className={phone ? 'sr-only' : 'font-display text-h1 text-fg'}>Deadlines</h1>
           <ViewSwitch
@@ -154,7 +140,8 @@ function DeadlinesScreen() {
             showLabels={!phone}
             onChange={(view) => {
               if (view === 'list') void navigate('/radar', { viewTransition: true });
-              else if (view === 'board') void navigate('/radar?view=board', { viewTransition: true });
+              else if (view === 'board')
+                void navigate('/radar?view=board', { viewTransition: true });
             }}
           />
           <DropdownMenu>
@@ -184,7 +171,10 @@ function DeadlinesScreen() {
               {value.types.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem checked={false} onCheckedChange={() => update({ types: [] })}>
+                  <DropdownMenuCheckboxItem
+                    checked={false}
+                    onCheckedChange={() => update({ types: [] })}
+                  >
                     Show all types
                   </DropdownMenuCheckboxItem>
                 </>
@@ -203,7 +193,11 @@ function DeadlinesScreen() {
           />
           <div className="ml-auto flex items-center gap-3">
             <label className="flex items-center gap-2 text-small text-fg-secondary">
-              <Switch checked={value.savedOnly} onCheckedChange={(savedOnly) => update({ savedOnly })} data-testid="deadlines-saved-only" />
+              <Switch
+                checked={value.savedOnly}
+                onCheckedChange={(savedOnly) => update({ savedOnly })}
+                data-testid="deadlines-saved-only"
+              />
               Saved only
             </label>
             <DropdownMenu>
@@ -214,7 +208,10 @@ function DeadlinesScreen() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuRadioGroup value={String(value.weeks)} onValueChange={(weeks) => update({ weeks: Number(weeks) as WeeksOption })}>
+                <DropdownMenuRadioGroup
+                  value={String(value.weeks)}
+                  onValueChange={(weeks) => update({ weeks: Number(weeks) as WeeksOption })}
+                >
                   {WEEK_OPTIONS.map((weeks) => (
                     <DropdownMenuRadioItem key={weeks} value={String(weeks)}>
                       Next {weeks} weeks
@@ -232,36 +229,20 @@ function DeadlinesScreen() {
           feed={feed}
           timeZone={timeZone}
           now={now}
-          openId={openId}
+          openId={null}
           onOpen={(id) => openListing(id)}
           onTrack={track}
-          onShowAllTypes={value.types.length || value.savedOnly || value.minFit > 0 ? () => update({ types: [], savedOnly: false, minFit: 0 }) : undefined}
-          onMoreWeeks={() => update({ weeks: (value.weeks === 4 ? 8 : 12) })}
+          onShowAllTypes={
+            value.types.length || value.savedOnly || value.minFit > 0
+              ? () => update({ types: [], savedOnly: false, minFit: 0 })
+              : undefined
+          }
+          onMoreWeeks={() => update({ weeks: value.weeks === 4 ? 8 : 12 })}
           canShowMoreWeeks={value.weeks < 12}
           weeks={value.weeks}
           stickyTop={0}
         />
       </div>
-
-      <ListingDrawer
-        listingId={openId}
-        onClose={closeListing}
-        onOpenListing={(id) => openListing(id, true)}
-        prevId={prevId}
-        nextId={nextId}
-        onPrev={() => prevId && openListing(prevId, true)}
-        onNext={() => nextId && openListing(nextId, true)}
-        onHide={(listing) => {
-          actions.hide(listing);
-          if (nextId) openListing(nextId, true);
-          else if (prevId) openListing(prevId, true);
-          else closeListing();
-        }}
-        actions={actions}
-        timeZone={timeZone}
-        aiEnabled={aiEnabled}
-        nowMs={nowMs}
-      />
     </div>
   );
 }

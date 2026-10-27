@@ -5,7 +5,7 @@
  */
 export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
 export const RESUME_ACCEPT =
-  '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  '.pdf,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg';
 
 const PDF_MIME = 'application/pdf';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -42,10 +42,14 @@ export function fileTypeLabel(file: Pick<File, 'name' | 'type'>): string {
   return 'file without an extension';
 }
 
+const IMAGE_MIMES = ['image/png', 'image/jpeg'];
+
+/** PDF, DOCX, or a photo/scan as PNG or JPEG (the API reads images with OCR, API.md §4). */
 export function isAcceptedResume(file: Pick<File, 'name' | 'type'>): boolean {
   const ext = extensionOf(file.name);
-  if (ext === 'pdf' || ext === 'docx') return true;
-  return file.type === PDF_MIME || file.type === DOCX_MIME;
+  if (ext === 'pdf' || ext === 'docx' || ext === 'png' || ext === 'jpg' || ext === 'jpeg')
+    return true;
+  return file.type === PDF_MIME || file.type === DOCX_MIME || IMAGE_MIMES.includes(file.type);
 }
 
 /** Client-side pre-check so wrong files fail instantly, before any bytes are sent. */
@@ -79,15 +83,15 @@ export interface IssueCopy {
   actions: readonly ('manual' | 'docx' | 'retry' | 'choose')[];
 }
 
-const LIMIT_LINE = `Beacon reads PDF or DOCX up to ${formatBytes(RESUME_MAX_BYTES)}.`;
+const LIMIT_LINE = `Beacon reads PDF, DOCX, PNG or JPG up to ${formatBytes(RESUME_MAX_BYTES)}.`;
 
 /** Final copy (USERFLOW §1.4 errors; DESIGN §8 voice: what failed, why, the fix). */
 export function describeIssue(issue: ResumeIssue): IssueCopy {
   switch (issue.kind) {
     case 'no-text':
       return {
-        title: 'This PDF looks like an image',
-        body: "We couldn't read its text. Fill in the essentials instead — it takes about a minute.",
+        title: 'We couldn’t read any text in this file',
+        body: 'Even after reading it as a scan. Try a clearer copy, or answer 3 quick questions instead.',
         actions: ['manual', 'docx'],
       };
     case 'unreadable':

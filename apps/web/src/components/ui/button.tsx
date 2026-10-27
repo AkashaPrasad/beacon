@@ -20,16 +20,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-active',
+        primary:
+          'bg-accent text-accent-fg shadow-sm hover:bg-accent-hover active:bg-accent-active active:shadow-none',
         secondary:
-          'border border-border bg-surface-raised text-fg hover:border-border-strong hover:bg-surface-hover active:bg-surface-active',
+          'e2 border border-border-subtle text-fg hover:border-border-strong hover:bg-surface-hover active:bg-surface-active active:shadow-e1',
         ghost: 'text-fg-secondary hover:bg-surface-hover hover:text-fg active:bg-surface-active',
         danger: 'bg-danger text-danger-fg hover:opacity-90 active:opacity-80',
-        link: 'press-none h-auto px-0 text-accent-strong underline-offset-3 hover:underline active:opacity-70',
+        link: 'press-none h-auto px-0 text-accent-strong underline-offset-3 hover:text-accent-strong-hover hover:underline active:opacity-70',
         // shadcn aliases, so copied blocks keep working
-        default: 'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-active',
+        default:
+          'bg-accent text-accent-fg shadow-sm hover:bg-accent-hover active:bg-accent-active active:shadow-none',
         outline:
-          'border border-border bg-surface-raised text-fg hover:border-border-strong hover:bg-surface-hover active:bg-surface-active',
+          'e2 border border-border-subtle text-fg hover:border-border-strong hover:bg-surface-hover active:bg-surface-active active:shadow-e1',
         destructive: 'bg-danger text-danger-fg hover:opacity-90 active:opacity-80',
       },
       size: {
@@ -52,9 +54,19 @@ type ButtonProps = React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     /** Render the child element (e.g. a router `Link`) with button styles. */
     asChild?: boolean;
+    /** One-time soft accent glow pulse on mount (the page's single primary CTA). */
+    glow?: boolean;
   };
 
-function Button({ className, variant, size, asChild = false, type, ...props }: ButtonProps) {
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  glow = false,
+  type,
+  ...props
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : 'button';
   return (
     <Comp
@@ -62,6 +74,7 @@ function Button({ className, variant, size, asChild = false, type, ...props }: B
       data-variant={variant ?? 'secondary'}
       data-size={size ?? 'md'}
       type={asChild ? undefined : (type ?? 'button')}
+      data-glow={glow || undefined}
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />

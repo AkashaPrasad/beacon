@@ -15,7 +15,7 @@ original build prompt). This brief records the **decisions that override or refi
   and only dives when it has spotted something worth it. Tone: calm, precise, confident. Never
   "Supercharge your career ✨".
 - Web: `https://beacon.spacesdrive.cc` (Cloudflare Pages project `beacon`)
-- API: `https://api.beacon.spacesdrive.cc` (Cloudflare-proxied → AWS EC2, ap-south-1)
+- API: `https://api-beacon.spacesdrive.cc` (Cloudflare-proxied → AWS EC2, ap-south-1)
 - GitHub: `AkashaPrasad/beacon` (public)
 - Brand assets live in `apps/web/public/brand/` (source SVGs also in `brand/` at repo root).
 
@@ -40,7 +40,7 @@ docs/            SPEC, BRIEF, DESIGN, ARCHITECTURE, DECISIONS, PROGRESS, TESTING
    The react-email dependency is not used.
 2. **LLM default = Meta Model API** (`LLM_BASE_URL=https://api.meta.ai/v1`,
    `LLM_MODEL=muse-spark-1.3-contributor`, OpenAI-compatible chat completions,
-   `response_format: {type:"json_object"}` works). It is a *reasoning* model: reasoning tokens count
+   `response_format: {type:"json_object"}` works). It is a _reasoning_ model: reasoning tokens count
    toward `max_tokens`, so always set `max_tokens ≥ 4096` for structured outputs and parse
    `choices[0].message.content` as JSON (strip code fences defensively). Users may BYOK any
    OpenAI-compatible provider from Settings; **AI-off mode must work fully** (embeddings + rules).
@@ -99,7 +99,7 @@ Mobile: bottom tab bar, bottom-sheet drawer, swipe gestures on cards. WCAG 2.2 A
 
 ## Addendum (2026-10-27, after wave 1)
 
-- **The product is named Beacon** (renamed from Kestrel). Hosts `beacon.spacesdrive.cc` / `api.beacon.spacesdrive.cc`, repo `AkashaPrasad/beacon`, cookie `beacon_session`, localStorage prefix `beacon:`, brand files `brand/beacon-*.svg`. The npm scope stays `@kestrel/*` **until the orchestrator sweeps it to `@beacon/*` in one pass at the end of wave 2** — do not rename package scopes yourself; just use "Beacon" in every user-facing string, doc and config name.
+- **The product is named Beacon** (renamed from Kestrel). Hosts `beacon.spacesdrive.cc` / `api-beacon.spacesdrive.cc`, repo `AkashaPrasad/beacon`, cookie `beacon_session`, localStorage prefix `beacon:`, brand files `brand/beacon-*.svg`. The npm scope stays `@kestrel/*` **until the orchestrator sweeps it to `@beacon/*` in one pass at the end of wave 2** — do not rename package scopes yourself; just use "Beacon" in every user-facing string, doc and config name.
 - **Polish mandate (owner's words): "crazy landing page, crazy UI and UX … just like Apple's software, how seamless and smooth it is, all the small things."** Concretely: every interaction has a considered press/hover/focus state; transitions use shared layout (`layoutId`) where an element moves between states; lists use layout animations on reorder/remove; skeleton→content crossfades (never a pop); numbers count up; drawers/sheets are spring-driven and interruptible; nothing janks (transform/opacity only, no layout thrash, virtualised lists); scroll-driven storytelling on the landing page; haptic-feeling spring curves. All of this still honours `prefers-reduced-motion` and the 250 ms ceiling for UI chrome (landing storytelling may use scroll-linked progress instead of durations). `docs/MOTION.md` (being written by the design agent) is the authoritative spec for this.
 - **Owner priority (verbatim intent): everything must work seamlessly and fast, UX must be very good and user-friendly, while keeping ALL options.** Rule: never remove a capability to simplify a screen — use progressive disclosure instead (smart defaults first; advanced controls one click away in a popover/sheet/"More" section; power features reachable by keyboard and ⌘K). Speed is a feature: optimistic updates everywhere, prefetch on hover/focus, persisted query cache, skeletons within 100 ms, no spinner-only screens, route code-splitting, interactions never block on the network.
 - **Email + password sign-in (owner request, 2026-10-27 evening):** in addition to Google, users can register/login with email + password (`POST /v1/auth/register`, `POST /v1/auth/login`; argon2id or bcrypt(12); zod password rule ≥ 8 chars; rate-limited; same `beacon_session` cookie). No email verification/reset (no email provider) — say so honestly in the UI. **Admin account:** seeded on API boot from `ADMIN_EMAIL`/`ADMIN_PASSWORD` with `role: 'admin'`; `GET /v1/admin/overview` (users, listings, sources by health, queue depths, crawler backend + credits, recent source runs) guarded by `requireRole('admin')`; web `/admin` screen (foundation-owned) shows it as a compact ops dashboard. Users have `role: 'user' | 'admin'`; `/v1/me` returns it.

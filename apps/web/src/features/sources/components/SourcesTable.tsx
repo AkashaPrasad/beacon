@@ -13,16 +13,17 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  CirclePause,
+  CirclePlay,
   Columns3,
   MoreHorizontal,
-  PanelRightOpen,
   Pencil,
   RefreshCw,
   SquareArrowOutUpRight,
   Trash2,
 } from 'lucide-react';
 import { m } from 'motion/react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cssEscape, rememberOpened, useListMemory } from '@/lib/list-memory';
 import { useBreakpoint } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
 import type { RefreshInterval } from '@kestrel/shared';
@@ -67,7 +69,6 @@ import {
   INTERVAL_LABELS,
   INTERVAL_OPTIONS,
   KIND_LABELS,
-  shortPackName,
   type SourceTableRow,
 } from '../lib/rows';
 
@@ -86,11 +87,12 @@ type ColumnId =
   | 'health'
   | 'name'
   | 'kind'
-  | 'scope'
   | 'types'
   | 'interval'
   | 'lastChecked'
+  | 'nextCheck'
   | 'listings'
+  | 'errors'
   | 'enabled'
   | 'menu';
 
@@ -104,22 +106,37 @@ interface ColumnMeta {
 
 export const SOURCES_COLUMNS_KEY = 'beacon:sources:columns';
 
-/** The simple list (default): what most people need to scan. */
-const SIMPLE_ORDER: ColumnOrderState = ['name', 'kind', 'health', 'listings', 'enabled', 'menu'];
-const SIMPLE_HIDDEN: VisibilityState = { scope: false, types: false, interval: false, lastChecked: false };
-/** "Details": every column, health first (DESIGN §10.5). */
+/** The simple list (default, UX v2 §2.5): health (icon + word) · logo + name · kind · listings · switch, plus ⋯. */
+const SIMPLE_ORDER: ColumnOrderState = ['health', 'name', 'kind', 'listings', 'enabled', 'menu'];
+const SIMPLE_HIDDEN: VisibilityState = {
+  types: false,
+  interval: false,
+  lastChecked: false,
+  nextCheck: false,
+  errors: false,
+};
+/** "Details": adds tag, interval, last and next check, and errors. */
 const DETAILS_ORDER: ColumnOrderState = [
   'health',
   'name',
   'kind',
-  'scope',
   'types',
   'interval',
   'lastChecked',
+  'nextCheck',
   'listings',
+  'errors',
   'enabled',
   'menu',
 ];
+/** Above this many rows the list virtualises inside a viewport-high scroller; below, it is a plain list. */
+const VIRTUALISE_FROM = 60;
+const INTERVAL_MS: Record<RefreshInterval, number> = {
+  '1h': 3_600_000,
+  '6h': 6 * 3_600_000,
+  daily: 86_400_000,
+  weekly: 7 * 86_400_000,
+};
 
 const helper = createColumnHelper<SourceTableRow>();
 
@@ -133,6 +150,8 @@ function SortIcon({ dir }: { dir: false | 'asc' | 'desc' }) {
     />
   );
 }
+
+const EMPTY_SORTING: SortingState = [];
 
 /**
  * Sources table (DESIGN §10.5). By default a calm list: name, how it's read, a health mark, listings
@@ -159,19 +178,21 @@ export function SourcesTable({
   const phone = bp === 'base' || bp === 'sm';
   const [sorting, setSorting] = useState<SortingState>([]);
   const showDetails = details && !phone;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  /** A row opens its full page: remember it, so Back lands on the same row and scroll position. */
+  const open = useCallback(
+    (row: SourceTableRow) => rememberOpened('sources', row.id, { table: scrollRef.current }),
+    [],
+  );
 
   const columns = useMemo(
     () => [
       helper.accessor((r) => HEALTH_ORDER[r.status], {
         id: 'health',
         header: 'Health',
-        meta: { width: '112px', simpleWidth: '48px', align: undefined, label: 'Health' } satisfies ColumnMeta,
+        meta: { width: '112px', align: undefined, label: 'Health' } satisfies ColumnMeta,
         cell: ({ row }) => (
-          <HealthBadge
-            status={row.original.status}
-            reason={row.original.reason}
-            variant={showDetails ? 'word' : 'icon'}
-          />
+          <HealthBadge status={row.original.status} reason={row.original.reason} />
         ),
       }),
       helper.accessor('name', {
@@ -185,7 +206,7 @@ export function SourcesTable({
             onMouseEnter={() => actions.onPrefetch?.(row.original)}
             onFocus={() => actions.onPrefetch?.(row.original)}
             aria-disabled={row.original.optimistic || undefined}
-            onClick={(e) => row.original.optimistic && e.preventDefault()}
+            onClick={(e) => (row.original.optimistic ? e.preventDefault() : open(row.original))}
             className="group/name -mx-1 flex min-w-0 items-center gap-2.5 rounded-sm px-1 py-1 focus-visible:focus-ring-inset"
           >
             <CompanyLogo name={row.original.name} domain={row.original.domain} size={20} />
@@ -210,23 +231,6 @@ export function SourcesTable({
         header: 'Read as',
         meta: { width: '136px', label: 'Read as' } satisfies ColumnMeta,
         cell: ({ row }) => <KindBadge kind={row.original.kind} />,
-      }),
-      helper.accessor((r) => (r.scope === 'personal' ? '0' : `1${r.packName ?? ''}`), {
-        id: 'scope',
-        header: 'Scope',
-        meta: { width: '148px', label: 'Scope' } satisfies ColumnMeta,
-        cell: ({ row }) =>
-          row.original.scope === 'personal' || !row.original.packId ? (
-            <span className="text-small text-fg-secondary">Yours</span>
-          ) : (
-            <Link
-              to={packPath(row.original.packId)}
-              className="max-w-full truncate rounded-xs text-small text-fg-secondary hover:text-fg hover:underline focus-visible:focus-ring"
-              title={row.original.packName ?? undefined}
-            >
-              {shortPackName(row.original.packName ?? 'Pack')}
-            </Link>
-          ),
       }),
       helper.accessor((r) => r.typeTag ?? '', {
         id: 'types',
@@ -294,6 +298,34 @@ export function SourcesTable({
           </span>
         ),
       }),
+      helper.accessor(
+        (r) =>
+          r.enabled && r.lastCheckedAt
+            ? new Date(r.lastCheckedAt).getTime() + INTERVAL_MS[r.refreshInterval]
+            : Infinity,
+        {
+          id: 'nextCheck',
+          header: 'Next check',
+          meta: { width: '112px', label: 'Next check' } satisfies ColumnMeta,
+          cell: ({ row }) => {
+            const r = row.original;
+            if (!r.enabled) return <span className="text-small text-fg-tertiary">Paused</span>;
+            if (!r.lastCheckedAt)
+              return <span className="text-small text-fg-tertiary">After the first</span>;
+            const next = new Date(
+              new Date(r.lastCheckedAt).getTime() + INTERVAL_MS[r.refreshInterval],
+            );
+            return (
+              <span
+                className="font-mono text-mono-sm whitespace-nowrap text-fg-secondary"
+                title={formatAbsolute(next)}
+              >
+                {next.getTime() <= now.getTime() ? 'Due now' : formatRelative(next, now)}
+              </span>
+            );
+          },
+        },
+      ),
       helper.accessor('listingsFound', {
         id: 'listings',
         header: 'Listings',
@@ -303,6 +335,26 @@ export function SourcesTable({
             <span className="font-mono text-mono text-fg-tertiary">—</span>
           ) : (
             <CountUp value={row.original.listingsFound} className="text-right text-mono text-fg" />
+          ),
+      }),
+      helper.accessor((r) => (r.status === 'error' || r.status === 'warning' ? r.reason : ''), {
+        id: 'errors',
+        header: 'Errors',
+        enableSorting: false,
+        meta: { width: 'minmax(120px, 0.7fr)', label: 'Errors' } satisfies ColumnMeta,
+        cell: ({ row }) =>
+          row.original.status === 'error' || row.original.status === 'warning' ? (
+            <span
+              className={cn(
+                'truncate text-small',
+                row.original.status === 'error' ? 'text-danger' : 'text-warning',
+              )}
+              title={row.original.reason}
+            >
+              {row.original.reason}
+            </span>
+          ) : (
+            <span className="text-small text-fg-tertiary">None</span>
           ),
       }),
       helper.accessor('enabled', {
@@ -348,15 +400,24 @@ export function SourcesTable({
         cell: ({ row }) => <RowMenu row={row.original} actions={actions} />,
       }),
     ],
-    [actions, now, showDetails],
+    [actions, now, showDetails, open],
   );
 
   const effectiveVisibility = useMemo((): VisibilityState => {
     if (phone) {
-      return { kind: false, scope: false, types: false, interval: false, lastChecked: false, health: false };
+      return {
+        kind: false,
+        types: false,
+        interval: false,
+        lastChecked: false,
+        nextCheck: false,
+        errors: false,
+        health: false,
+      };
     }
     if (!showDetails) return SIMPLE_HIDDEN;
-    const narrow: VisibilityState = bp === 'md' || bp === 'lg' ? { scope: false, types: false } : {};
+    const narrow: VisibilityState =
+      bp === 'md' || bp === 'lg' ? { types: false, errors: false } : {};
     return { ...narrow, ...visibility };
   }, [phone, bp, visibility, showDetails]);
 
@@ -366,7 +427,7 @@ export function SourcesTable({
     columns,
     state: {
       // Sorting belongs to the details view; the simple list keeps the natural order.
-      sorting: showDetails ? sorting : [],
+      sorting: showDetails ? sorting : EMPTY_SORTING,
       columnVisibility: effectiveVisibility,
       columnOrder: showDetails ? DETAILS_ORDER : SIMPLE_ORDER,
     },
@@ -380,30 +441,44 @@ export function SourcesTable({
   const visibleColumns = table.getVisibleLeafColumns();
   const template = visibleColumns
     .map((c) => {
+      if (phone)
+        return c.id === 'name'
+          ? 'minmax(0, 1fr)'
+          : c.id === 'listings'
+            ? '40px'
+            : c.id === 'enabled'
+              ? '44px'
+              : '32px';
       const meta = c.columnDef.meta as ColumnMeta;
       return showDetails ? meta.width : (meta.simpleWidth ?? meta.width);
     })
     .join(' ');
   const tableRows = table.getRowModel().rows;
+  const virtual = tableRows.length > VIRTUALISE_FROM;
+  // Personal rows are keyed by URL, not id: the optimistic row (temp id) and the saved row (server
+  // id) stay one element, so the live insert never replays when the id swaps.
+  const rowKey = (i: number): string | number => {
+    const r = tableRows[i]?.original;
+    if (!r) return i;
+    return r.editable ? `personal:${normaliseUrlKey(r.url)}` : `pack:${r.id}`;
+  };
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useFillViewport(scrollRef);
+  useFillViewport(scrollRef, virtual);
+  useListMemory('sources', {
+    ready: tableRows.length > 0,
+    scrollers: { table: scrollRef },
+    focus: (id) => `[data-testid="source-row"][data-source-id="${cssEscape(id)}"] a[href]`,
+  });
   // TanStack Virtual returns fresh functions each render; the React Compiler skips this component.
   const virtualizer = useVirtualizer({
-    count: tableRows.length,
+    count: virtual ? tableRows.length : 0,
     getScrollElement: () => scrollRef.current,
     estimateSize: (i) => {
       const r = tableRows[i]?.original;
       const base = phone ? 64 : showDetails ? 44 : 56;
       return r && r.editable && (r.status === 'error' || r.status === 'paused') ? base + 32 : base;
     },
-    // Personal rows are keyed by URL, not id: the optimistic row (temp id) and the saved row (server
-    // id) stay one element, so the live insert never replays when the id swaps.
-    getItemKey: (i) => {
-      const r = tableRows[i]?.original;
-      if (!r) return i;
-      return r.editable ? `personal:${normaliseUrlKey(r.url)}` : `pack:${r.id}`;
-    },
+    getItemKey: (i) => rowKey(i),
     overscan: 12,
   });
 
@@ -416,7 +491,10 @@ export function SourcesTable({
         aria-rowcount={tableRows.length + 1}
         data-testid="sources-table"
         data-view={showDetails ? 'details' : 'simple'}
-        className="relative min-h-60 overflow-auto overscroll-contain [scrollbar-width:thin]"
+        className={cn(
+          'relative',
+          virtual && 'min-h-60 overflow-auto overscroll-contain [scrollbar-width:thin]',
+        )}
       >
         <div
           role="rowgroup"
@@ -485,8 +563,15 @@ export function SourcesTable({
             </div>
           </div>
         ) : (
-          <div role="rowgroup" className="relative" style={{ height: virtualizer.getTotalSize() }}>
-            {virtualizer.getVirtualItems().map((v) => {
+          <div
+            role="rowgroup"
+            className="relative"
+            style={virtual ? { height: virtualizer.getTotalSize() } : undefined}
+          >
+            {(virtual
+              ? virtualizer.getVirtualItems()
+              : tableRows.map((_, index) => ({ index, key: rowKey(index), start: 0 }))
+            ).map((v) => {
               const row = tableRows[v.index];
               if (!row) return null;
               const r = row.original;
@@ -496,7 +581,7 @@ export function SourcesTable({
               return (
                 <div
                   key={v.key}
-                  ref={virtualizer.measureElement}
+                  ref={virtual ? virtualizer.measureElement : undefined}
                   data-index={v.index}
                   data-testid="source-row"
                   data-source-id={r.id}
@@ -504,8 +589,8 @@ export function SourcesTable({
                   data-health-code={r.healthCode}
                   data-scope={r.scope}
                   role="presentation"
-                  className="absolute inset-x-0 top-0"
-                  style={{ transform: `translateY(${v.start}px)` }}
+                  className={virtual ? 'absolute inset-x-0 top-0' : 'relative'}
+                  style={virtual ? { transform: `translateY(${v.start}px)` } : undefined}
                 >
                   {age !== null ? <LiveInsertBar age={age} /> : null}
                   <m.div
@@ -540,6 +625,7 @@ export function SourcesTable({
                               row={r}
                               now={now}
                               onPrefetch={() => actions.onPrefetch?.(r)}
+                              onOpen={() => open(r)}
                             />
                           ) : (
                             flexRender(cell.column.columnDef.cell, cell.getContext())
@@ -588,10 +674,12 @@ function PhoneNameCell({
   row,
   now,
   onPrefetch,
+  onOpen,
 }: {
   row: SourceTableRow;
   now: Date;
   onPrefetch: () => void;
+  onOpen: () => void;
 }) {
   return (
     <Link
@@ -599,7 +687,7 @@ function PhoneNameCell({
       onFocus={onPrefetch}
       onTouchStart={onPrefetch}
       aria-disabled={row.optimistic || undefined}
-      onClick={(e) => row.optimistic && e.preventDefault()}
+      onClick={(e) => (row.optimistic ? e.preventDefault() : onOpen())}
       className="flex w-full min-w-0 items-start gap-2.5 rounded-sm text-left focus-visible:focus-ring-inset"
     >
       <CompanyLogo name={row.name} domain={row.domain} size={28} />
@@ -652,24 +740,23 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem asChild>
-          <Link to={sourcePath(row.id)}>
-            <PanelRightOpen strokeWidth={1.5} /> Open details
-          </Link>
-        </DropdownMenuItem>
         {row.editable ? (
           <>
             <DropdownMenuItem onSelect={() => actions.onRefresh(row)}>
-              <RefreshCw strokeWidth={1.5} /> Check now
+              <RefreshCw strokeWidth={1.5} /> Refresh now
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => actions.onEdit(row)}>
-              <Pencil strokeWidth={1.5} /> Quick edit…
+              <Pencil strokeWidth={1.5} /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => actions.onToggle(row, !row.enabled)}>
+              {row.enabled ? <CirclePause strokeWidth={1.5} /> : <CirclePlay strokeWidth={1.5} />}{' '}
+              {row.enabled ? 'Pause' : 'Resume'}
             </DropdownMenuItem>
           </>
         ) : row.packId ? (
           <DropdownMenuItem asChild>
             <Link to={packPath(row.packId)}>
-              <Columns3 strokeWidth={1.5} /> Show pack
+              <Columns3 strokeWidth={1.5} /> Show its pack
             </Link>
           </DropdownMenuItem>
         ) : null}
@@ -682,7 +769,7 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="danger" onSelect={() => actions.onDelete(row)}>
-              <Trash2 strokeWidth={1.5} /> Delete
+              <Trash2 strokeWidth={1.5} /> Delete…
             </DropdownMenuItem>
           </>
         ) : null}
@@ -701,10 +788,11 @@ export function ColumnsMenu({
 }) {
   const items: { id: ColumnId; label: string }[] = [
     { id: 'kind', label: 'Read as' },
-    { id: 'scope', label: 'Scope' },
-    { id: 'types', label: 'Types' },
+    { id: 'types', label: 'Tag' },
     { id: 'interval', label: 'Refresh interval' },
     { id: 'lastChecked', label: 'Last check' },
+    { id: 'nextCheck', label: 'Next check' },
+    { id: 'errors', label: 'Errors' },
   ];
   return (
     <DropdownMenu>
@@ -731,10 +819,14 @@ export function ColumnsMenu({
 }
 
 /** Size a scroll container to the rest of the viewport (minus the phone tab bar), without re-rendering. */
-function useFillViewport(ref: React.RefObject<HTMLElement | null>) {
+function useFillViewport(ref: React.RefObject<HTMLElement | null>, enabled: boolean) {
   useEffect(() => {
     const node = ref.current;
     if (!node) return undefined;
+    if (!enabled) {
+      node.style.height = '';
+      return undefined;
+    }
     const apply = () => {
       const top = node.getBoundingClientRect().top + window.scrollY;
       const tabbar = window.matchMedia('(min-width: 768px)').matches ? 0 : 56;
@@ -748,5 +840,5 @@ function useFillViewport(ref: React.RefObject<HTMLElement | null>) {
       window.removeEventListener('resize', apply);
       ro?.disconnect();
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }

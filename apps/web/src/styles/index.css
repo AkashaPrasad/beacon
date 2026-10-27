@@ -41,10 +41,13 @@
 }
 
 :root {
-  --font-display: 'Instrument Serif', 'Instrument Serif Fallback', Georgia, serif;
+  --font-serif: 'Instrument Serif', 'Instrument Serif Fallback', Georgia, serif;
+  --font-display:
+    'Geist Variable', 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
   --font-sans:
-    'Geist Variable', 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
-    Roboto, sans-serif;
+    'Geist Variable', 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
   /* Safe-area insets (iOS notch / home indicator) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -70,10 +73,38 @@
     background-color: var(--color-bg);
     font-size: var(--text-body);
     line-height: var(--text-body--line-height);
+    caret-color: var(--color-accent);
+    accent-color: var(--color-accent);
+  }
+  /* Atmosphere (DESIGN §4.3): two fixed radial lights and a fine grain behind everything.
+     Painted on fixed pseudo-elements so they never scroll, never intercept pointers, never repaint content. */
+  body::before,
+  #root,
+  body > div {
+    position: relative;
+    z-index: 1;
   }
   ::selection {
-    background-color: var(--color-accent-subtle);
-    color: var(--color-accent-subtle-fg);
+    background-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-tertiary);
+    background-clip: padding-box;
+  }
+  a {
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
   }
   /* One focus ring everywhere (DESIGN §9). Components may switch to focus-ring-inset. */
   :focus-visible {
@@ -81,6 +112,10 @@
     outline-offset: var(--focus-ring-offset);
   }
   :focus:not(:focus-visible) {
+    outline: none;
+  }
+  /* Programmatic focus targets (page headings, main) announce to screen readers but never draw a ring. */
+  :is(h1, h2, main, section, article)[tabindex='-1']:focus-visible {
     outline: none;
   }
   /* Numbers are tabular wherever mono is used */
@@ -137,6 +172,38 @@
   text-wrap: balance;
 }
 
+/* ── Elevation (DESIGN §4.2): e1 surface, e2 raised, e3 overlay; every lifted panel has a lighter top edge. ── */
+@utility e1 {
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-e1);
+}
+@utility e2 {
+  background-color: var(--color-surface-raised);
+  box-shadow: var(--shadow-e2);
+}
+@utility e3 {
+  background-color: var(--color-overlay);
+  box-shadow: var(--shadow-e3);
+}
+/* Chrome (top bar, tab bar, sticky toolbars): near-opaque surface with a hairline; blur ≤ 8 px only to keep
+   scrolled content from showing through. No tint. */
+@utility glass {
+  background-color: var(--color-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: var(--color-glass-border);
+}
+/* Retired decorative utilities kept as no-ops so older call sites compile (DESIGN v4: no glows). */
+@utility glow {
+  box-shadow: var(--shadow-e2);
+}
+@utility glow-pulse {
+  animation: none;
+}
+@utility light-source {
+  position: relative;
+}
+
 /* Skeleton shimmer (static under reduced motion: the token durations collapse, and we stop the loop) */
 @keyframes beacon-shimmer {
   from {
@@ -147,14 +214,14 @@
   }
 }
 @utility skeleton-shimmer {
-  position: relative;
-  overflow: hidden;
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent, var(--color-skeleton-shine), transparent);
-    animation: beacon-shimmer 1.2s linear infinite;
+  animation: beacon-loading 1.4s ease-in-out infinite alternate;
+}
+@keyframes beacon-loading {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -191,23 +258,28 @@
    Colour tints are 120 ms; only transform-like properties and colours ever transition. */
 @utility press {
   transition-property: scale, background-color, border-color, color, opacity;
-  transition-duration: var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+  transition-duration:
+    var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
     var(--duration-fast);
-  transition-timing-function: var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
+  transition-timing-function:
+    var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
   touch-action: manipulation;
   &:active:not(:disabled, [aria-disabled='true']),
   &[data-pressed] {
     scale: 0.97;
-    transition-duration: var(--duration-fast), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+    transition-duration:
+      var(--duration-fast), var(--duration-fast), var(--duration-fast), var(--duration-fast),
       var(--duration-fast);
     transition-timing-function: var(--ease-out);
   }
 }
 @utility press-icon {
   transition-property: scale, background-color, border-color, color, opacity;
-  transition-duration: var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
+  transition-duration:
+    var(--duration-base), var(--duration-fast), var(--duration-fast), var(--duration-fast),
     var(--duration-fast);
-  transition-timing-function: var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
+  transition-timing-function:
+    var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out);
   touch-action: manipulation;
   &:active:not(:disabled, [aria-disabled='true']),
   &[data-pressed] {
@@ -218,7 +290,8 @@
 }
 @utility press-card {
   transition-property: scale, translate, border-color, background-color;
-  transition-duration: var(--duration-base), var(--duration-base), var(--duration-fast), var(--duration-fast);
+  transition-duration:
+    var(--duration-base), var(--duration-base), var(--duration-fast), var(--duration-fast);
   transition-timing-function: var(--ease-spring);
   &:active {
     scale: 0.985;
@@ -269,9 +342,18 @@
 }
 /* Invalid paste shake (the only shake in the product): x ±3 px, 2 cycles, 240 ms. */
 @keyframes beacon-shake {
-  0%, 100% { translate: 0; }
-  12.5%, 62.5% { translate: -3px; }
-  37.5%, 87.5% { translate: 3px; }
+  0%,
+  100% {
+    translate: 0;
+  }
+  12.5%,
+  62.5% {
+    translate: -3px;
+  }
+  37.5%,
+  87.5% {
+    translate: 3px;
+  }
 }
 @utility shake {
   animation: beacon-shake var(--duration-slow) linear;
@@ -353,4 +435,49 @@ html[data-vt='theme']::view-transition-new(root) {
 ::view-transition-group(*) {
   animation-duration: var(--duration-slow);
   animation-timing-function: var(--ease-spring);
+}
+
+/* ── Lifted surfaces for modal/sheet panels and the palette (DESIGN §4.2 e3) ─────── */
+[data-slot='dialog-content'],
+[data-slot='sheet-content'],
+[data-slot='command-dialog'] [data-slot='command'],
+[data-vaul-drawer] {
+  background-color: var(--color-overlay) !important;
+  box-shadow: var(--shadow-e3);
+  border-color: var(--color-glass-border);
+}
+/* Sticky list/table headers pick up the glass treatment */
+[data-slot='sticky-header'] {
+  background-color: var(--color-glass);
+  backdrop-filter: blur(8px);
+}
+
+/* A visible keyboard indicator also covers inputs embedded in chip editors. */
+:is(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role='button'],
+  [role='radio'],
+  [role='checkbox']
+):focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring) !important;
+  outline-offset: var(--focus-ring-offset);
+}
+
+html[data-keyboard='true']
+  :is(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role='button'],
+    [role='radio'],
+    [role='checkbox']
+  ):focus {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring) !important;
+  outline-offset: var(--focus-ring-offset);
 }

@@ -48,6 +48,8 @@ export function withUndo<T>({
     if (last?.toastId === toastId) last = null;
     toast.dismiss(toastId);
     try {
+      // A fast Undo must run after the original write, or its late response wins.
+      await promise;
       await undo(result);
       if (undoneMessage) toast(undoneMessage);
     } catch (error) {

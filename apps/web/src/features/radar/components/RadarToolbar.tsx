@@ -7,10 +7,18 @@
  * - View switch List / Timeline / Board (keys 1 2 3) with a sliding indicator (MOTION §5.13).
  * - Sort: Best fit / Deadline / Newest.
  */
-import { ArrowDownWideNarrow, CalendarRange, ChevronDown, LayoutGrid, List, Search, X } from 'lucide-react';
+import {
+  ArrowDownWideNarrow,
+  CalendarRange,
+  ChevronDown,
+  Columns3,
+  LayoutGrid,
+  List,
+  Search,
+  X,
+} from 'lucide-react';
 import { LayoutGroup, m } from 'motion/react';
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
-
 
 import { Button } from '@/components/ui/button';
 import {
@@ -51,9 +59,12 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
     setDraft(value);
   }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
   const push = (next: string) => {
     setDraft(next);
     if (timer.current) clearTimeout(timer.current);
@@ -65,7 +76,11 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
   return (
     <label className={cn('relative flex min-w-0 items-center', className)}>
       <span className="sr-only">Search listings</span>
-      <Search className="pointer-events-none absolute left-2.5 size-4 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+      <Search
+        className="pointer-events-none absolute left-2.5 size-4 text-fg-tertiary"
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
       <input
         ref={ref}
         type="search"
@@ -156,9 +171,12 @@ export function FitThreshold({
     setDraft(value);
   }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
   const band = fitBandOf(draft);
   const commit = (next: number) => {
     setSynced(next);
@@ -215,9 +233,10 @@ export function FitThreshold({
 // ── View switch ──────────────────────────────────────────────────────────────
 
 const VIEW_META: Record<RadarView, { label: string; icon: typeof List; key: string }> = {
-  list: { label: 'List', icon: List, key: '1' },
-  timeline: { label: 'Timeline', icon: CalendarRange, key: '2' },
-  board: { label: 'Board', icon: LayoutGrid, key: '3' },
+  grid: { label: 'Grid', icon: LayoutGrid, key: '1' },
+  list: { label: 'List', icon: List, key: '2' },
+  timeline: { label: 'Timeline', icon: CalendarRange, key: '3' },
+  board: { label: 'Board', icon: Columns3, key: '4' },
 };
 
 export function ViewSwitch({
@@ -233,7 +252,11 @@ export function ViewSwitch({
 }) {
   return (
     <LayoutGroup id={group}>
-      <div role="radiogroup" aria-label="View" className="flex shrink-0 items-center rounded-sm bg-surface-sunken p-0.5">
+      <div
+        role="radiogroup"
+        aria-label="View"
+        className="flex shrink-0 items-center rounded-sm bg-surface-sunken p-0.5"
+      >
         {(Object.keys(VIEW_META) as RadarView[]).map((view) => {
           const { label, icon: Icon, key } = VIEW_META[view];
           const selected = value === view;
@@ -244,7 +267,7 @@ export function ViewSwitch({
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  aria-label={showLabels ? undefined : label}
+                  aria-label={label}
                   aria-keyshortcuts={key}
                   data-testid={`radar-view-${view}`}
                   onClick={() => onChange(view)}
@@ -280,13 +303,28 @@ export function ViewSwitch({
 
 // ── Sort ─────────────────────────────────────────────────────────────────────
 
-const SORT_LABEL: Record<RadarSort, string> = { fit: 'Best fit', deadline: 'Deadline', posted: 'Newest' };
+const SORT_LABEL: Record<RadarSort, string> = {
+  fit: 'Best fit',
+  deadline: 'Deadline',
+  posted: 'Newest',
+};
 
-export function SortMenu({ value, onChange }: { value: RadarSort; onChange: (sort: RadarSort) => void }) {
+export function SortMenu({
+  value,
+  onChange,
+}: {
+  value: RadarSort;
+  onChange: (sort: RadarSort) => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" data-testid="radar-sort" aria-label={`Sort: ${SORT_LABEL[value]}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          data-testid="radar-sort"
+          aria-label={`Sort: ${SORT_LABEL[value]}`}
+        >
           <ArrowDownWideNarrow strokeWidth={1.5} aria-hidden="true" />
           <span className="hidden xl:inline">{SORT_LABEL[value]}</span>
         </Button>
@@ -320,7 +358,9 @@ export function ActiveChips({
   if (chips.length === 0 && !trailing) return null;
   return (
     <div className="flex min-h-9 items-center gap-1.5 overflow-x-auto px-gutter py-1 [scrollbar-width:none]">
-      {chips.length > 0 && <span className="mr-0.5 shrink-0 text-label text-fg-tertiary uppercase">Active</span>}
+      {chips.length > 0 && (
+        <span className="mr-0.5 shrink-0 text-label text-fg-tertiary uppercase">Active</span>
+      )}
       {chips.map((chip) => (
         <m.span
           key={chip.id}
@@ -362,11 +402,19 @@ export function FitChip(props: FitThresholdProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" data-testid="radar-fit-threshold" className={CHIP} aria-label={`Minimum fit ${value}. Change`}>
+        <button
+          type="button"
+          data-testid="radar-fit-threshold"
+          className={CHIP}
+          aria-label={`Minimum fit ${value}. Change`}
+        >
           <span className="font-mono text-mono-sm">≥ {value}</span>
           <span
             data-testid="radar-total"
-            className={cn('font-mono text-mono-sm text-fg-tertiary transition-opacity duration-fade', pending && 'opacity-60')}
+            className={cn(
+              'font-mono text-mono-sm text-fg-tertiary transition-opacity duration-fade',
+              pending && 'opacity-60',
+            )}
           >
             {count == null ? '' : `${formatCount(count)} ${count === 1 ? 'fit' : 'fits'}`}
           </span>
@@ -395,7 +443,11 @@ export function ChipButton({
   return (
     <button
       type="button"
-      className={cn(CHIP, active && 'border-transparent bg-accent-subtle text-accent-subtle-fg', className)}
+      className={cn(
+        CHIP,
+        active && 'border-transparent bg-accent-subtle text-accent-subtle-fg',
+        className,
+      )}
       {...props}
     >
       {children}

@@ -39,6 +39,21 @@ describe('withUndo', () => {
     expect(undoLast()).toBe(false);
   });
 
+  it('waits for an in-flight save before sending Undo', async () => {
+    let finish!: (value: string) => void;
+    const saved = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    const undo = vi.fn();
+    const { promise } = withUndo({ message: 'Name updated.', run: () => saved, undo });
+    expect(undoLast()).toBe(true);
+    await Promise.resolve();
+    expect(undo).not.toHaveBeenCalled();
+    finish('saved-name');
+    await promise;
+    await vi.waitFor(() => expect(undo).toHaveBeenCalledWith('saved-name'));
+  });
+
   it('replaces the toast with an error + Retry when the action fails', async () => {
     const { promise } = withUndo({
       message: 'Saved.',

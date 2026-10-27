@@ -269,6 +269,14 @@ Sign-in in mock mode is simulated (no Google): the button goes straight to
   Settings (`shortcuts.setSingleKeyEnabled(false)`, WCAG 2.1.4). Described shortcuts show in the `?`
   sheet, grouped. Globals: `g r/d/t/s/a/p`, `g ,`, `?`, `u`, `mod+z`, `mod+k`, `/`, `[` (rail).
   Render hints with `<Shortcut keys="g r" />` and expose `aria-keyshortcuts={ariaKeyShortcuts(keys)}`.
+- **Back restores your place** (UX restructure v2 §1.1, `@/lib/list-memory`): every list that opens a full page
+  calls `rememberOpened(listKey, id, { name: scrollEl })` when a row opens (rows stay real `<a href>`), and
+  `useListMemory(listKey, { ready, scrollers: { name: ref }, focus: (id) => selector })` once its rows render. On a
+  POP within 30 min it restores the inner scroll offsets, focuses the row (`preventScroll`) and flashes a 600 ms
+  selection highlight (none under reduced motion); any other arrival starts at the top. Window scroll is the router's
+  `<ScrollRestoration>`. Detail pages go back with `useBackNavigation(parent)` (or `DetailPageHeader`). Keys in use:
+  `sources`, `pack:<id>`, `alerts`, `tracker` (radar/deadlines: pick `radar`, `deadlines`). `cssEscape(id)` builds
+  selectors safely.
 - **Offline**: `useIsOffline()` (`navigator.onLine` + `/healthz` probe after a network failure) drives
   `offline-banner`; mutations queue (above).
 - **Push**: soft ask only (`<PushSoftAsk />`, in the notification centre; screens may render it under

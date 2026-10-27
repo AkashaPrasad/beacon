@@ -23,6 +23,7 @@ export {
 } from './PageHeader';
 export { TypeBadge, type TypeBadgeProps } from './TypeBadge';
 export { TYPE_META, type OpportunityTypeKey } from './types';
+export { TYPE_TONE, typeTone, type TypeTone } from './typeTone';
 export { GhostRiskBadge, type GhostRiskBadgeProps } from './GhostRiskBadge';
 export { GHOST_META, ghostLevelOf, type GhostRiskLevelKey } from './ghost';
 export { DeadlineCountdown, type DeadlineCountdownProps } from './DeadlineCountdown';

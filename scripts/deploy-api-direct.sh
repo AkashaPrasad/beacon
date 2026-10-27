@@ -56,5 +56,5 @@ kscp "$BUNDLE/docker-compose.prod.yml" "$BUNDLE/Caddyfile" "$BUNDLE/deploy.sh" "
 info "deploying $TAG"
 kssh "$APP_PUBLIC_IP" "SKIP_PULL=1 bash /opt/beacon/incoming/deploy.sh '$TAG'"
 
-curl -fsS -m 10 "${API_URL:-https://api.beacon.spacesdrive.cc}/healthz" >/dev/null &&
+curl -fsS -m 10 "${API_URL:-https://api-beacon.spacesdrive.cc}/healthz" >/dev/null &&
   info "public healthz OK" || die "public healthz failed"

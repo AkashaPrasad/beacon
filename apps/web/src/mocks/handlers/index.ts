@@ -15,6 +15,7 @@ import { feedHandlers, resetFeedMock } from './feed';
 import { foundationHandlers, setResourceHandlers } from './foundation';
 import { listingsHandlers } from './listings';
 import { notificationsHandlers, resetNotificationsMock } from './notifications';
+import { onboardingHandlers, resetOnboardingMock } from './onboarding';
 import { profileHandlers, resetProfileMock } from './profile';
 import { resetSettingsMock, settingsHandlers } from './settings';
 import { resetSourcesMock, sourcesHandlers } from './sources';
@@ -24,6 +25,7 @@ import { resetTrackerMock, trackerHandlers } from './tracker';
 export const resourceHandlers: HttpHandler[] = [
   ...feedHandlers,
   ...listingsHandlers,
+  ...onboardingHandlers,
   ...profileHandlers,
   ...settingsHandlers,
   ...notificationsHandlers,
@@ -41,6 +43,7 @@ export function resetMocks(): void {
   resetFoundationState();
   resetFeedMock();
   resetProfileMock();
+  resetOnboardingMock();
   resetSettingsMock();
   resetNotificationsMock();
   resetSourcesMock();

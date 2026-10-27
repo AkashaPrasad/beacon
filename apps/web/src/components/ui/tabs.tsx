@@ -50,7 +50,8 @@ const tabsListVariants = cva(
         /** Text tabs with a 2 px accent underline (DESIGN §6.1 app nav, notification centre). */
         line: 'gap-4 border-b border-border-subtle group-data-[orientation=vertical]/tabs:gap-0.5 group-data-[orientation=vertical]/tabs:border-b-0',
         /** Segmented control on `surface-sunken`. */
-        segmented: 'h-control gap-0.5 rounded-sm bg-surface-sunken p-0.5',
+        segmented:
+          'h-control gap-0.5 rounded-sm bg-surface-sunken/80 p-0.5 shadow-[inset_0_1px_2px_rgb(0_0_0/0.18)]',
       },
     },
     defaultVariants: { variant: 'line' },
@@ -107,7 +108,7 @@ function TabsTrigger({
             'pointer-events-none absolute',
             'group-data-[variant=line]/tabs-list:inset-x-0 group-data-[variant=line]/tabs-list:-bottom-px group-data-[variant=line]/tabs-list:h-0.5 group-data-[variant=line]/tabs-list:rounded-full group-data-[variant=line]/tabs-list:bg-accent-strong',
             'group-data-[orientation=vertical]/tabs:inset-y-1 group-data-[orientation=vertical]/tabs:-left-px group-data-[orientation=vertical]/tabs:right-auto group-data-[orientation=vertical]/tabs:bottom-auto group-data-[orientation=vertical]/tabs:h-auto group-data-[orientation=vertical]/tabs:w-0.5',
-            'group-data-[variant=segmented]/tabs-list:inset-0 group-data-[variant=segmented]/tabs-list:rounded-xs group-data-[variant=segmented]/tabs-list:bg-surface-raised group-data-[variant=segmented]/tabs-list:shadow-sm',
+            'group-data-[variant=segmented]/tabs-list:inset-0 group-data-[variant=segmented]/tabs-list:rounded-[6px] group-data-[variant=segmented]/tabs-list:e2',
           )}
         />
       )}

@@ -24,7 +24,7 @@ the system and the index definitions.
 Browser (React SPA, PWA + service worker for web push)
    │  https://beacon.spacesdrive.cc            Cloudflare Pages (static, global CDN)
    │
-   └─► https://api.beacon.spacesdrive.cc       Cloudflare proxy → Elastic IP
+   └─► https://api-beacon.spacesdrive.cc       Cloudflare proxy → Elastic IP
              │
    ┌─────────▼──────────── AWS EC2 t4g.small (arm64, 2 GB) · ap-south-1 · docker compose ──┐
    │ caddy :80/:443 ─► api :4000 (Express 5, NODE_OPTIONS=--max-old-space-size=384)         │

@@ -3,7 +3,6 @@
  * internship opens."), with the switch beside it. Stats and actions stay quiet until the card is
  * hovered or focused (always shown on touch), and the long tail lives in the ⋯ menu.
  */
-import { springs, tweens } from '@kestrel/ui';
 import { Copy, MoreHorizontal, Pencil, Send, Trash2 } from 'lucide-react';
 import { m } from 'motion/react';
 import { useId, type Ref } from 'react';
@@ -21,10 +20,12 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatAbsolute, formatRelative } from '@/features/sources/lib/format';
+import { rememberOpened } from '@/lib/list-memory';
 import { cn } from '@/lib/utils';
+import { springs, tweens } from '@kestrel/ui';
 
-import { previewSentence, ruleToDraft } from '../lib/rule-draft';
 import { Sparkline } from './Sparkline';
+import { previewSentence, ruleToDraft } from '../lib/rule-draft';
 
 export interface RuleCardActions {
   onToggle: (rule: AlertRuleDTO, enabled: boolean) => void;
@@ -80,8 +81,10 @@ export function RuleCard({
       <article
         aria-labelledby={titleId}
         className={cn(
-          'group flex flex-col gap-4 rounded-lg border bg-surface-raised p-5 transition-colors duration-fast',
-          off ? 'border-border-subtle' : 'border-border hover:border-border-strong',
+          'group relative flex flex-col gap-4 rounded-lg border p-5 transition-[box-shadow,border-color] duration-fast',
+          off
+            ? 'e1 border-border-subtle'
+            : 'e2 border-border-subtle hover:border-border hover:shadow-e3',
         )}
       >
         <div className="flex items-start gap-4">
@@ -92,6 +95,8 @@ export function RuleCard({
               ) : (
                 <Link
                   to={editPath}
+                  state={{ fromList: true }}
+                  onClick={() => rememberOpened('alerts', rule.id)}
                   className={cn(
                     'min-w-0 truncate rounded-xs underline-offset-3 hover:underline focus-visible:focus-ring',
                     off ? 'text-fg-secondary' : 'text-fg',
@@ -101,9 +106,14 @@ export function RuleCard({
                   {rule.name}
                 </Link>
               )}
-              {off ? <span className="text-caption font-normal text-fg-tertiary">Paused</span> : null}
+              {off ? (
+                <span className="text-caption font-normal text-fg-tertiary">Paused</span>
+              ) : null}
             </h3>
-            <p className="mt-1.5 text-body text-pretty text-fg-secondary" data-testid="alerts-rule-summary">
+            <p
+              className="mt-1.5 text-body text-pretty text-fg-secondary"
+              data-testid="alerts-rule-summary"
+            >
               {previewSentence(ruleToDraft(rule), zone)}
             </p>
           </div>
@@ -142,32 +152,48 @@ export function RuleCard({
             <span className={cn('inline-flex items-center gap-2 whitespace-nowrap', quiet)}>
               <Sparkline values={stats.matchesByDay} id={rule.id} today={now} />
               <span>
-                <span className="font-mono text-mono-sm text-fg-secondary">{stats.matchesLast7d}</span> this week
+                <span className="font-mono text-mono-sm text-fg-secondary">
+                  {stats.matchesLast7d}
+                </span>{' '}
+                this week
               </span>
             </span>
           ) : null}
-          <span className={cn('ml-auto flex items-center gap-1', quiet)}>
-            <Button
-              size="sm"
-              variant="ghost"
-              data-testid="alerts-test"
-              onClick={() => actions.onTest(rule)}
-              disabled={pending || testing}
-            >
-              <Send strokeWidth={1.5} /> {testing ? 'Sending…' : 'Send test'}
-            </Button>
+          <span className="ml-auto flex items-center gap-1">
+            {testing ? (
+              <span role="status" className="text-caption text-fg-secondary">
+                Sending a test…
+              </span>
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label={`More for ${rule.name}`} disabled={pending}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`More for ${rule.name}`}
+                  disabled={pending}
+                >
                   <MoreHorizontal strokeWidth={1.5} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onSelect={() => void navigate(editPath)}>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    rememberOpened('alerts', rule.id);
+                    void navigate(editPath, { state: { fromList: true } });
+                  }}
+                >
                   <Pencil strokeWidth={1.5} /> Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onDuplicate(rule)}>
                   <Copy strokeWidth={1.5} /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-testid="alerts-test"
+                  disabled={testing}
+                  onSelect={() => actions.onTest(rule)}
+                >
+                  <Send strokeWidth={1.5} /> Send a test
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="danger" onSelect={() => actions.onDelete(rule)}>

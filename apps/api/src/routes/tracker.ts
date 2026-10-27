@@ -23,10 +23,15 @@ import {
   trackerPatchSchema,
 } from '../schemas/index.js';
 import { toTrackerDTO } from '../services/serialize.js';
+import {
+  APPLIED_STAGES,
+  compactColumn,
+  createTrackerItem,
+  trackerFieldsFor,
+} from '../services/tracker.js';
 import { canSeeListing } from '../services/visibility.js';
 
 const RESPONSE_STAGES = new Set<string>(['oa', 'interview', 'offer', 'rejected']);
-const APPLIED_STAGES = new Set<string>(['applied', 'oa', 'interview', 'offer', 'rejected', 'ghosted']);
 const stageOrder = (stage: string) => TRACKER_STAGES.indexOf(stage as TrackerStage);
 
 async function loadItem(userId: Types.ObjectId, rawId: unknown): Promise<TrackerItemDoc> {
@@ -36,7 +41,11 @@ async function loadItem(userId: Types.ObjectId, rawId: unknown): Promise<Tracker
   return doc;
 }
 
-async function reindex(userId: Types.ObjectId, stage: string, orderedIds: Types.ObjectId[]): Promise<void> {
+async function reindex(
+  userId: Types.ObjectId,
+  stage: string,
+  orderedIds: Types.ObjectId[],
+): Promise<void> {
   if (!orderedIds.length) return;
   await TrackerItem.bulkWrite(
     orderedIds.map((id, position) => ({
@@ -49,7 +58,12 @@ async function reindex(userId: Types.ObjectId, stage: string, orderedIds: Types.
  * Move an item to `stage` at 0-based `index`; both affected columns are re-indexed to 0..n-1.
  * Stage changes append history, bump lastActivityAt, clear pending nudges, and stamp appliedAt.
  */
-export async function moveItem(ctx: AppContext, item: TrackerItemDoc, stage: TrackerStage, index: number) {
+export async function moveItem(
+  ctx: AppContext,
+  item: TrackerItemDoc,
+  stage: TrackerStage,
+  index: number,
+) {
   const now = ctx.now();
   const userId = item.userId;
   const column = await TrackerItem.find({ userId, stage, _id: { $ne: item._id } }, { _id: 1 })
@@ -65,11 +79,21 @@ export async function moveItem(ctx: AppContext, item: TrackerItemDoc, stage: Tra
       nudges: (item.nudges ?? []).filter((n) => n.sentAt || n.dismissedAt),
     };
     if (stage === 'applied' && !item.appliedAt) update['appliedAt'] = now;
-    await TrackerItem.updateOne({ _id: item._id }, { $set: update, $push: { history: { stage, at: now } } });
-    const source = await TrackerItem.find({ userId, stage: item.stage, _id: { $ne: item._id } }, { _id: 1 })
+    await TrackerItem.updateOne(
+      { _id: item._id },
+      { $set: update, $push: { history: { stage, at: now } } },
+    );
+    const source = await TrackerItem.find(
+      { userId, stage: item.stage, _id: { $ne: item._id } },
+      { _id: 1 },
+    )
       .sort({ position: 1, createdAt: 1 })
       .lean<{ _id: Types.ObjectId }[]>();
-    await reindex(userId, item.stage, source.map((s) => s._id));
+    await reindex(
+      userId,
+      item.stage,
+      source.map((s) => s._id),
+    );
   }
   await reindex(userId, stage, ordered);
   const updated = await TrackerItem.findById(item._id).lean<TrackerItemDoc>();
@@ -87,23 +111,38 @@ function median(values: number[]): number | null {
   return Math.round(value * 10) / 10;
 }
 
-export function computeAnalytics(items: TrackerItemDoc[], sourceNames: Map<string, string>, now: Date) {
-  const stageCounts = Object.fromEntries(TRACKER_STAGES.map((s) => [s, 0])) as Record<TrackerStage, number>;
+export function computeAnalytics(
+  items: TrackerItemDoc[],
+  sourceNames: Map<string, string>,
+  now: Date,
+) {
+  const stageCounts = Object.fromEntries(TRACKER_STAGES.map((s) => [s, 0])) as Record<
+    TrackerStage,
+    number
+  >;
   const applied: TrackerItemDoc[] = [];
   const responded: TrackerItemDoc[] = [];
   const responseDays: number[] = [];
   for (const item of items) {
     if (item.stage in stageCounts) stageCounts[item.stage as TrackerStage] += 1;
     const history = item.history ?? [];
-    const wasApplied = Boolean(item.appliedAt) || APPLIED_STAGES.has(item.stage) || history.some((h) => APPLIED_STAGES.has(h.stage));
+    const wasApplied =
+      Boolean(item.appliedAt) ||
+      APPLIED_STAGES.has(item.stage) ||
+      history.some((h) => APPLIED_STAGES.has(h.stage));
     if (!wasApplied) continue;
     applied.push(item);
     const appliedAt =
       item.appliedAt ?? history.find((h) => h.stage === 'applied')?.at ?? item.createdAt;
-    const response = history.find((h) => RESPONSE_STAGES.has(h.stage) && new Date(h.at) >= new Date(appliedAt));
+    const response = history.find(
+      (h) => RESPONSE_STAGES.has(h.stage) && new Date(h.at) >= new Date(appliedAt),
+    );
     if (response || RESPONSE_STAGES.has(item.stage)) {
       responded.push(item);
-      if (response) responseDays.push((new Date(response.at).getTime() - new Date(appliedAt).getTime()) / DAY_MS);
+      if (response)
+        responseDays.push(
+          (new Date(response.at).getTime() - new Date(appliedAt).getTime()) / DAY_MS,
+        );
     }
   }
 
@@ -135,18 +174,25 @@ export function computeAnalytics(items: TrackerItemDoc[], sourceNames: Map<strin
       title: i.title,
       company: i.company,
       appliedAt: i.appliedAt ?? null,
-      daysSinceActivity: Math.floor((now.getTime() - new Date(i.lastActivityAt ?? i.updatedAt).getTime()) / DAY_MS),
+      daysSinceActivity: Math.floor(
+        (now.getTime() - new Date(i.lastActivityAt ?? i.updatedAt).getTime()) / DAY_MS,
+      ),
     }));
 
   return {
     total: items.length,
     applied: applied.length,
     responded: responded.length,
-    responseRate: applied.length ? Math.round((responded.length / applied.length) * 1000) / 1000 : 0,
+    responseRate: applied.length
+      ? Math.round((responded.length / applied.length) * 1000) / 1000
+      : 0,
     medianResponseDays: median(responseDays),
     stageCounts,
     bestSources,
-    followUp: waiting.filter((w) => w.daysSinceActivity >= NUDGE_FOLLOW_UP_DAYS && w.daysSinceActivity < NUDGE_GHOSTED_DAYS),
+    followUp: waiting.filter(
+      (w) =>
+        w.daysSinceActivity >= NUDGE_FOLLOW_UP_DAYS && w.daysSinceActivity < NUDGE_GHOSTED_DAYS,
+    ),
     moveOn: waiting.filter((w) => w.daysSinceActivity >= NUDGE_GHOSTED_DAYS),
   };
 }
@@ -167,15 +213,21 @@ export function createTrackerRouter(ctx: AppContext): Router {
   router.get('/tracker/analytics', async (req, res) => {
     const { _id } = currentUser(req);
     const items = await TrackerItem.find({ userId: _id }).lean<TrackerItemDoc[]>();
-    const sourceIds = [...new Set(items.flatMap((i) => (i.sourceId ? [i.sourceId.toString()] : [])))];
-    const sources = await Source.find({ _id: { $in: sourceIds.map(toObjectId) } }, { name: 1 }).lean<SourceDoc[]>();
-    res.json(computeAnalytics(items, new Map(sources.map((s) => [s._id.toString(), s.name])), ctx.now()));
+    const sourceIds = [
+      ...new Set(items.flatMap((i) => (i.sourceId ? [i.sourceId.toString()] : []))),
+    ];
+    const sources = await Source.find(
+      { _id: { $in: sourceIds.map(toObjectId) } },
+      { name: 1 },
+    ).lean<SourceDoc[]>();
+    res.json(
+      computeAnalytics(items, new Map(sources.map((s) => [s._id.toString(), s.name])), ctx.now()),
+    );
   });
 
   router.post('/tracker', async (req, res) => {
     const { _id } = currentUser(req);
     const body = parse(trackerCreateBodySchema, req.body);
-    const now = ctx.now();
     const stage = body.stage ?? 'saved';
     let doc: Partial<TrackerItemDoc>;
     if ('listingId' in body) {
@@ -183,16 +235,11 @@ export function createTrackerRouter(ctx: AppContext): Router {
       const listing = await Listing.findById(listingId).lean<ListingDoc>();
       if (!listing || !(await canSeeListing(_id, listing))) throw notFound('Listing');
       const existing = await TrackerItem.findOne({ userId: _id, listingId }, { _id: 1 }).lean();
-      if (existing) throw conflict('This listing is already in your tracker', { existingId: existing._id.toString() });
-      doc = {
-        listingId,
-        title: listing.title,
-        company: listing.company,
-        type: listing.type,
-        applyUrl: listing.applyUrl,
-        deadlineAt: listing.deadlineAt ?? null,
-        sourceId: listing.sourceId,
-      };
+      if (existing)
+        throw conflict('This listing is already in your tracker', {
+          existingId: existing._id.toString(),
+        });
+      doc = trackerFieldsFor(listing);
     } else {
       const manual = 'manual' in body ? { ...body.manual, applyUrl: body.manual.url } : body;
       doc = {
@@ -204,18 +251,8 @@ export function createTrackerRouter(ctx: AppContext): Router {
         deadlineAt: manual.deadlineAt ?? null,
       };
     }
-    await TrackerItem.updateMany({ userId: _id, stage }, { $inc: { position: 1 } });
-    const created = await TrackerItem.create({
-      ...doc,
-      userId: _id,
-      stage,
-      position: 0,
-      notes: body.notes ?? '',
-      appliedAt: stage !== 'saved' && APPLIED_STAGES.has(stage) ? now : null,
-      lastActivityAt: now,
-      history: [{ stage, at: now }],
-    });
-    res.status(201).json({ item: toTrackerDTO(created.toObject()) });
+    const created = await createTrackerItem(ctx, _id, doc, stage, body.notes ?? '');
+    res.status(201).json({ item: toTrackerDTO(created) });
   });
 
   router.get('/tracker/:id', async (req, res) => {
@@ -228,7 +265,10 @@ export function createTrackerRouter(ctx: AppContext): Router {
     const item = await loadItem(_id, req.params['id']);
     const { stage, ...patch } = parse(trackerPatchSchema, req.body);
     if (Object.keys(patch).length) {
-      await TrackerItem.updateOne({ _id: item._id }, { $set: { ...patch, lastActivityAt: ctx.now() } });
+      await TrackerItem.updateOne(
+        { _id: item._id },
+        { $set: { ...patch, lastActivityAt: ctx.now() } },
+      );
     }
     if (stage && stage !== item.stage) {
       const fresh = await loadItem(_id, item._id.toString());
@@ -242,10 +282,14 @@ export function createTrackerRouter(ctx: AppContext): Router {
   router.post('/tracker/:id/move', async (req, res) => {
     const { _id } = currentUser(req);
     const item = await loadItem(_id, req.params['id']);
-    const { stage, position, fromStage, ifUnmodifiedSince } = parse(trackerMoveBodySchema, req.body);
+    const { stage, position, fromStage, ifUnmodifiedSince } = parse(
+      trackerMoveBodySchema,
+      req.body,
+    );
     const stale =
       (fromStage !== undefined && fromStage !== item.stage) ||
-      (ifUnmodifiedSince !== undefined && new Date(item.updatedAt).getTime() > ifUnmodifiedSince.getTime());
+      (ifUnmodifiedSince !== undefined &&
+        new Date(item.updatedAt).getTime() > ifUnmodifiedSince.getTime());
     if (stale) {
       throw conflict('This card changed in another tab; the board has been refreshed', {
         reason: 'stale',
@@ -259,10 +303,7 @@ export function createTrackerRouter(ctx: AppContext): Router {
     const { _id } = currentUser(req);
     const item = await loadItem(_id, req.params['id']);
     await TrackerItem.deleteOne({ _id: item._id });
-    const rest = await TrackerItem.find({ userId: _id, stage: item.stage }, { _id: 1 })
-      .sort({ position: 1, createdAt: 1 })
-      .lean<{ _id: Types.ObjectId }[]>();
-    await reindex(_id, item.stage, rest.map((r) => r._id));
+    await compactColumn(_id, item.stage);
     res.status(204).end();
   });
 

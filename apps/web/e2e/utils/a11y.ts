@@ -145,3 +145,90 @@ export async function expectFocusVisible(page: Page, context = ''): Promise<void
     `focus not visible ${context ? `(${context})` : ''}: ${info.why} ${info.desc}`,
   ).toBe(true);
 }
+
+/** Roles that must always carry an accessible name (WCAG 4.1.2). */
+const NAMED_ROLES = [
+  'button',
+  'link',
+  'textbox',
+  'searchbox',
+  'combobox',
+  'checkbox',
+  'radio',
+  'switch',
+  'slider',
+  'spinbutton',
+  'tab',
+  'menuitem',
+  'menuitemcheckbox',
+  'menuitemradio',
+  'option',
+  'listbox',
+] as const;
+
+/**
+ * Interactive elements without an accessible name, from Playwright's accessibility snapshot
+ * (the accname computation assistive tech uses, not a DOM heuristic). Each entry is the snapshot
+ * line plus its nearest named ancestor, e.g. `button (in region "Today")`.
+ */
+export async function unnamedControls(page: Page, root = 'body'): Promise<string[]> {
+  const snapshot = await page.locator(root).first().ariaSnapshot({ timeout: 15_000 });
+  const role = new RegExp(`^(\\s*)- (${NAMED_ROLES.join('|')})(?=\\s*(\\[|:|$))`);
+  const out: string[] = [];
+  const stack: { indent: number; label: string }[] = [];
+  for (const line of snapshot.split('\n')) {
+    const indent = line.length - line.trimStart().length;
+    while (stack.length && stack[stack.length - 1]!.indent >= indent) stack.pop();
+    const named = /^\s*- ([a-z]+) "([^"]+)"/.exec(line);
+    if (named) stack.push({ indent, label: `${named[1] ?? ''} "${named[2]!.slice(0, 40)}"` });
+    const m = role.exec(line);
+    if (m) {
+      const parent = stack[stack.length - 1]?.label;
+      out.push(`${line.trim().replace(/^- /, '')}${parent ? ` (in ${parent})` : ''}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Press Tab up to `presses` times and check every stop is visibly focused (outline or ring).
+ * Returns readable problems (empty when keyboard focus is always visible).
+ */
+export async function tabFocusProblems(page: Page, presses = 6): Promise<string[]> {
+  const problems: string[] = [];
+  for (let i = 0; i < presses; i++) {
+    await page.bringToFront();
+    await page.keyboard.press('Tab');
+    // Rings may fade in (box-shadow transition); read the settled style.
+    await page.waitForTimeout(120);
+    const info = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body || el === document.documentElement)
+        return { ok: true, desc: '' };
+      const tid = el.getAttribute('data-testid') ?? '';
+      const label = el.getAttribute('aria-label') ?? (el.textContent ?? '').trim().slice(0, 40);
+      const desc = `${el.tagName.toLowerCase()}${tid ? `[data-testid=${tid}]` : ''}${label ? ` "${label}"` : ''}`;
+      const ring = (node: Element) => {
+        const cs = getComputedStyle(node);
+        const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
+        const shadow = cs.boxShadow !== 'none' && cs.boxShadow !== '';
+        return outline || shadow;
+      };
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0)
+        return { ok: false, desc: `${desc}: focused but has no size` };
+      if (ring(el)) return { ok: true, desc };
+      const wrapper = el.closest(
+        '[data-focus-ring], [data-slot="input-group"], [data-active="true"]',
+      );
+      if (wrapper && ring(wrapper)) return { ok: true, desc };
+      // A skip link that is visually hidden until focused counts once it is shown.
+      return {
+        ok: false,
+        desc: `${desc}: no outline or ring while focused (keyboard=${document.documentElement.dataset['keyboard'] ?? ''}, focus=${el.matches(':focus')}, visible=${el.matches(':focus-visible')}, html=${el.outerHTML.slice(0, 400)})`,
+      };
+    });
+    if (!info.ok) problems.push(`Tab ${i + 1}: ${info.desc}`);
+  }
+  return problems;
+}

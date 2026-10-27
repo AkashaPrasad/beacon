@@ -130,7 +130,7 @@ export const variants = {
   },
   /** Feed/list rows. Pass `custom={index}` for the stagger. */
   row: {
-    hidden: { opacity: 0, y: MOTION_LIMITS.distanceSm },
+    hidden: { opacity: 1, y: MOTION_LIMITS.distanceSm },
     visible: (index: number = 0) => ({
       opacity: 1,
       y: 0,
@@ -176,6 +176,18 @@ export const variants = {
     visible: { opacity: 1, transition: { ...tweens.fadeIn, delay: 0.06 } },
     exit: { opacity: 0, transition: { ...tweens.fadeOut, duration: 0.08 } },
   },
+  /** Route change inside the shell: crossfade + 8 px rise (mirrors the `main` view transition). */
+  page: {
+    hidden: { opacity: 0, y: MOTION_LIMITS.distanceMd },
+    visible: { opacity: 1, y: 0, transition: { type: 'tween', duration: 0.2, ease: easings.out } },
+    exit: { opacity: 0, transition: { type: 'tween', duration: 0.08, ease: easings.in } },
+  },
+  /** Lifted panel entering (cards on detail pages): fade + 4 px rise, settles on `springs.smooth`. */
+  panel: {
+    hidden: { opacity: 0, y: MOTION_LIMITS.distanceSm },
+    visible: { opacity: 1, y: 0, transition: springs.smooth },
+    exit: { opacity: 0, transition: tweens.fadeOut },
+  },
   /** Landing and empty-state reveals on scroll (`whileInView`, viewport once). Never in product lists. */
   reveal: {
     hidden: { opacity: 0, y: MOTION_LIMITS.distanceMd },
@@ -198,6 +210,11 @@ export const press = {
     transition: springs.release,
   },
 } as const;
+
+/** Fit ring sweep: `springs.data` on `pathLength`; the glow bloom is CSS (drop-shadow in the band colour). */
+export const ringSweep = springs.data;
+/** Number count-up (stat tiles, Today band, analytics): `tweens.count`. */
+export const countUp = tweens.count;
 
 /** Hover lift for cards (Motion ignores hover on touch). Pair with the ::after shadow-fade technique (MOTION.md §7). */
 export const hoverLift = {

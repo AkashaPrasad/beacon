@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { TRACKER_STAGES, type TrackerStage } from '@kestrel/shared';
 import { dragActivation, dropAnimation, springs, usePrefersReducedMotion } from '@kestrel/ui';
 
-import { BoardColumn, OutcomesRail } from './BoardColumn';
+import { BoardColumn, ClosedRail } from './BoardColumn';
 import { CardFace } from './CardFace';
 import { TrackerCard } from './TrackerCard';
 import * as say from '../lib/announcements';
@@ -54,20 +54,29 @@ import {
   type KeyboardDragEvent,
 } from '../lib/board';
 import type { Nudge } from '../lib/nudges';
-import { ACTIVE_STAGES, COLUMNS, isOutcomeStage, STAGE_LABEL, type OutcomeStage } from '../lib/stages';
+import {
+  ACTIVE_STAGES,
+  COLUMNS,
+  isClosedStage,
+  closedTotal,
+  STAGE_LABEL,
+  type ClosedStage,
+} from '../lib/stages';
 import { useFillViewport } from '../lib/use-fill-viewport';
 
 export type MoveVia = 'drag' | 'keyboard' | 'menu';
 
 export interface BoardProps {
+  /** The horizontal scroller (the tracker view remembers its position for Back). */
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
   items: TrackerItemDTO[];
   nudges: ReadonlyMap<string, Nudge>;
   now: Date;
-  /** The outcome shown when "More" is unfolded. */
-  outcomeStage: OutcomeStage;
-  onOutcomeStageChange: (stage: OutcomeStage) => void;
-  outcomesOpen: boolean;
-  onOutcomesOpenChange: (open: boolean) => void;
+  /** The stage shown when "Closed" is unfolded. */
+  closedStage: ClosedStage;
+  onClosedStageChange: (stage: ClosedStage) => void;
+  closedOpen: boolean;
+  onClosedOpenChange: (open: boolean) => void;
   onOpen: (id: string) => void;
   onMove: (item: TrackerItemDTO, to: BoardLocation, origin: BoardLocation, via: MoveVia) => void;
   onRemove: (item: TrackerItemDTO) => void;
@@ -81,8 +90,8 @@ const ARROWS: Partial<Record<string, Direction>> = {
   ArrowRight: 'right',
 };
 
-const visibleOrder = (outcome: OutcomeStage, open: boolean): TrackerStage[] =>
-  open ? [...ACTIVE_STAGES, outcome] : [...ACTIVE_STAGES];
+const visibleOrder = (closed: ClosedStage, open: boolean): TrackerStage[] =>
+  open ? [...ACTIVE_STAGES, closed] : [...ACTIVE_STAGES];
 
 const containerStage = (columns: BoardColumns, id: string): TrackerStage | null => {
   if (id.startsWith('col:') || id.startsWith('seg:')) return id.slice(4) as TrackerStage;
@@ -103,13 +112,14 @@ interface PointerDrag {
  * Space/Enter drops, Esc cancels, every step announced. Columns are one roving tab stop.
  */
 export function Board({
+  scrollRef: externalScrollRef,
   items,
   nudges,
   now,
-  outcomeStage,
-  onOutcomeStageChange,
-  outcomesOpen,
-  onOutcomesOpenChange,
+  closedStage,
+  onClosedStageChange,
+  closedOpen,
+  onClosedOpenChange,
   onOpen,
   onMove,
   onRemove,
@@ -117,7 +127,8 @@ export function Board({
 }: BoardProps) {
   const reduced = usePrefersReducedMotion();
   const instructionsId = useId();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const ownScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = externalScrollRef ?? ownScrollRef;
   useFillViewport(scrollRef);
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
@@ -141,16 +152,16 @@ export function Board({
 
   const columns = kbd?.columns ?? pointer?.columns ?? override ?? serverColumns;
   const counts = useMemo(() => columnCounts(columns), [columns]);
-  const visible = useMemo(() => visibleOrder(outcomeStage, outcomesOpen), [outcomeStage, outcomesOpen]);
+  const visible = useMemo(() => visibleOrder(closedStage, closedOpen), [closedStage, closedOpen]);
 
-  /** Show an outcome (unfolding "More" when needed). */
-  const revealOutcome = useCallback(
+  /** Show a stage behind "Closed" (unfolding it when needed). */
+  const revealClosed = useCallback(
     (stage: TrackerStage) => {
-      if (!isOutcomeStage(stage)) return;
-      onOutcomeStageChange(stage);
-      onOutcomesOpenChange(true);
+      if (!isClosedStage(stage)) return;
+      onClosedStageChange(stage);
+      onClosedOpenChange(true);
     },
-    [onOutcomeStageChange, onOutcomesOpenChange],
+    [onClosedStageChange, onClosedOpenChange],
   );
 
   const activeLocation = activeId ? locate(columns, activeId) : null;
@@ -176,11 +187,18 @@ export function Board({
     if (el && el.dataset.stage === want.stage) {
       pendingFocus.current = null;
       if (document.activeElement !== el) el.focus({ preventScroll: true });
-      el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+      el.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: reduced ? 'auto' : 'smooth',
+      });
     }
   });
 
-  const announce = useCallback((text: string) => setAnnouncement((a) => ({ text, n: a.n + 1 })), []);
+  const announce = useCallback(
+    (text: string) => setAnnouncement((a) => ({ text, n: a.n + 1 })),
+    [],
+  );
   const flashColumn = useCallback(
     (stage: TrackerStage) => setFlash((f) => ({ ...f, [stage]: (f[stage] ?? 0) + 1 })),
     [],
@@ -216,10 +234,17 @@ export function Board({
       switch (outcome.kind) {
         case 'lifted':
           setActiveId(id);
-          announce(say.pickedUp(item?.title ?? 'card', outcome.from.stage, outcome.from.index, total(outcome.from.stage)));
+          announce(
+            say.pickedUp(
+              item?.title ?? 'card',
+              outcome.from.stage,
+              outcome.from.index,
+              total(outcome.from.stage),
+            ),
+          );
           break;
         case 'moved':
-          revealOutcome(outcome.to.stage);
+          revealClosed(outcome.to.stage);
           pendingFocus.current = { id, stage: outcome.to.stage };
           announce(say.movedTo(outcome.to.stage, outcome.to.index, total(outcome.to.stage)));
           break;
@@ -238,21 +263,23 @@ export function Board({
           break;
         }
         case 'cancelled':
-          revealOutcome(outcome.to.stage);
+          revealClosed(outcome.to.stage);
           pendingFocus.current = { id, stage: outcome.to.stage };
           announce(say.cancelled(outcome.to.stage));
           break;
       }
     },
-    [announce, flashColumn, revealOutcome, onMove],
+    [announce, flashColumn, revealClosed, onMove],
   );
 
   // A pointer press anywhere else puts a lifted card back.
   useEffect(() => {
     if (!kbd) return undefined;
     const onPointerDown = (e: PointerEvent) => {
-      const target = e.target instanceof Element ? e.target.closest('[data-testid="tracker-card"]') : null;
-      if (target?.getAttribute('data-item-id') !== kbdRef.current?.id) dispatchKbd({ type: 'cancel' });
+      const target =
+        e.target instanceof Element ? e.target.closest('[data-testid="tracker-card"]') : null;
+      if (target?.getAttribute('data-item-id') !== kbdRef.current?.id)
+        dispatchKbd({ type: 'cancel' });
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
@@ -312,13 +339,13 @@ export function Board({
       const to = { stage, index: 0 };
       const next = moveItem(latest.current.columns, item.id, stage, 0);
       setOverride(next);
-      revealOutcome(stage);
+      revealClosed(stage);
       pendingFocus.current = { id: item.id, stage };
       flashColumn(stage);
       announce(`Moved ${item.title} to ${STAGE_LABEL[stage]}.`);
       onMove(item, to, origin, 'menu');
     },
-    [announce, flashColumn, revealOutcome, onMove],
+    [announce, flashColumn, revealClosed, onMove],
   );
 
   // ── Pointer / touch drag (dnd-kit) ────────────────────────────────────────────────────────
@@ -389,8 +416,8 @@ export function Board({
     const activeKey = String(active.id);
     const overKey = String(over.id);
     if (overKey.startsWith('seg:')) {
-      const stage = overKey.slice(4) as OutcomeStage;
-      if (stage !== outcomeStage || !outcomesOpen) revealOutcome(stage);
+      const stage = overKey.slice(4) as ClosedStage;
+      if (stage !== closedStage || !closedOpen) revealClosed(stage);
     }
     const drag = latest.current.pointer;
     if (!drag) return;
@@ -448,7 +475,7 @@ export function Board({
   const onDragCancel = () => {
     const drag = latest.current.pointer;
     finishPointer();
-    if (drag) revealOutcome(drag.origin.stage);
+    if (drag) revealClosed(drag.origin.stage);
   };
 
   const accessibility = useMemo(
@@ -459,15 +486,29 @@ export function Board({
           const cols = latest.current.columns;
           const at = locate(cols, String(active.id));
           const item = latest.current.byId.get(String(active.id));
-          return at ? say.pickedUp(item?.title ?? 'card', at.stage, at.index, cols[at.stage].length) : undefined;
+          return at
+            ? say.pickedUp(item?.title ?? 'card', at.stage, at.index, cols[at.stage].length)
+            : undefined;
         },
-        onDragOver: ({ active, over }: { active: { id: UniqueIdentifier }; over: { id: UniqueIdentifier } | null }) => {
+        onDragOver: ({
+          active,
+          over,
+        }: {
+          active: { id: UniqueIdentifier };
+          over: { id: UniqueIdentifier } | null;
+        }) => {
           const drag = latest.current.pointer;
           if (!over || !drag) return undefined;
           const at = locate(drag.columns, String(active.id));
           return at ? say.movedTo(at.stage, at.index, drag.columns[at.stage].length) : undefined;
         },
-        onDragEnd: ({ active, over }: { active: { id: UniqueIdentifier }; over: { id: UniqueIdentifier } | null }) => {
+        onDragEnd: ({
+          active,
+          over,
+        }: {
+          active: { id: UniqueIdentifier };
+          over: { id: UniqueIdentifier } | null;
+        }) => {
           const drag = latest.current.pointer;
           const at = drag ? locate(drag.columns, String(active.id)) : null;
           if (!over || !at || !drag) return drag ? say.cancelled(drag.origin.stage) : undefined;
@@ -495,7 +536,7 @@ export function Board({
 
   return (
     <LayoutGroup id="tracker-board">
-      <ColumnStrip columns={counts} outcomeStage={outcomeStage} scrollRef={scrollRef} />
+      <ColumnStrip columns={counts} closedStage={closedStage} scrollRef={scrollRef} />
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -517,18 +558,18 @@ export function Board({
           className="flex snap-x snap-mandatory scroll-px-gutter gap-3 overflow-x-auto overscroll-x-contain px-gutter pt-1 pb-4 [scrollbar-width:thin] md:snap-none"
         >
           {COLUMNS.map((column) => {
-            if (column.key === 'outcomes' && !outcomesOpen) {
+            if (column.key === 'closed' && !closedOpen) {
               return (
-                <OutcomesRail
+                <ClosedRail
                   key={column.key}
                   counts={counts}
-                  isOver={pointer !== null && overStage !== null && isOutcomeStage(overStage)}
+                  isOver={pointer !== null && overStage !== null && isClosedStage(overStage)}
                   pointerDragging={pointer !== null}
-                  onOpen={revealOutcome}
+                  onOpen={revealClosed}
                 />
               );
             }
-            const stage = column.key === 'outcomes' ? outcomeStage : column.key;
+            const stage = column.key === 'closed' ? closedStage : column.key;
             return (
               <BoardColumn
                 key={column.key}
@@ -541,8 +582,8 @@ export function Board({
                 keyboardDragging={kbd !== null}
                 flash={flash[stage] ?? 0}
                 onAdd={onAdd}
-                onOutcomeStageChange={onOutcomeStageChange}
-                onCollapse={column.key === 'outcomes' ? () => onOutcomesOpenChange(false) : undefined}
+                onClosedStageChange={onClosedStageChange}
+                onCollapse={column.key === 'closed' ? () => onClosedOpenChange(false) : undefined}
               >
                 {columns[stage].map((id) => {
                   const item = byId.get(id);
@@ -587,7 +628,12 @@ export function Board({
       <p id={instructionsId} hidden>
         {say.DRAG_INSTRUCTIONS}
       </p>
-      <div aria-live="assertive" aria-atomic="true" className="sr-only" data-testid="tracker-announcer">
+      <div
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="tracker-announcer"
+      >
         <span key={announcement.n}>{announcement.text}</span>
       </div>
     </LayoutGroup>
@@ -597,11 +643,11 @@ export function Board({
 /** Phones: a status strip that scrolls the board to a column (DESIGN §10.4 mobile). */
 function ColumnStrip({
   columns,
-  outcomeStage,
+  closedStage,
   scrollRef,
 }: {
   columns: Record<TrackerStage, number>;
-  outcomeStage: OutcomeStage;
+  closedStage: ClosedStage;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const [active, setActive] = useState<string>('saved');
@@ -610,7 +656,9 @@ function ColumnStrip({
     if (!root || typeof IntersectionObserver !== 'function') return undefined;
     const io = new IntersectionObserver(
       (entries) => {
-        const best = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const best = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
         const key = best?.target.getAttribute('data-column');
         if (key) setActive(key);
       },
@@ -620,9 +668,12 @@ function ColumnStrip({
     return () => io.disconnect();
   }, [scrollRef]);
   return (
-    <nav aria-label="Columns" className="flex gap-1 overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:hidden">
+    <nav
+      aria-label="Columns"
+      className="flex gap-1 overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:hidden"
+    >
       {COLUMNS.map((c) => {
-        const count = c.key === 'outcomes' ? columns.offer + columns.rejected + columns.ghosted : columns[c.key];
+        const count = c.key === 'closed' ? closedTotal(columns) : columns[c.key];
         const on = active === c.key;
         return (
           <button
@@ -639,7 +690,7 @@ function ColumnStrip({
               on ? 'bg-surface-active text-fg' : 'text-fg-secondary',
             )}
           >
-            {c.key === 'outcomes' ? `More · ${STAGE_LABEL[outcomeStage]}` : c.label}
+            {c.key === 'closed' ? `Closed · ${STAGE_LABEL[closedStage]}` : c.label}
             <span className="font-mono text-mono-sm text-fg-tertiary">{count}</span>
           </button>
         );

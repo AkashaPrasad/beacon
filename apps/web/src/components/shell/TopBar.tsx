@@ -37,7 +37,7 @@ export function TopBar() {
   return (
     <header
       style={{ viewTransitionName: 'topbar' }}
-      className="sticky top-0 z-topbar border-b border-border-subtle bg-bg pt-safe"
+      className="glass sticky top-0 z-topbar border-b pt-safe"
     >
       <div className="flex h-topbar items-center gap-3 px-gutter">
         <Link
@@ -54,7 +54,7 @@ export function TopBar() {
         <LayoutGroup id="primary-nav">
           <nav
             aria-label="Primary"
-            className="ml-3 hidden items-stretch gap-5 self-stretch md:flex"
+            className="ml-3 hidden items-stretch gap-1 self-stretch md:flex"
           >
             {NAV_ITEMS.map((item) => (
               <NavLink
@@ -63,8 +63,10 @@ export function TopBar() {
                 viewTransition
                 className={({ isActive }) =>
                   cn(
-                    'relative flex items-center text-body font-medium transition-colors duration-fast focus-visible:focus-ring-inset',
-                    isActive ? 'text-fg' : 'text-fg-secondary hover:text-fg',
+                    'relative my-2 flex items-center rounded-md px-2.5 text-body font-medium transition-colors duration-fast focus-visible:focus-ring-inset',
+                    isActive
+                      ? 'text-accent-strong'
+                      : 'text-fg-secondary hover:bg-surface-hover hover:text-fg',
                   )
                 }
               >
@@ -76,7 +78,7 @@ export function TopBar() {
                         layoutId={layoutIds.tabIndicator('primary-nav')}
                         transition={springs.snappy}
                         aria-hidden="true"
-                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent-strong"
+                        className="absolute inset-0 -z-10 rounded-md bg-accent-subtle"
                       />
                     )}
                   </>
@@ -98,7 +100,7 @@ export function TopBar() {
             data-testid="global-search"
             aria-label="Search or jump to…"
             aria-keyshortcuts="Meta+K Control+K"
-            className="press hidden h-control-sm w-56 items-center gap-2 rounded-sm border border-border bg-surface-raised px-2.5 text-small text-fg-tertiary hover:border-border-strong focus-visible:focus-ring lg:flex"
+            className="press hidden h-control-sm w-56 items-center gap-2 rounded-sm border border-border bg-surface-sunken/60 px-2.5 text-small text-fg-tertiary shadow-[inset_0_1px_2px_rgb(0_0_0/0.15)] hover:border-border-strong hover:bg-surface-raised focus-visible:focus-ring lg:flex"
           >
             <Search className="size-4" strokeWidth={1.5} aria-hidden="true" />
             <span className="flex-1 text-left">Search or jump…</span>

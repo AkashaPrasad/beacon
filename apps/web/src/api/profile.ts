@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import { api, ApiError, buildUrl, CSRF_HEADER, CSRF_VALUE } from '@/lib/api';
+import { api, ApiError, buildUrl, CSRF_HEADER, CSRF_VALUE, isApiError } from '@/lib/api';
 import { parseJson } from '@/lib/json';
 import type { ProfilePatch } from '@kestrel/shared';
 
 import { queryKeys } from './keys';
-import type { ProfileResponse, ResumeUploadResponse } from './types';
+import type { MeResponse, ProfileResponse, ResumeUploadResponse } from './types';
 
 export function useProfile() {
   return useQuery({
@@ -39,7 +39,7 @@ export function useUploadResume() {
       form.append('file', file);
       return api.post<ResumeUploadResponse>('/v1/profile/resume', form, {
         query: { save: save || undefined },
-        timeoutMs: 45_000,
+        timeoutMs: 95_000,
       });
     },
     onSuccess: (result) => {
@@ -84,7 +84,8 @@ export function usePatchProfileOptimistic() {
     },
     onSuccess: (data) => {
       // While other inline edits are still in flight, keep their optimistic values: the last response wins.
-      if (qc.isMutating({ mutationKey: ['profile', 'patch'] }) <= 1) qc.setQueryData(queryKeys.profile, data);
+      if (qc.isMutating({ mutationKey: ['profile', 'patch'] }) <= 1)
+        qc.setQueryData(queryKeys.profile, data);
     },
     onSettled: () => {
       if (qc.isMutating({ mutationKey: ['profile', 'patch'] }) > 1) return;
@@ -114,7 +115,8 @@ export function uploadResumeWithProgress(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', buildUrl('/v1/profile/resume', save ? { save: 'true' } : undefined));
     xhr.withCredentials = true;
-    xhr.timeout = 60_000;
+    // Scans are read with OCR and can take up to ~85 s (API.md §4); never give up before 90 s.
+    xhr.timeout = 95_000;
     xhr.setRequestHeader('Accept', 'application/json');
     xhr.setRequestHeader(CSRF_HEADER, CSRF_VALUE);
 
@@ -123,9 +125,10 @@ export function uploadResumeWithProgress(
     };
     xhr.upload.onload = () => onProgress?.(1);
 
-    const fail = (code: string, message: string) => reject(new ApiError({ status: 0, code, message }));
+    const fail = (code: string, message: string) =>
+      reject(new ApiError({ status: 0, code, message }));
     xhr.onerror = () => fail('NETWORK', "Couldn't reach Beacon. Check your connection.");
-    xhr.ontimeout = () => fail('TIMEOUT', "The server didn't respond within 60 seconds.");
+    xhr.ontimeout = () => fail('TIMEOUT', "The server didn't respond within 95 seconds.");
     xhr.onabort = () => fail('ABORTED', 'The upload was cancelled.');
     xhr.onload = () => {
       let body: unknown;
@@ -146,7 +149,8 @@ export function uploadResumeWithProgress(
       reject(
         new ApiError({
           status: xhr.status,
-          code: typeof envelope.code === 'string' ? envelope.code.toUpperCase() : `HTTP_${xhr.status}`,
+          code:
+            typeof envelope.code === 'string' ? envelope.code.toUpperCase() : `HTTP_${xhr.status}`,
           message: typeof envelope.message === 'string' ? envelope.message : 'The upload failed.',
           details: envelope.details,
           requestId: xhr.getResponseHeader('X-Request-Id'),
@@ -164,5 +168,126 @@ export function uploadResumeWithProgress(
     const form = new FormData();
     form.append('file', file, file.name);
     xhr.send(form);
+  });
+}
+
+// ── Onboarding save-and-resume (API §3/§4 additions: PATCH /v1/profile/onboarding, POST …/complete) ──────
+
+/**
+ * Answers the conversational onboarding saves between visits. Profile-shaped answers live in the
+ * profile itself (`PATCH /v1/profile`); this holds the rest plus the bookkeeping the flow needs.
+ */
+export interface OnboardingAnswers {
+  /** Steps auto-skipped because the answer was already known (never shown, never counted). */
+  auto?: string[];
+  /** Steps the student chose to skip. */
+  skipped?: string[];
+  /** Steps the student has answered at least once. */
+  answered?: string[];
+  /** A resume was parsed during onboarding (shows "Here's what we found"). */
+  resumeParsed?: boolean;
+  interests?: string[];
+  targetCompanies?: { name: string; domain: string | null }[];
+  [key: string]: unknown;
+}
+
+export interface OnboardingProgress {
+  /** Last saved step slug (`/onboarding/<step>`), or null before the first save. */
+  step: string | null;
+  answers: OnboardingAnswers;
+  updatedAt: Date | null;
+}
+
+/** `/v1/me.onboarding` with the save-and-resume fields (`answers`, `updatedAt`), all optional. */
+type MeOnboardingExtras = {
+  answers?: OnboardingAnswers | null;
+  updatedAt?: Date | string | null;
+  /** Older mock shape. */
+  progress?: {
+    step?: string | null;
+    answers?: OnboardingAnswers | null;
+    updatedAt?: Date | string | null;
+  } | null;
+};
+
+/** Reads the saved progress from `/v1/me` (null when nothing was saved yet). */
+export function progressFromMe(me: MeResponse | null | undefined): OnboardingProgress | null {
+  if (!me) return null;
+  const o = me.onboarding as MeResponse['onboarding'] & MeOnboardingExtras;
+  const answers = o.answers ?? o.progress?.answers ?? null;
+  if (!answers) return null;
+  const updated = o.updatedAt ?? o.progress?.updatedAt ?? null;
+  return {
+    step: o.progress?.step ?? (o.step && o.step !== 'consent' && o.step !== 'done' ? o.step : null),
+    answers,
+    updatedAt: updated ? new Date(updated) : null,
+  };
+}
+
+export interface OnboardingSaveBody {
+  step?: string;
+  answers?: OnboardingAnswers;
+}
+
+/** True when the API predates the onboarding endpoints (the flow then keeps progress locally). */
+function isMissingRoute(error: unknown): boolean {
+  return isApiError(error) && (error.status === 404 || error.status === 405);
+}
+
+/**
+ * `PATCH /v1/profile/onboarding { step?, answers? }` → `MeResponse` (or `{ onboarding }`). The `me` cache
+ * is patched in place so the guards and the next visit see the same step. A 404 (older API) resolves
+ * to null: the caller's local mirror keeps the progress.
+ */
+export async function saveOnboardingProgress(
+  qc: QueryClient,
+  body: OnboardingSaveBody,
+): Promise<MeResponse | null> {
+  try {
+    const res = await api.patch<MeResponse | { onboarding: MeResponse['onboarding'] }>(
+      '/v1/profile/onboarding',
+      body,
+    );
+    if ('user' in res) {
+      qc.setQueryData(queryKeys.me, res);
+      return res;
+    }
+    qc.setQueryData<MeResponse | null>(queryKeys.me, (prev) =>
+      prev ? { ...prev, onboarding: { ...prev.onboarding, ...res.onboarding } } : prev,
+    );
+    return qc.getQueryData<MeResponse>(queryKeys.me) ?? null;
+  } catch (error) {
+    if (isMissingRoute(error)) return null;
+    throw error;
+  }
+}
+
+/**
+ * `POST /v1/profile/onboarding/complete` → `MeResponse`: marks onboarding done and enqueues the
+ * profile embed + match (API §13). Falls back to `PATCH /v1/me { onboardingCompleted: true }` on an
+ * API without the route.
+ */
+export function useCompleteOnboarding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<MeResponse> => {
+      try {
+        const res = await api.post<MeResponse | { onboarding: MeResponse['onboarding'] }>(
+          '/v1/profile/onboarding/complete',
+        );
+        if ('user' in res) return res;
+        return api.get<MeResponse>('/v1/me');
+      } catch (error) {
+        if (!isMissingRoute(error)) throw error;
+        return api.patch<MeResponse>('/v1/me', {
+          onboardingStep: 'done',
+          onboardingCompleted: true,
+        });
+      }
+    },
+    onSuccess: (me) => {
+      qc.setQueryData(queryKeys.me, me);
+      void qc.invalidateQueries({ queryKey: queryKeys.feed.all });
+    },
   });
 }

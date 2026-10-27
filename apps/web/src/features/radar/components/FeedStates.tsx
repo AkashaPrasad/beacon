@@ -3,7 +3,16 @@
  * since-last-visit strip, warming-up strip, empty variants with a next action, error with retry,
  * stale-results strip and skeleton rows (150 ms delay, ≥ 300 ms once shown, crossfade).
  */
-import { AlertCircle, CircleCheck, CircleDashed, Radar, RotateCw, SearchX, SlidersHorizontal, X } from 'lucide-react';
+import {
+  AlertCircle,
+  CircleCheck,
+  CircleDashed,
+  Radar,
+  RotateCw,
+  SearchX,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
 import { m } from 'motion/react';
 import { Link } from 'react-router';
 
@@ -16,7 +25,11 @@ import { formatCount } from '../lib/format';
 
 export function FeedSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <m.div key="skeleton" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: tweens.fadeOut }}>
+    <m.div
+      key="skeleton"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: tweens.fadeOut }}
+    >
       <ListSkeleton rows={rows} delayMs={0} data-testid="radar-skeleton" />
     </m.div>
   );
@@ -53,14 +66,22 @@ export function SummaryStrip({
       <p className="min-w-0 flex-1 truncate">
         {awayDays >= 14 ? (
           <>
-            Welcome back. In {weeks} weeks: <strong className="font-mono font-medium text-fg">{formatCount(summary.newSinceLastVisit)}</strong>{' '}
+            Welcome back. In {weeks} weeks:{' '}
+            <strong className="font-mono font-medium text-fg">
+              {formatCount(summary.newSinceLastVisit)}
+            </strong>{' '}
             new fits.
           </>
         ) : (
           <>
             Since {formatShortDate(since)}:{' '}
-            <strong className="font-mono font-medium text-fg">{formatCount(summary.newSinceLastVisit)}</strong> new fits ·{' '}
-            <strong className="font-mono font-medium text-fg">{formatCount(summary.deadlinesThisWeek)}</strong>{' '}
+            <strong className="font-mono font-medium text-fg">
+              {formatCount(summary.newSinceLastVisit)}
+            </strong>{' '}
+            new fits ·{' '}
+            <strong className="font-mono font-medium text-fg">
+              {formatCount(summary.deadlinesThisWeek)}
+            </strong>{' '}
             {summary.deadlinesThisWeek === 1 ? 'deadline' : 'deadlines'} this week.
           </>
         )}
@@ -103,7 +124,10 @@ export function WarmingStrip({
   const progress = summary?.progress;
   const fraction = progress && progress.total > 0 ? progress.done / progress.total : null;
   return (
-    <div data-testid="radar-warming-strip" className="relative border-b border-border-subtle bg-surface-sunken">
+    <div
+      data-testid="radar-warming-strip"
+      className="relative border-b border-border-subtle bg-surface-sunken"
+    >
       <m.div
         data-testid="radar-warming-up"
         data-phase={phase}
@@ -113,15 +137,26 @@ export function WarmingStrip({
         className="flex min-h-11 items-start gap-2.5 px-gutter py-2.5 text-small text-fg-secondary"
       >
         {phase === 'ready' ? (
-          <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+          <CircleCheck
+            className="mt-0.5 size-4 shrink-0 text-success"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
         ) : (
-          <CircleDashed className="mt-0.5 size-4 shrink-0 animate-spin text-fg-tertiary [animation-duration:2.4s] motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />
+          <CircleDashed
+            className="mt-0.5 size-4 shrink-0 animate-spin text-fg-tertiary [animation-duration:2.4s] motion-reduce:animate-none"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
         )}
         <div className="min-w-0 flex-1" aria-live="polite">
           {phase === 'ready' ? (
             <p>
-              Radar ready: <strong className="font-mono font-medium text-fg">{formatCount(summary?.total ?? 0)}</strong> fits.
-              Personal sources keep updating in the background.
+              Radar ready:{' '}
+              <strong className="font-mono font-medium text-fg">
+                {formatCount(summary?.total ?? 0)}
+              </strong>{' '}
+              fits. Personal sources keep updating in the background.
             </p>
           ) : (
             <>
@@ -175,7 +210,8 @@ export function WarmingStrip({
 
 // ── Empty states ─────────────────────────────────────────────────────────────
 
-export type EmptyVariant = 'warming-up' | 'below-threshold' | 'filters' | 'none' | 'search';
+export type EmptyVariant =
+  'warming-up' | 'below-threshold' | 'filters' | 'none' | 'search' | 'all-triaged';
 
 export function FeedEmpty({
   variant,
@@ -189,6 +225,7 @@ export function FeedEmpty({
   onClearNarrowest,
   onReset,
   onSearchAllTypes,
+  onShowHidden,
 }: {
   variant: EmptyVariant;
   minFit: number;
@@ -201,9 +238,16 @@ export function FeedEmpty({
   onClearNarrowest: () => void;
   onReset: () => void;
   onSearchAllTypes: () => void;
+  onShowHidden?: () => void;
 }) {
   const wrap = (children: React.ReactNode) => (
-    <m.div data-testid="radar-empty" data-variant={variant} variants={variants.fade} initial="hidden" animate="visible">
+    <m.div
+      data-testid="radar-empty"
+      data-variant={variant}
+      variants={variants.fade}
+      initial="hidden"
+      animate="visible"
+    >
       {children}
     </m.div>
   );
@@ -235,6 +279,25 @@ export function FeedEmpty({
             <Button variant="ghost" asChild>
               <Link to="/sources">Enable a pack</Link>
             </Button>
+          }
+        />,
+      );
+    case 'all-triaged':
+      return wrap(
+        <EmptyState
+          icon={Radar}
+          title="You've been through everything here."
+          body="Every listing is saved, tracked or hidden. New fits land as your sources refresh."
+          action={
+            onShowHidden ? (
+              <Button
+                variant="secondary"
+                onClick={onShowHidden}
+                data-testid="radar-empty-show-hidden"
+              >
+                Show hidden listings
+              </Button>
+            ) : undefined
           }
         />,
       );
@@ -294,16 +357,39 @@ export function FeedEmpty({
 
 // ── Errors ───────────────────────────────────────────────────────────────────
 
-export function FeedError({ message, onRetry, retrying }: { message: string; onRetry: () => void; retrying: boolean }) {
+export function FeedError({
+  message,
+  onRetry,
+  retrying,
+}: {
+  message: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
   return (
-    <m.div data-testid="radar-error" role="alert" variants={variants.fade} initial="hidden" animate="visible">
+    <m.div
+      data-testid="radar-error"
+      role="alert"
+      variants={variants.fade}
+      initial="hidden"
+      animate="visible"
+    >
       <EmptyState
         icon={AlertCircle}
         title="Couldn't load your radar."
         body={message || "The server didn't respond within 10 seconds."}
         action={
-          <Button variant="primary" onClick={onRetry} disabled={retrying} data-testid="radar-error-retry">
-            <RotateCw className={cn(retrying && 'animate-spin')} strokeWidth={1.5} aria-hidden="true" />
+          <Button
+            variant="primary"
+            onClick={onRetry}
+            disabled={retrying}
+            data-testid="radar-error-retry"
+          >
+            <RotateCw
+              className={cn(retrying && 'animate-spin')}
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
             Retry
           </Button>
         }
@@ -313,7 +399,11 @@ export function FeedError({ message, onRetry, retrying }: { message: string; onR
 }
 
 export function StaleStrip({ updatedAt, onRetry }: { updatedAt: number; onRetry: () => void }) {
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(updatedAt);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(updatedAt);
   return (
     <div
       data-testid="radar-stale-strip"
@@ -344,8 +434,8 @@ export function NewFitsPill({ count, onShow }: { count: number; onShow: () => vo
         onClick={onShow}
         className="pointer-events-auto flex h-7 items-center gap-1.5 rounded-full border border-border bg-overlay px-3 text-small text-fg shadow-md hover:bg-surface-hover focus-visible:focus-ring"
       >
-        <span className="font-mono font-medium">{formatCount(count)}</span> new {count === 1 ? 'fit' : 'fits'} ·
-        <span className="font-medium text-accent-strong">Show</span>
+        <span className="font-mono font-medium">{formatCount(count)}</span> new{' '}
+        {count === 1 ? 'fit' : 'fits'} ·<span className="font-medium text-accent-strong">Show</span>
       </button>
     </m.div>
   );

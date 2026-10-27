@@ -87,12 +87,22 @@ function ToggleGroupItem({
       value={value}
       className={cn(
         toggleVariants({ variant: ctx.variant ?? variant, size: resolvedSize }),
-        'focus-visible:z-10',
+        'focus-visible:z-10 data-[keyboard-focus=true]:focus-ring',
         ctx.segmented &&
           'flex-1 rounded-xs hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:text-fg',
         className,
       )}
       {...props}
+      onFocus={(event) => {
+        // Roving focus in iOS WebKit can lose the native :focus-visible match.
+        if (document.documentElement.dataset['keyboard'] === 'true')
+          event.currentTarget.dataset['keyboardFocus'] = 'true';
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        delete event.currentTarget.dataset['keyboardFocus'];
+        props.onBlur?.(event);
+      }}
     >
       {ctx.segmented && isOn && (
         <m.span

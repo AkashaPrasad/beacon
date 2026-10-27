@@ -16,7 +16,6 @@ const checkA11y = async (page: Page, info: TestInfo, label: string) => {
   await expectNoSeriousA11y(page, info, label, SHELL_PENDING);
 };
 
-
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
@@ -48,7 +47,7 @@ test('edit the headline inline, undo it, remove a skill, preview what recruiters
   const name = await chips.first().getAttribute('data-skill');
   await chips.first().getByTestId('profile-skill-remove').click();
   await expect(chips).toHaveCount(count - 1);
-  await expect(page.getByText(`Removed ${name}.`)).toBeVisible();
+  await expect(page.getByText(`Removed ${name ?? ''}.`)).toBeVisible();
 
   await byTestId(page, 'profile-view-preview').click();
   await expect(byTestId(page, 'profile-recruiter-preview')).toBeVisible();

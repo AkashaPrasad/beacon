@@ -7,7 +7,7 @@
 #   BEACON_SESSION=… scripts/smoke-prod.sh --full --ingest https://boards.greenhouse.io/<token>
 #
 # --full needs the value of the `beacon_session` cookie from a signed-in browser
-# (DevTools → Application → Cookies → api.beacon.spacesdrive.cc). It is sent only to API_URL and
+# (DevTools → Application → Cookies → api-beacon.spacesdrive.cc). It is sent only to API_URL and
 # never printed. --ingest adds that URL as a personal source, waits for its first ingest to
 # finish (health leaves `pending`), then deletes it again.
 #
@@ -15,7 +15,7 @@
 set -uo pipefail
 
 WEB_URL=${WEB_URL:-https://beacon.spacesdrive.cc}; WEB_URL=${WEB_URL%/}
-API_URL=${API_URL:-https://api.beacon.spacesdrive.cc}; API_URL=${API_URL%/}
+API_URL=${API_URL:-https://api-beacon.spacesdrive.cc}; API_URL=${API_URL%/}
 FULL=0
 INGEST_URL=""
 while [ $# -gt 0 ]; do

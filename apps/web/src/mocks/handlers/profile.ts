@@ -18,10 +18,13 @@ import { state } from '../state';
 
 function scenario(): 'full' | 'empty' {
   try {
-    return localStorage.getItem('beacon:mock:profile') === 'empty' ? 'empty' : 'full';
+    const set = localStorage.getItem('beacon:mock:profile');
+    if (set === 'empty' || set === 'full') return set;
   } catch {
-    return 'full';
+    /* storage blocked */
   }
+  // An account that hasn't finished onboarding starts without a profile, so onboarding asks everything.
+  return state.onboarding.completedAt ? 'full' : 'empty';
 }
 
 const isBrowser = typeof window !== 'undefined' && !('__vitest_worker__' in globalThis);
@@ -55,7 +58,8 @@ let meta: { exists: boolean; resume: ResumeMeta | null } | null = null;
 
 function setProfile(next: Profile): void {
   // Replace in place: state.profile is shared with the export and the foundation handlers.
-  for (const key of Object.keys(state.profile)) delete (state.profile as unknown as Record<string, unknown>)[key];
+  for (const key of Object.keys(state.profile))
+    delete (state.profile as unknown as Record<string, unknown>)[key];
   Object.assign(state.profile, next);
 }
 
@@ -158,7 +162,8 @@ function parsedDraft(name: string) {
     base.skills = [];
     warnings.push('No skills section found');
   }
-  if (!lower.includes('nograd') && !lower.includes('noskills')) warnings.push('No summary section found');
+  if (!lower.includes('nograd') && !lower.includes('noskills'))
+    warnings.push('No summary section found');
   return { draft: profileInputSchema.parse(base), warnings };
 }
 
@@ -191,12 +196,16 @@ export const profileHandlers = [
       const parsed = profilePatchSchema.safeParse(await request.json());
       if (!parsed.success) {
         return HttpResponse.json(
-          { error: { code: 'VALIDATION', message: 'Invalid request', issues: parsed.error.issues } },
+          {
+            error: { code: 'VALIDATION', message: 'Invalid request', issues: parsed.error.issues },
+          },
           { status: 400 },
         );
       }
       const s = store();
-      const defined = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
+      const defined = Object.fromEntries(
+        Object.entries(parsed.data).filter(([, v]) => v !== undefined),
+      );
       setProfile({ ...s.profile, ...defined, updatedAt: new Date() });
       if (meta) meta.exists = true;
       return HttpResponse.json(response());
@@ -209,12 +218,16 @@ export const profileHandlers = [
       const url = new URL(request.url);
       const form = await request.formData();
       const file = form.get('file');
-      if (!(file instanceof File)) return error(400, 'BAD_REQUEST', 'Attach the resume as the "file" field.');
+      if (!(file instanceof File))
+        return error(400, 'BAD_REQUEST', 'Attach the resume as the "file" field.');
       const name = file.name.toLowerCase();
-      if (!/\.(pdf|docx)$/.test(name)) return error(415, 'UNSUPPORTED_MEDIA_TYPE', 'Only PDF or DOCX resumes are supported.');
-      if (file.size > LIMITS.resumeMaxBytes) return error(413, 'PAYLOAD_TOO_LARGE', 'Resume is larger than 10 MB.');
+      if (!/\.(pdf|docx)$/.test(name))
+        return error(415, 'UNSUPPORTED_MEDIA_TYPE', 'Only PDF or DOCX resumes are supported.');
+      if (file.size > LIMITS.resumeMaxBytes)
+        return error(413, 'PAYLOAD_TOO_LARGE', 'Resume is larger than 10 MB.');
       await wait(700);
-      if (name.includes('scanned')) return error(422, 'RESUME_NO_TEXT', 'This PDF has no readable text.');
+      if (name.includes('scanned'))
+        return error(422, 'RESUME_NO_TEXT', 'This PDF has no readable text.');
       if (name.includes('corrupt') || name.includes('encrypted')) {
         return error(422, 'RESUME_UNREADABLE', 'The file is corrupt or encrypted.');
       }

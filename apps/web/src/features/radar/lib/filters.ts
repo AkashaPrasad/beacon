@@ -8,7 +8,6 @@
 import type { FeedFilters } from '@/api/types';
 import { OPPORTUNITY_TYPES, type OpportunityType } from '@kestrel/shared';
 
-
 export const DEADLINE_WINDOWS = [7, 14, 30] as const;
 export type DeadlineWindow = (typeof DEADLINE_WINDOWS)[number];
 
@@ -21,7 +20,7 @@ export type RemoteFilter = (typeof REMOTE_FILTERS)[number];
 export const SORTS = ['fit', 'deadline', 'posted'] as const;
 export type RadarSort = (typeof SORTS)[number];
 
-export const VIEWS = ['list', 'timeline', 'board'] as const;
+export const VIEWS = ['grid', 'list', 'timeline', 'board'] as const;
 export type RadarView = (typeof VIEWS)[number];
 
 /** Long shots (0–39) are hidden by default: "Fit ≥ 40" (docs/DECISIONS.md). */
@@ -183,13 +182,16 @@ export function filtersToSearchParams(
   set(PARAM.savedOnly, filters.savedOnly ? '1' : null);
   set(PARAM.showHidden, filters.showHidden ? '1' : null);
   set(PARAM.newOnly, filters.newOnly ? '1' : null);
-  set(PARAM.minFit, filters.minFit === DEFAULT_MIN_FIT ? null : String(clampMinFit(filters.minFit)));
+  set(
+    PARAM.minFit,
+    filters.minFit === DEFAULT_MIN_FIT ? null : String(clampMinFit(filters.minFit)),
+  );
   set(PARAM.sort, filters.sort === 'fit' ? null : filters.sort);
   return next;
 }
 
 export function viewFromSearchParams(params: URLSearchParams): RadarView {
-  return oneOf(VIEWS, params.get(PARAM.view)) ?? 'list';
+  return oneOf(VIEWS, params.get(PARAM.view)) ?? 'grid';
 }
 
 /**
@@ -328,10 +330,18 @@ export function activeFilterChips(filters: RadarFilters): ActiveFilterChip[] {
     chips.push({ id: 'saved', label: 'Saved only', remove: (f) => ({ ...f, savedOnly: false }) });
   }
   if (filters.newOnly) {
-    chips.push({ id: 'new', label: 'New since last visit', remove: (f) => ({ ...f, newOnly: false }) });
+    chips.push({
+      id: 'new',
+      label: 'New since last visit',
+      remove: (f) => ({ ...f, newOnly: false }),
+    });
   }
   if (filters.showHidden) {
-    chips.push({ id: 'hidden', label: 'Including hidden', remove: (f) => ({ ...f, showHidden: false }) });
+    chips.push({
+      id: 'hidden',
+      label: 'Including hidden',
+      remove: (f) => ({ ...f, showHidden: false }),
+    });
   }
   if (filters.q.trim()) {
     chips.push({ id: 'q', label: `“${filters.q.trim()}”`, remove: (f) => ({ ...f, q: '' }) });
@@ -341,7 +351,8 @@ export function activeFilterChips(filters: RadarFilters): ActiveFilterChip[] {
 
 /** Number of narrowing filters (badge on the "Filters" button). Search and fit are not counted. */
 export function activeFilterCount(filters: RadarFilters): number {
-  return activeFilterChips(filters).filter((chip) => chip.id !== 'q' && chip.id !== 'hidden').length;
+  return activeFilterChips(filters).filter((chip) => chip.id !== 'q' && chip.id !== 'hidden')
+    .length;
 }
 
 /** Filters reset to defaults, keeping the threshold and sort the user picked. */

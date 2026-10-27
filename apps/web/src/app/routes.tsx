@@ -179,6 +179,12 @@ export const routes: RouteObject[] = [
                     handle: { title: 'Notifications' },
                     errorElement,
                   },
+                  {
+                    path: 'me',
+                    lazy: () => import('@/features/me/MeScreen'),
+                    handle: { title: 'Me' },
+                    errorElement,
+                  },
                 ],
               },
             ],

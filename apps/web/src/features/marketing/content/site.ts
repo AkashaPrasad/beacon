@@ -1,12 +1,12 @@
 /**
  * Public-site constants: navigation, footer, links and the real numbers every page quotes.
  * The numbers come from seed/source-packs.json and seed/VERIFICATION.md (2026-10-27) and are checked
- * against the generated directory by `source-directory.test.ts`, so a seed change cannot leave a page lying.
+ * against the generated directory by `facts.test.ts`, so a seed change cannot leave a page lying.
  */
 
 export const REPO_URL = 'https://github.com/AkashaPrasad/beacon';
 export const ISSUES_URL = `${REPO_URL}/issues`;
-export const API_DOCS_URL = 'https://api.beacon.spacesdrive.cc/docs';
+export const API_DOCS_URL = 'https://api-beacon.spacesdrive.cc/docs';
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
 export const SELF_HOST_URL = `${REPO_URL}#running-locally`;
 
@@ -48,6 +48,9 @@ export const SEED = {
   ],
   /** Companies probed for a public ATS endpoint while building the packs. */
   companiesProbed: 407,
+  /** Postings all sources returned on the verification date, and how many had intern/graduate titles. */
+  postings: 55060,
+  internPostings: 19452,
 } as const;
 
 export const ATS_SHARE = Math.round((SEED.atsFeeds / SEED.sources) * 100);

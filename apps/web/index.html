@@ -16,15 +16,16 @@
           var p = location.pathname;
           // Public pages (landing, sign-in) always use the brand accent.
           var landing = p === '/' || p === '' || p === '/login';
+          // Light is the default; 'system' follows the OS only when the user chose it in Settings.
           var t =
             a.theme === 'light' || a.theme === 'dark'
               ? a.theme
-              : matchMedia('(prefers-color-scheme: dark)').matches
+              : a.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark'
                 : 'light';
           d.classList.toggle('dark', t === 'dark');
           d.setAttribute('data-theme', t);
-          if (!landing && (a.accent === 'teal' || a.accent === 'cobalt' || a.accent === 'ink'))
+          if (!landing && (a.accent === 'teal' || a.accent === 'amber' || a.accent === 'ink'))
             d.setAttribute('data-accent', a.accent);
           d.setAttribute('data-density', a.density === 'compact' ? 'compact' : 'comfortable');
           d.setAttribute(
@@ -43,8 +44,8 @@
       content="Beacon watches internships, jobs, hackathons, scholarships and research programs, and ranks each one against your resume with reasons. Free. Bring your own AI key, or switch AI off."
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#F7F6F3" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#EEF1F8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0F1A" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Beacon" />
@@ -91,6 +92,88 @@
       >Skip to content</a
     >
     <div id="root"><!--app-html--></div>
+    <!-- Boot skeleton: visible from first paint until React renders (no page is ever blank while the
+         mock worker / lazy route / data load). Removed by main.tsx right before render. -->
+    <div
+      id="boot-skeleton"
+      aria-hidden="true"
+      style="
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: var(--color-bg, #f5f7fb);
+      "
+    >
+      <div
+        style="
+          height: 48px;
+          border-bottom: 1px solid var(--color-border-subtle, rgba(16, 24, 40, 0.06));
+          background: var(--color-glass, rgba(251, 252, 254, 0.78));
+        "
+      ></div>
+      <div style="max-width: 1280px; margin: 40px auto 0; padding: 0 24px">
+        <div
+          style="
+            height: 28px;
+            width: 180px;
+            border-radius: 8px;
+            background: var(--color-surface-sunken, #eef1f7);
+          "
+        ></div>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            margin-top: 24px;
+          "
+        >
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+          <div
+            style="
+              height: 150px;
+              border-radius: 12px;
+              background: var(--color-surface-sunken, #eef1f7);
+            "
+          ></div>
+        </div>
+      </div>
+    </div>
     <script>
       // Prerendered markup is only valid for the path it was rendered for: other routes start empty,
       // so an app route never flashes the landing page, not even for one frame.

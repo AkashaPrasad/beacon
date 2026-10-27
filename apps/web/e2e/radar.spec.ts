@@ -6,7 +6,6 @@
  * Transport: the QA fake API (`e2e/utils/fixtures`, page.route, signed in as the default user);
  * the feed is replaced with the same listings the MSW mock serves under `VITE_MOCK_API=1`.
  */
-import { buildDefaultListings } from '../src/features/radar/mocks/fixtures';
 
 import { expectNoSeriousA11y } from './utils/a11y';
 import { expect, test } from './utils/fixtures';
@@ -14,6 +13,7 @@ import type { MockApi } from './utils/mock-api';
 import { setFeed } from './utils/mock-data';
 import { byTestId, open } from './utils/routes';
 import { activeRow, rows, waitForRows } from './utils/ui';
+import { buildDefaultListings } from '../src/features/radar/mocks/fixtures';
 
 function seed(api: MockApi) {
   setFeed(api.state, buildDefaultListings(Date.now()));
@@ -64,11 +64,15 @@ test.describe('radar', () => {
 
     await page.keyboard.press('h');
     await expect.poll(() => api.calls('POST', `/v1/listings/${first}/hide`).length).toBe(1);
-    await expect(page.locator(`[data-testid="radar-row"][data-listing-id="${first}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-testid="radar-row"][data-listing-id="${first}"]`)).toHaveCount(
+      0,
+    );
     await expect(page.getByText(/^Hidden/).first()).toBeVisible();
     await page.keyboard.press('u');
     await expect.poll(() => api.calls('POST', `/v1/listings/${first}/unhide`).length).toBe(1);
-    await expect(page.locator(`[data-testid="radar-row"][data-listing-id="${first}"]`)).toHaveCount(1);
+    await expect(page.locator(`[data-testid="radar-row"][data-listing-id="${first}"]`)).toHaveCount(
+      1,
+    );
 
     // Views: 3 board, 2 timeline, 1 list.
     await page.keyboard.press('3');
@@ -85,9 +89,11 @@ test.describe('radar', () => {
   test('drawer by URL: breakdown, explain, prev/next, Esc', async ({ page }, testInfo) => {
     await open(page, 'radar');
     await waitForRows(page, 3);
-    const ids = await rows(page).evaluateAll((els) => els.slice(0, 3).map((e) => e.getAttribute('data-listing-id')!));
+    const ids = await rows(page).evaluateAll((els) =>
+      els.slice(0, 3).map((e) => e.getAttribute('data-listing-id')!),
+    );
 
-    await page.goto(`/radar/${ids[0]}`);
+    await page.goto(`/radar/${ids[0] ?? ''}`);
     const drawer = byTestId(page, 'listing-drawer');
     await expect(drawer).toBeVisible();
     await expect(drawer.getByTestId('listing-drawer-title')).not.toHaveText(/Loading/);
@@ -99,9 +105,9 @@ test.describe('radar', () => {
     // Next listing (drawer scope): j, or → on desktop.
     await drawer.getByTestId('listing-drawer-title').focus();
     await page.keyboard.press('j');
-    await expect(page).toHaveURL(new RegExp(`/radar/${ids[1]}`));
+    await expect(page).toHaveURL(new RegExp(`/radar/${ids[1] ?? ''}`));
     await page.keyboard.press('k');
-    await expect(page).toHaveURL(new RegExp(`/radar/${ids[0]}`));
+    await expect(page).toHaveURL(new RegExp(`/radar/${ids[0] ?? ''}`));
 
     await expectNoSeriousA11y(page, testInfo, 'radar-drawer');
 

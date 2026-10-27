@@ -1,122 +1,300 @@
 /*
- * Public site atmosphere (docs/MARKETING.md). Plain CSS on the design tokens: everything here is a
- * static paint layer or a transform/opacity animation (MOTION §7). One hue only: signal amber at
- * varying alpha, never a multi-hue gradient (DESIGN §1). Ambient loops are landing-only and stop under
- * reduced motion (the global rule in styles/index.css collapses animation durations) and while off-screen
- * (`data-paused`).
+ * Public site atmosphere (docs/MARKETING.md). Plain CSS on the semantic design tokens, so a new colour
+ * world in packages/ui/tokens.css restyles the whole site with no edit here: every tint is
+ * `color-mix(… var(--color-accent) N%, transparent)` and every surface is a `--color-*` token.
+ *
+ * Everything is either a static paint layer (composited once) or a transform/opacity animation
+ * (MOTION §7). Ambient loops exist only on the public site, stop under reduced motion, and pause while
+ * off-screen (`[data-paused]`, set by the components with an IntersectionObserver).
  */
 
 :root {
-  /* Ambient loop lengths (landing only; product UI never loops, MOTION §1.7). */
-  --mk-beam-sweep: 16s;
-  --mk-marquee: 70s;
-  /* The lamp, as channels so alpha can vary (dark-theme accent #FFB547; the hero is always dark). */
-  --mk-lamp: 255 181 71;
-  --mk-ink: 237 234 230;
+  /* Ambient loop lengths (public site only; product UI never loops, MOTION §1). */
+  --mk-beam-sweep: 14s;
+  --mk-ping: 5.6s;
+  --mk-marquee: 64s;
+  /* The lamp's tint at three strengths. */
+  --mk-lamp-strong: rgb(242 242 240 / 0.28);
+  --mk-lamp: rgb(242 242 240 / 0.14);
+  --mk-lamp-soft: rgb(242 242 240 / 0.06);
+  --mk-ink-line: color-mix(in oklab, var(--color-fg) 9%, transparent);
+  --mk-ink-dot: color-mix(in oklab, var(--color-fg) 16%, transparent);
 }
 
-/* ── Grain: SVG fractal noise, ~4 % (static, tiled, composited once) ───────────────────────── */
+/* ── Bands ─────────────────────────────────────────────────────────────────────────────────────
+   A band is a full-bleed section with its own atmosphere. `.dark` on the band forces the dark tokens
+   (the hero and the finale are always night, so the lamp reads as a lamp). */
+.mk-band {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background-color: var(--color-bg);
+}
+.mk-band-night {
+  background-color: #0e0f12;
+  --color-bg: #0e0f12;
+  --color-surface: #15171b;
+  --color-surface-raised: #1b1d22;
+}
+.mk-band-night .mk-grain {
+  opacity: 0.02;
+}
+/* A soft floor of light at the bottom edge, so a night band never ends on a hard line. */
+.mk-band-night::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: rgb(255 255 255 / 0.06);
+  pointer-events: none;
+}
+
+/* Layer helper: every atmosphere layer is absolutely placed, behind content, never interactive. */
+.mk-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+/* ── Grain: SVG fractal noise at ~5 %, static and tiled ─────────────────────────────────────── */
 .mk-grain {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  opacity: 0.045;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-}
-.mk-grain-ink {
-  opacity: 0.03;
-  filter: invert(1);
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
 }
 
-/* ── Dotted radar grid, fading out from the lamp ──────────────────────────────────────────── */
+/* ── Dotted radar grid, fading out from the lamp ────────────────────────────────────────────── */
 .mk-dots {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at center, rgb(var(--mk-ink) / 0.16) 1px, transparent 1.5px);
-  background-size: 22px 22px;
+  background-image: radial-gradient(circle at center, var(--mk-ink-dot) 1px, transparent 1.5px);
+  background-size: 24px 24px;
   background-position: center top;
   mask-image: radial-gradient(
-    ellipse 70% 80% at var(--mk-src-x, 78%) var(--mk-src-y, 8%),
+    ellipse 75% 85% at var(--mk-src-x, 78%) var(--mk-src-y, 0%),
     #000 0%,
-    rgb(0 0 0 / 0.55) 35%,
-    transparent 72%
+    rgb(0 0 0 / 0.5) 40%,
+    transparent 78%
   );
 }
-.mk-dots-paper {
-  background-image: radial-gradient(circle at center, rgb(28 25 23 / 0.1) 1px, transparent 1.5px);
-}
-.dark .mk-dots-paper {
-  background-image: radial-gradient(circle at center, rgb(var(--mk-ink) / 0.09) 1px, transparent 1.5px);
+.mk-dots-quiet {
+  background-image: radial-gradient(circle at center, var(--mk-ink-line) 1px, transparent 1.5px);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000, transparent 75%);
 }
 
-/* ── Amber glow around the lamp (one hue, alpha only) ─────────────────────────────────────── */
+/* ── Range rings around the lamp (the mark's "field", at room scale) ───────────────────────── */
+.mk-rings {
+  background-image: repeating-radial-gradient(
+    circle at var(--mk-src-x, 78%) var(--mk-src-y, 0%),
+    transparent 0 calc(var(--mk-ring-gap, 9rem) - 1px),
+    var(--mk-ink-line) calc(var(--mk-ring-gap, 9rem) - 1px) var(--mk-ring-gap, 9rem)
+  );
+  mask-image: radial-gradient(
+    circle at var(--mk-src-x, 78%) var(--mk-src-y, 0%),
+    #000 0%,
+    rgb(0 0 0 / 0.45) 38%,
+    transparent 62%
+  );
+}
+
+/* ── Glow around the lamp (one hue, alpha only) ─────────────────────────────────────────────── */
 .mk-glow {
   pointer-events: none;
   position: absolute;
+  z-index: -1;
+  left: var(--mk-src-x, 78%);
+  top: var(--mk-src-y, 0%);
+  width: var(--mk-glow-size, 56rem);
+  aspect-ratio: 1;
+  translate: -50% -50%;
   border-radius: 9999px;
-  background: radial-gradient(closest-side, rgb(var(--mk-lamp) / 0.2), rgb(var(--mk-lamp) / 0.07) 45%, rgb(var(--mk-lamp) / 0) 100%);
+  background: radial-gradient(
+    closest-side,
+    var(--mk-lamp),
+    var(--mk-lamp-soft) 45%,
+    transparent 100%
+  );
 }
 
-/* ── The beam: a tapered cone from the lamp. The element's left-centre is the lamp; the wedge is a
-   conic gradient (soft angular edges) faded along its length by a radial mask. It sweeps by
-   rotating about the lamp (transform only). ─────────────────────────────────────────────── */
+/* ── The beam: a tapered cone leaving the lamp. The element's left-centre is the lamp; the wedge is
+   a conic gradient (soft angular edges) faded along its length by a radial mask. It sweeps by
+   rotating about the lamp, which is a compositor-only transform. ───────────────────────────── */
 .mk-beam {
   pointer-events: none;
   position: absolute;
+  z-index: -1;
   left: var(--mk-src-x, 78%);
-  top: var(--mk-src-y, 8%);
-  width: var(--mk-beam-length, 88rem);
-  height: calc(var(--mk-beam-length, 88rem) * 0.62);
+  top: var(--mk-src-y, 0%);
+  width: var(--mk-beam-length, 92rem);
+  height: calc(var(--mk-beam-length, 92rem) * 0.7);
   translate: 0 -50%;
   transform-origin: 0% 50%;
-  rotate: var(--mk-beam-dir, 205deg);
+  rotate: var(--mk-beam-dir, 152deg);
+  will-change: rotate;
   background: conic-gradient(
-    from 72deg at 0% 50%,
-    rgb(var(--mk-lamp) / 0) 0deg,
-    rgb(var(--mk-lamp) / 0.1) 9deg,
-    rgb(var(--mk-lamp) / 0.2) 18deg,
-    rgb(var(--mk-lamp) / 0.1) 27deg,
-    rgb(var(--mk-lamp) / 0) 36deg,
-    rgb(var(--mk-lamp) / 0) 360deg
+    from 66deg at 0% 50%,
+    transparent 0deg,
+    var(--mk-lamp-soft) 10deg,
+    var(--mk-lamp) 20deg,
+    var(--mk-lamp-strong) 24deg,
+    var(--mk-lamp) 28deg,
+    var(--mk-lamp-soft) 38deg,
+    transparent 48deg,
+    transparent 360deg
   );
-  mask-image: radial-gradient(circle at 0% 50%, #000 0%, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.25) 62%, transparent 82%);
+  mask-image: radial-gradient(
+    circle at 0% 50%,
+    #000 0%,
+    rgb(0 0 0 / 0.7) 26%,
+    rgb(0 0 0 / 0.22) 58%,
+    transparent 80%
+  );
+}
+/* A fainter wide spill under the beam, so the light has a body and not only an edge. */
+.mk-beam-spill {
+  opacity: 0.55;
+  height: calc(var(--mk-beam-length, 92rem) * 1.1);
+  background: conic-gradient(
+    from 50deg at 0% 50%,
+    transparent 0deg,
+    var(--mk-lamp-soft) 22deg,
+    var(--mk-lamp-soft) 58deg,
+    transparent 80deg,
+    transparent 360deg
+  );
 }
 .mk-beam[data-sweep] {
   animation: mk-beam-sweep var(--mk-beam-sweep) var(--ease-in-out) infinite alternate;
 }
-.mk-beam[data-paused] {
+.mk-beam-spill[data-sweep] {
+  animation-delay: -0.6s;
+}
+[data-paused] .mk-beam[data-sweep],
+[data-paused] .mk-ping,
+[data-paused] .mk-marquee-track {
   animation-play-state: paused;
 }
 @keyframes mk-beam-sweep {
   from {
-    rotate: calc(var(--mk-beam-dir, 205deg) - var(--mk-beam-swing, 9deg));
+    rotate: calc(var(--mk-beam-dir, 152deg) - var(--mk-beam-swing, 14deg));
   }
   to {
-    rotate: calc(var(--mk-beam-dir, 205deg) + var(--mk-beam-swing, 9deg));
+    rotate: calc(var(--mk-beam-dir, 152deg) + var(--mk-beam-swing, 14deg));
   }
 }
 
-/* The lamp itself: a solid source and a thin halo ring (the mark's construction at scale). */
+/* The lamp: a solid source, a halo ring and an outgoing ping (the mark's construction at scale). */
 .mk-lamp {
   pointer-events: none;
   position: absolute;
+  z-index: -1;
   left: var(--mk-src-x, 78%);
-  top: var(--mk-src-y, 8%);
+  top: var(--mk-src-y, 0%);
   translate: -50% -50%;
+  display: grid;
+  place-items: center;
+}
+.mk-lamp-core {
+  grid-area: 1 / 1;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  box-shadow:
+    0 0 0 6px var(--mk-lamp-soft),
+    0 0 32px 10px var(--mk-lamp);
+}
+.mk-ping {
+  grid-area: 1 / 1;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 9999px;
+  border: 1px solid var(--mk-lamp-strong);
+  opacity: 0;
+  scale: 0.1;
+  animation: mk-ping var(--mk-ping) var(--ease-out) infinite;
+}
+.mk-ping + .mk-ping {
+  animation-delay: calc(var(--mk-ping) / -2);
+}
+@keyframes mk-ping {
+  0% {
+    scale: 0.1;
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    scale: 1.6;
+    opacity: 0;
+  }
 }
 
-/* ── Logo marquee: one track, duplicated, translated -50 % (transform only); pauses on hover/focus ── */
+/* ── Surfaces with depth ─────────────────────────────────────────────────────────────────────
+   A raised panel: token surface, hairline border, a top rim highlight and a long soft shadow. */
+.mk-panel {
+  position: relative;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-fg) 6%, transparent),
+    var(--shadow-lg);
+}
+/* The lamp catching the panel's top edge. */
+.mk-rim::before {
+  content: none;
+}
+/* Glass for the nav and small overlays only (never under a moving layer bigger than the nav). */
+.mk-glass {
+  background-color: color-mix(in oklab, var(--color-bg) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+/* Card with a pointer-following highlight (`--mk-x/--mk-y` set from pointer events, no re-render). */
+.mk-card {
+  position: relative;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-fg) 5%, transparent),
+    var(--shadow-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    translate var(--duration-base) var(--ease-spring);
+}
+.mk-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    28rem circle at var(--mk-x, 50%) var(--mk-y, 0%),
+    var(--mk-lamp-soft),
+    transparent 60%
+  );
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mk-card:hover {
+    border-color: var(--color-border-strong);
+  }
+  .mk-card:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ── Logo marquee: one track, duplicated, translated −50 % (transform only); pauses on hover/focus ── */
 .mk-marquee {
-  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
 }
 .mk-marquee-track {
   animation: mk-marquee var(--mk-marquee) linear infinite;
 }
 .mk-marquee:hover .mk-marquee-track,
-.mk-marquee:focus-within .mk-marquee-track,
-.mk-marquee[data-paused] .mk-marquee-track {
+.mk-marquee:focus-within .mk-marquee-track {
   animation-play-state: paused;
 }
 @keyframes mk-marquee {
@@ -124,11 +302,11 @@
     translate: -50% 0;
   }
 }
-/* Greyscale at rest, colour on hover: two stacked copies of the same (cached) favicon, crossfaded
-   by opacity, so no filter ever animates. */
+/* Greyscale at rest, colour on hover: two stacked copies of the same cached image, crossfaded by
+   opacity, so no filter ever animates. */
 .mk-logo-grey {
-  filter: grayscale(1);
-  opacity: 0.7;
+  filter: grayscale(1) contrast(1.1);
+  opacity: 0.65;
 }
 .mk-logo-colour {
   opacity: 0;
@@ -139,73 +317,368 @@
     opacity: 1;
   }
 }
-.mk-logo:focus-visible .mk-logo-colour {
-  opacity: 1;
+
+/* ── Editorial display sizes for the public site (Instrument Serif) ───────────────────────────
+   Hero 42 → 88 px, section 34 → 60 px, sub 28 → 44 px. Line-heights are unitless so the fallback
+   serif (metric-matched in styles/index.css) and the webfont break lines identically. */
+.mk-display-hero {
+  font-family: var(--font-serif, var(--font-display));
+  font-weight: 400;
+  font-size: clamp(2.25rem, 1.55rem + 2.4vw, 4rem); /* 36 → 64 px */
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+}
+.mk-display {
+  font-family: var(--font-serif, var(--font-display));
+  font-weight: 400;
+  font-size: clamp(2rem, 1.6rem + 1.4vw, 2.5rem); /* 32 → 40 px */
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+}
+.mk-display-sm {
+  font-family: var(--font-serif, var(--font-display));
+  font-weight: 400;
+  font-size: clamp(1.625rem, 1.4rem + 0.8vw, 2rem); /* 26 → 32 px */
+  line-height: 1.12;
+  letter-spacing: -0.014em;
+}
+.mk-lede {
+  font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem); /* 17 → 20 px */
+  line-height: 1.5;
+  max-width: 38rem;
+  letter-spacing: -0.006em;
 }
 
-/* Under reduced motion the marquee becomes a static, wrapping wall (no loop at all). */
-@media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) .mk-marquee-track {
-    animation: none;
-  }
-  :root:not([data-motion='full']) .mk-beam[data-sweep] {
-    animation: none;
-  }
-}
-[data-motion='reduced'] .mk-marquee-track,
-[data-motion='reduced'] .mk-beam[data-sweep] {
-  animation: none;
+/* Pointer tilt: perspective lives on the parent so the frame's own transform stays cheap. */
+.mk-tilt-stage {
+  perspective: 1600px;
 }
 
-/* ── Below-fold sections skip rendering until near the viewport (no layout shift: intrinsic size) ── */
+/* Below-fold sections skip rendering until near the viewport (no layout shift: intrinsic size). */
 .mk-cv {
   content-visibility: auto;
   contain-intrinsic-size: auto var(--mk-cv-size, 900px);
 }
 
-/* Editorial display sizes for the public site (Instrument Serif 56–88 px on desktop). */
-.mk-display-hero {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(2.625rem, 1.4rem + 5.6vw, 5.5rem);
-  line-height: 1;
-  letter-spacing: -0.022em;
-}
-.mk-display {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(2.25rem, 1.5rem + 3.2vw, 3.75rem);
-  line-height: 1.04;
-  letter-spacing: -0.018em;
-}
-.mk-display-sm {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(1.875rem, 1.4rem + 1.9vw, 2.75rem);
-  line-height: 1.08;
-  letter-spacing: -0.014em;
-}
-
-/* Pointer tilt container (perspective lives on the parent so the frame's own transform stays 2D-cheap). */
-.mk-tilt-stage {
-  perspective: 1400px;
-}
-
-/* A hairline that reads as light on the dark bands (amber at low alpha). */
-.mk-hairline-lamp {
-  border-color: rgb(var(--mk-lamp) / 0.28);
-}
-
-/* Native <details> FAQ: rotate the chevron, never animate height. */
+/* Native <details> FAQ: rotate the plus, never animate height. */
 .mk-faq summary::-webkit-details-marker {
   display: none;
 }
 .mk-faq summary {
   list-style: none;
 }
-.mk-faq[open] .mk-faq-chevron {
+.mk-faq-icon {
+  transition: rotate var(--duration-base) var(--ease-spring);
+}
+.mk-faq[open] .mk-faq-icon {
   rotate: 45deg;
 }
-.mk-faq-chevron {
-  transition: rotate var(--duration-base) var(--ease-spring);
+.mk-faq[open] .mk-faq-body {
+  animation: mk-faq-in var(--duration-base) var(--ease-out);
+}
+@keyframes mk-faq-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--motion-distance-sm) * -1);
+  }
+}
+
+/* ── Reduced motion: every ambient loop stops at a meaningful frame ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) :is(.mk-beam[data-sweep], .mk-ping, .mk-marquee-track) {
+    animation: none;
+  }
+  :root:not([data-motion='full']) .mk-ping {
+    opacity: 0;
+  }
+}
+[data-motion='reduced'] :is(.mk-beam[data-sweep], .mk-ping, .mk-marquee-track) {
+  animation: none;
+}
+[data-motion='reduced'] .mk-ping {
+  opacity: 0;
+}
+
+/* ── Additional bands ────────────────────────────────────────────────────────────────────────── */
+/* Cobalt-tinted night: the ink carries a little of the lamp everywhere. */
+.mk-band-tint {
+  background-color: #f3f3f0;
+}
+/* Paper: the one light band (honesty, FAQ). */
+.mk-band-paper {
+  background-color: #fafaf9;
+}
+.mk-band-paper .mk-grain {
+  opacity: 0.035;
+}
+
+/* ── Hero panel light sweep: a soft diagonal highlight crossing the panel in step with the beam ── */
+.mk-sweep {
+  pointer-events: none;
+  position: absolute;
+  inset: -10% -60%;
+  width: 24%;
+  background: rgb(242 242 240 / 0.045);
+  transform: skewX(-14deg);
+  will-change: transform, opacity;
+}
+@keyframes mk-sweep {
+  from {
+    translate: -30% 0;
+  }
+  to {
+    translate: 30% 0;
+  }
+}
+[data-paused] .mk-sweep {
+  pointer-events: none;
+  position: absolute;
+  inset: -10% -60%;
+  width: 24%;
+  background: rgb(242 242 240 / 0.045);
+  transform: skewX(-14deg);
+  will-change: transform, opacity;
+}
+
+/* A row that the beam has "lit": a brief rim of lamp light. */
+.mk-lit {
+  box-shadow:
+    inset 0 0 0 1px var(--mk-lamp),
+    0 0 24px -4px var(--mk-lamp);
+}
+
+/* ── Bento tiles (features page) ───────────────────────────────────────────────────────────── */
+.mk-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    translate var(--duration-base) var(--ease-spring);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mk-tile:hover {
+    border-color: var(--color-border-strong);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--color-fg) 8%, transparent),
+      var(--shadow-md);
+    translate: 0 -2px;
+  }
+}
+
+/* ── Glass CTA card (finale) ───────────────────────────────────────────────────────────────── */
+.mk-cta-card {
+  position: relative;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: #15171b;
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.6);
+}
+
+/* ── Ladder (how it works): a step with a left light bar ───────────────────────────────────── */
+.mk-step {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.mk-step::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 1px;
+  border-radius: 9999px;
+  background: var(--color-accent-strong);
+  opacity: 0.6;
+}
+
+/* ── Number pill in the hero stat strip ────────────────────────────────────────────────────── */
+.mk-stat {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--color-fg);
+}
+
+/* Decorative sweeps stop completely when less motion is requested. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .mk-sweep {
+    display: none;
+  }
+}
+[data-motion='reduced'] .mk-sweep {
+  display: none;
+}
+
+/* ── Vertical rhythm: sections step in 24 / 48 / 96 ────────────────────────────────────────── */
+.mk-section {
+  padding-block: 4rem;
+}
+@media (min-width: 48rem) {
+  .mk-section {
+    padding-block: 6rem;
+  }
+}
+.mk-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-tertiary);
+}
+/* The 3D beacon layer in the hero: behind the copy and the panel, never interactive. */
+.mk-beacon3d {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  contain: strict;
+}
+.mk-beacon3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ── Multi-colour palette for the public site (light-first) ───────────────────────────────────
+   Hues map to opportunity types and feature roles. Until the design tokens expose these, they are
+   defined here; values are AA-checked for text-on-subtle and fill-with-white. */
+:root,
+.light {
+  --mk-violet: #6b4f7a;
+  --mk-violet-soft: rgb(107 79 122 / 0.09); /* plum */
+  --mk-teal: #3e7474;
+  --mk-teal-soft: rgb(62 116 116 / 0.09); /* teal */
+  --mk-orange: #9c6b4f;
+  --mk-orange-soft: rgb(156 107 79 / 0.09); /* clay */
+  --mk-pink: #3a3d45;
+  --mk-pink-soft: rgb(58 61 69 / 0.08); /* graphite */
+  --mk-lime: #5f7a4a;
+  --mk-lime-soft: rgb(95 122 74 / 0.09); /* moss */
+  --mk-amber: #9a7a2e;
+  --mk-amber-soft: rgb(154 122 46 / 0.09); /* ochre */
+  --mk-indigo: #5b6472;
+  --mk-indigo-soft: rgb(91 100 114 / 0.09); /* slate */
+  --mk-cobalt: #1e6b4f;
+  --mk-cobalt-soft: rgb(30 107 79 / 0.09); /* evergreen (primary accent) */
+}
+.dark {
+  --mk-violet: #b9a6c6;
+  --mk-violet-soft: rgb(185 166 198 / 0.12);
+  --mk-teal: #8fbdbd;
+  --mk-teal-soft: rgb(143 189 189 / 0.12);
+  --mk-orange: #cfa891;
+  --mk-orange-soft: rgb(207 168 145 / 0.12);
+  --mk-pink: #c7c9cf;
+  --mk-pink-soft: rgb(199 201 207 / 0.1);
+  --mk-lime: #a9c293;
+  --mk-lime-soft: rgb(169 194 147 / 0.12);
+  --mk-amber: #d1bb7a;
+  --mk-amber-soft: rgb(209 187 122 / 0.12);
+  --mk-indigo: #aab2bf;
+  --mk-indigo-soft: rgb(170 178 191 / 0.12);
+  --mk-cobalt: #7fc3a4;
+  --mk-cobalt-soft: rgb(127 195 164 / 0.12);
+}
+
+/* A luminous light band: tinted white canvas with soft coloured radial washes and grain. */
+.mk-band-wash {
+  background-color: #fafaf9;
+}
+.mk-band-wash .mk-grain,
+.mk-band-paper .mk-grain,
+.mk-band-tint .mk-grain {
+  opacity: 0.025;
+}
+/* Wash variants rotate the hues so adjacent sections never look the same. */
+.mk-band-wash[data-wash='b'] {
+  background-color: #f3f3f0;
+}
+.mk-band-wash[data-wash='c'] {
+  background-color: #fafaf9;
+}
+
+/* A tile or card that carries a role colour: `--mk-hue` and `--mk-hue-soft` set inline or by class. */
+.mk-hued .mk-hue-icon {
+  background: var(--mk-hue-soft);
+  color: var(--mk-hue);
+}
+.mk-hued::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--mk-hue);
+  opacity: 0.35;
+}
+.mk-hue-violet {
+  --mk-hue: var(--mk-violet);
+  --mk-hue-soft: var(--mk-violet-soft);
+}
+.mk-hue-teal {
+  --mk-hue: var(--mk-teal);
+  --mk-hue-soft: var(--mk-teal-soft);
+}
+.mk-hue-orange {
+  --mk-hue: var(--mk-orange);
+  --mk-hue-soft: var(--mk-orange-soft);
+}
+.mk-hue-pink {
+  --mk-hue: var(--mk-pink);
+  --mk-hue-soft: var(--mk-pink-soft);
+}
+.mk-hue-lime {
+  --mk-hue: var(--mk-lime);
+  --mk-hue-soft: var(--mk-lime-soft);
+}
+.mk-hue-amber {
+  --mk-hue: var(--mk-amber);
+  --mk-hue-soft: var(--mk-amber-soft);
+}
+.mk-hue-indigo {
+  --mk-hue: var(--mk-indigo);
+  --mk-hue-soft: var(--mk-indigo-soft);
+}
+.mk-hue-cobalt {
+  --mk-hue: var(--mk-cobalt);
+  --mk-hue-soft: var(--mk-cobalt-soft);
+}
+
+/* White e2 cards on the light canvas: layered shadow, top highlight. */
+.light .mk-tile,
+.light .mk-panel {
+  background: var(--color-surface-raised);
+  border-color: #e6e6e3;
+  box-shadow:
+    0 1px 2px rgb(17 19 24 / 0.04),
+    0 12px 32px -20px rgb(17 19 24 / 0.14);
+}
+
+/* ── Buttons on the dark hero and finale: white with graphite text ─────────────────────────── */
+.mk-btn-light {
+  background: #f2f2f0 !important;
+  color: #111318 !important;
+  box-shadow: none !important;
+}
+.mk-btn-light:hover {
+  background: #ffffff !important;
+}
+.mk-btn-ghost-dark {
+  color: #c7c9cf !important;
+}
+.mk-btn-ghost-dark:hover {
+  color: #f2f2f0 !important;
+  background: rgb(255 255 255 / 0.06) !important;
+}
+.mk-band-night .mk-panel {
+  background: #15171b;
+  border-color: rgb(255 255 255 / 0.08);
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.7);
 }

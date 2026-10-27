@@ -28,6 +28,22 @@ async function startMocksIfEnabled(): Promise<void> {
 }
 
 async function boot() {
+  // Preserve keyboard rings on browsers that drop :focus-visible during roving focus.
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.key === 'Tab' || event.key.startsWith('Arrow'))
+        document.documentElement.dataset['keyboard'] = 'true';
+    },
+    { capture: true },
+  );
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      delete document.documentElement.dataset['keyboard'];
+    },
+    { capture: true, passive: true },
+  );
   await startMocksIfEnabled();
   const container = document.getElementById('root');
   if (!container) throw new Error('Missing #root element');
@@ -45,6 +61,8 @@ async function boot() {
   // `/` and `/login` ship prerendered HTML (scripts/prerender.mjs): hydrate it instead of re-rendering.
   const prerendered =
     container.dataset.prerendered === window.location.pathname && container.firstElementChild;
+  // The static boot skeleton (index.html) has done its job once React takes over the root.
+  document.getElementById('boot-skeleton')?.remove();
   if (prerendered) hydrateRoot(container, app);
   else createRoot(container).render(app);
 

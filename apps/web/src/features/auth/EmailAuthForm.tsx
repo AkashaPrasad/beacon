@@ -42,7 +42,8 @@ function serverError(mode: Mode, error: unknown): string {
     if (mode === 'register' && error.status === 409) {
       return "Couldn't create an account with that email. If you already have one, sign in instead.";
     }
-    if (mode === 'register' && error.status === 400) return 'Check the fields above, then try again.';
+    if (mode === 'register' && error.status === 400)
+      return 'Check the fields above, then try again.';
   }
   return errorMessage(error, "Couldn't reach Beacon. Check your connection and try again.");
 }
@@ -80,7 +81,8 @@ export function EmailAuthForm({ next }: { next: string | null }) {
     if (!email.trim()) found.email = 'Enter your email address.';
     else if (!looksLikeEmail(email)) found.email = 'Enter an email address like name@example.com.';
     if (!password) found.password = 'Enter your password.';
-    else if (registering && password.length < PASSWORD_MIN) found.password = `Use at least ${PASSWORD_MIN} characters.`;
+    else if (registering && password.length < PASSWORD_MIN)
+      found.password = `Use at least ${PASSWORD_MIN} characters.`;
     return found;
   };
 
@@ -105,10 +107,13 @@ export function EmailAuthForm({ next }: { next: string | null }) {
     const onError = (error: unknown) => {
       setFormError(serverError(mode, error));
       setPassword('');
-      focusField('password');
+      requestAnimationFrame(() => focusField('password'));
     };
     if (registering) {
-      register.mutate({ name: name.trim(), email: email.trim(), password }, { onSuccess: goOn, onError });
+      register.mutate(
+        { name: name.trim(), email: email.trim(), password },
+        { onSuccess: goOn, onError },
+      );
     } else {
       login.mutate({ email: email.trim(), password }, { onSuccess: goOn, onError });
     }
@@ -148,7 +153,14 @@ export function EmailAuthForm({ next }: { next: string | null }) {
 
       <AnimatePresence initial={false}>
         {registering && (
-          <m.div key="name" variants={variants.fade} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-1.5">
+          <m.div
+            key="name"
+            variants={variants.fade}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="flex flex-col gap-1.5"
+          >
             <label htmlFor={`${id}-name`} className="text-body font-medium text-fg">
               Name
             </label>
@@ -235,7 +247,9 @@ export function EmailAuthForm({ next }: { next: string | null }) {
                 />
               ))}
             </span>
-            <span className={cn('text-caption', STRENGTH_TONE[strength.level])}>{strength.label}</span>
+            <span className={cn('text-caption', STRENGTH_TONE[strength.level])}>
+              {strength.label}
+            </span>
           </div>
         )}
       </div>
@@ -259,8 +273,16 @@ export function EmailAuthForm({ next }: { next: string | null }) {
         disabled={pending}
         aria-busy={pending || undefined}
       >
-        {pending && <LoaderCircle className="size-4 animate-spin" strokeWidth={1.5} aria-hidden="true" />}
-        {registering ? (pending ? 'Creating account…' : 'Create account') : pending ? 'Signing in…' : 'Sign in with email'}
+        {pending && (
+          <LoaderCircle className="size-4 animate-spin" strokeWidth={1.5} aria-hidden="true" />
+        )}
+        {registering
+          ? pending
+            ? 'Creating account…'
+            : 'Create account'
+          : pending
+            ? 'Signing in…'
+            : 'Sign in with email'}
       </Button>
 
       <div className="flex flex-col gap-1.5 text-small">
@@ -275,7 +297,9 @@ export function EmailAuthForm({ next }: { next: string | null }) {
             {registering ? 'Sign in' : 'Create an account'}
           </button>
         </p>
-        <p className="text-caption text-fg-tertiary">No password reset yet — use Google if you forget it.</p>
+        <p className="text-caption text-fg-tertiary">
+          No password reset yet — use Google if you forget it.
+        </p>
       </div>
     </form>
   );

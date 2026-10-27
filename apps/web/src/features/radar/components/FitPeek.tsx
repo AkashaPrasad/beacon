@@ -4,12 +4,12 @@
  * the row itself can stay calm (title, company, one meta line, ring, deadline). Everything here is
  * also in the drawer; this is a shortcut, never the only place.
  */
-import type { FitResult, GhostReason } from '@kestrel/shared';
-import { fitBandOf, ghostLevelOf, GhostRiskBadge } from '@kestrel/ui';
 import { CircleCheck, CircleX } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import type { FitResult, GhostReason } from '@kestrel/shared';
+import { fitBandOf, ghostLevelOf, GhostRiskBadge } from '@kestrel/ui';
 
 import { buildFitBreakdown, formatPoints } from '../lib/breakdown';
 
@@ -42,7 +42,10 @@ export function FitPeek({
   const top = [...view.rows].sort((a, b) => b.contribution - a.contribution).slice(0, 3);
   const band = fitBandOf(fit.score);
   const level = ghostLevelOf(ghost.score);
-  const matched = [...fit.details.skills.matchedRequired, ...fit.details.skills.matchedNice].slice(0, 4);
+  const matched = [...fit.details.skills.matchedRequired, ...fit.details.skills.matchedNice].slice(
+    0,
+    4,
+  );
   const missing = fit.details.skills.missingRequired.slice(0, 3);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -71,17 +74,29 @@ export function FitPeek({
         </p>
         <ul className="mt-2 flex flex-col gap-1">
           {top.map((row) => (
-            <li key={row.key} className="flex items-baseline justify-between gap-3 text-caption text-fg-secondary">
+            <li
+              key={row.key}
+              className="flex items-baseline justify-between gap-3 text-caption text-fg-secondary"
+            >
               <span className="truncate">{row.label}</span>
-              <span className="font-mono text-mono-sm text-fg">{formatPoints(row.contribution)}</span>
+              <span className="font-mono text-mono-sm text-fg">
+                {formatPoints(row.contribution)}
+              </span>
             </li>
           ))}
         </ul>
         {(matched.length > 0 || missing.length > 0) && (
           <ul className="mt-2.5 flex flex-wrap gap-1" aria-label="Skills">
             {matched.map((skill) => (
-              <li key={skill} className="inline-flex h-5 items-center gap-1 rounded-xs bg-surface-sunken px-1.5 text-caption text-fg-secondary">
-                <CircleCheck className="size-3 text-fit-good" strokeWidth={1.5} aria-hidden="true" />
+              <li
+                key={skill}
+                className="inline-flex h-5 items-center gap-1 rounded-xs bg-surface-sunken px-1.5 text-caption text-fg-secondary"
+              >
+                <CircleCheck
+                  className="size-3 text-fit-good"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
                 {skill}
               </li>
             ))}
@@ -107,7 +122,9 @@ export function FitPeek({
             ))}
           </div>
         )}
-        <p className="mt-2.5 text-caption text-fg-tertiary">Open the listing for the full breakdown.</p>
+        <p className="mt-2.5 text-caption text-fg-tertiary">
+          Open the listing for the full breakdown.
+        </p>
       </PopoverContent>
     </Popover>
   );

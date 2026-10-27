@@ -13,7 +13,6 @@ import {
   type DisplayHealth,
 } from './health';
 
-
 export interface SourceTableRow {
   id: string;
   name: string;
@@ -141,7 +140,7 @@ export function sourceRowFrom(
   if (s.scope === 'personal') return toRow(s, 'personal', null, mode);
   const pack = packs.find((p) => p.id === s.packId);
   const subscribed = 'subscribed' in s ? s.subscribed : (pack?.enabled ?? false);
-  return toRow({ ...s, subscribed } as CommunityRow, 'pack', pack?.name ?? s.packId, mode);
+  return toRow({ ...s, subscribed }, 'pack', pack?.name ?? s.packId, mode);
 }
 
 export function buildRows(
@@ -179,14 +178,16 @@ export function matchesQuery(row: SourceTableRow, query: string): boolean {
 export function packSummaries(community: readonly CommunityRow[]) {
   const out = new Map<string, { listings: number; domains: string[]; failing: number }>();
   for (const s of community) {
-    if (!s.packId) continue;
-    const entry = out.get(s.packId) ?? { listings: 0, domains: [], failing: 0 };
-    entry.listings += s.listingsFound;
-    if (s.companyDomain && entry.domains.length < 8 && !entry.domains.includes(s.companyDomain)) {
-      entry.domains.push(s.companyDomain);
+    const ids = new Set([...(s.packId ? [s.packId] : []), ...(s.packIds ?? [])]);
+    for (const packId of ids) {
+      const entry = out.get(packId) ?? { listings: 0, domains: [], failing: 0 };
+      entry.listings += s.listingsFound;
+      if (s.companyDomain && entry.domains.length < 8 && !entry.domains.includes(s.companyDomain)) {
+        entry.domains.push(s.companyDomain);
+      }
+      if (s.health === 'failing') entry.failing += 1;
+      out.set(packId, entry);
     }
-    if (s.health === 'failing') entry.failing += 1;
-    out.set(s.packId, entry);
   }
   return out;
 }

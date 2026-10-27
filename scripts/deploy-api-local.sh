@@ -70,5 +70,5 @@ info "deploying $TAG"
 printf '%s\n' "$GH_TOKEN_VALUE" | kssh "$APP_PUBLIC_IP" \
   "IFS= read -r GHCR_TOKEN; export GHCR_TOKEN GHCR_USER=$OWNER; bash /opt/beacon/incoming/deploy.sh '$TAG'"
 
-curl -fsS -m 10 "${API_URL:-https://api.beacon.spacesdrive.cc}/healthz" >/dev/null &&
+curl -fsS -m 10 "${API_URL:-https://api-beacon.spacesdrive.cc}/healthz" >/dev/null &&
   info "public healthz OK" || die "public healthz failed"

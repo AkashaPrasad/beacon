@@ -12,22 +12,62 @@ import { escapeRegex, objectIdParam, parse } from '../lib/validate.js';
 import { candidatesForUser } from '../lib/vector.js';
 import { currentUser } from '../middleware/auth.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
-import { Interaction, Match, TrackerItem, type InteractionDoc, type MatchDoc } from '../models/activity.js';
+import {
+  Interaction,
+  Match,
+  TrackerItem,
+  type InteractionDoc,
+  type MatchDoc,
+} from '../models/activity.js';
 import { Listing, type ListingDoc } from '../models/listing.js';
 import { Profile, type ProfileDoc } from '../models/profile.js';
 import { Source, type SourceDoc } from '../models/source.js';
 import { User } from '../models/user.js';
 import { feedQueryApiSchema } from '../schemas/index.js';
-import { getFeed, getFeedSummary } from '../services/feed.js';
+import { getFeed, getFeedFacets, getFeedSummary } from '../services/feed.js';
 import { pickProfileFields } from '../services/profile.js';
 import { toFitResult, toListingPublic } from '../services/serialize.js';
 import { getSettings } from '../services/settings.js';
+import {
+  compactColumn,
+  createTrackerItem,
+  toTrackerRef,
+  trackerFieldsFor,
+} from '../services/tracker.js';
 import { canSeeListing, getVisibility, visibleSourceFilter } from '../services/visibility.js';
 
 const SANITIZE: sanitizeHtml.IOptions = {
   allowedTags: [
-    'p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'b', 'em', 'i', 'u', 's', 'blockquote',
-    'ul', 'ol', 'li', 'a', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span', 'div',
+    'p',
+    'br',
+    'hr',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'strong',
+    'b',
+    'em',
+    'i',
+    'u',
+    's',
+    'blockquote',
+    'ul',
+    'ol',
+    'li',
+    'a',
+    'code',
+    'pre',
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'th',
+    'td',
+    'span',
+    'div',
   ],
   // rel/target must be allowed or the transform below is stripped again; simpleTransform
   // overwrites any rel/target the source sent.
@@ -48,11 +88,18 @@ export function renderDescription(markdown: string): string {
 type ApplyHealth = 'ok' | 'dead' | 'redirect_home' | 'error' | 'unknown';
 
 function applyLinkHealth(listing: ListingDoc) {
-  const reasons: GhostReason[] = (listing.ghostRisk?.reasons ?? []).filter((r) => r.code.startsWith('apply_link'));
+  const reasons: GhostReason[] = (listing.ghostRisk?.reasons ?? []).filter((r) =>
+    r.code.startsWith('apply_link'),
+  );
   let status: ApplyHealth = listing.applyCheck?.status ?? 'unknown';
   if (status === 'unknown' && reasons.length) {
     const code = reasons[0]!.code;
-    status = code === 'apply_link_dead' ? 'dead' : code === 'apply_link_redirect_home' ? 'redirect_home' : 'error';
+    status =
+      code === 'apply_link_dead'
+        ? 'dead'
+        : code === 'apply_link_redirect_home'
+          ? 'redirect_home'
+          : 'error';
   }
   return {
     status,
@@ -62,7 +109,11 @@ function applyLinkHealth(listing: ListingDoc) {
   };
 }
 
-async function fitFor(userId: Types.ObjectId, listing: ListingDoc, profile: ProfileDoc | null): Promise<FitResult | null> {
+async function fitFor(
+  userId: Types.ObjectId,
+  listing: ListingDoc,
+  profile: ProfileDoc | null,
+): Promise<FitResult | null> {
   const match = await Match.findOne({ userId, listingId: listing._id }).lean<MatchDoc>();
   if (match) return toFitResult(match);
   if (!profile) return null;
@@ -79,7 +130,11 @@ async function similarListings(userId: Types.ObjectId, listing: ListingDoc) {
   const { sourceIds } = await getVisibility(userId);
   const ids: Types.ObjectId[] = [];
   if (listing.embedding?.length) {
-    const near = await candidatesForUser(listing.embedding, { excludeIds: [listing._id], sourceIds }, 6);
+    const near = await candidatesForUser(
+      listing.embedding,
+      { excludeIds: [listing._id], sourceIds },
+      6,
+    );
     ids.push(...near.map((c) => objectIdParam(c.listingId)));
   }
   const related = await Listing.find(
@@ -105,14 +160,19 @@ async function similarListings(userId: Types.ObjectId, listing: ListingDoc) {
   const unique = [...new Map(ids.map((id) => [id.toString(), id])).values()].slice(0, 6);
   const [docs, matches] = await Promise.all([
     Listing.find({ _id: { $in: unique } }, { embedding: 0 }).lean<ListingDoc[]>(),
-    Match.find({ userId, listingId: { $in: unique } }, { listingId: 1, score: 1 }).lean<MatchDoc[]>(),
+    Match.find({ userId, listingId: { $in: unique } }, { listingId: 1, score: 1 }).lean<
+      MatchDoc[]
+    >(),
   ]);
   const byId = new Map(docs.map((d) => [d._id.toString(), d]));
   const scores = new Map(matches.map((m) => [m.listingId.toString(), Math.round(m.score)]));
   return unique
     .map((id) => byId.get(id.toString()))
     .filter((d): d is ListingDoc => Boolean(d))
-    .map((d) => ({ listing: toListingPublic(d, { descriptionChars: 0 }), score: scores.get(d._id.toString()) ?? null }))
+    .map((d) => ({
+      listing: toListingPublic(d, { descriptionChars: 0 }),
+      score: scores.get(d._id.toString()) ?? null,
+    }))
     .map((item) => ({ ...item, listing: { ...item.listing, descriptionMd: '' } }));
 }
 
@@ -123,6 +183,11 @@ export function createFeedRouter(ctx: AppContext): Router {
   router.get('/feed', async (req, res) => {
     const q = parse(feedQueryApiSchema, req.query, 'query');
     res.json(await getFeed(ctx, currentUser(req)._id, q));
+  });
+
+  router.get('/feed/facets', async (req, res) => {
+    const q = parse(feedQueryApiSchema, req.query, 'query');
+    res.json(await getFeedFacets(ctx, currentUser(req)._id, q));
   });
 
   router.get('/feed/summary', async (req, res) => {
@@ -149,7 +214,10 @@ export function createFeedRouter(ctx: AppContext): Router {
     const [fit, interaction, tracker, source, similar] = await Promise.all([
       fitFor(_id, listing, profile),
       Interaction.findOne({ userId: _id, listingId: listing._id }).lean<InteractionDoc>(),
-      TrackerItem.findOne({ userId: _id, listingId: listing._id }, { _id: 1 }).lean(),
+      TrackerItem.findOne({ userId: _id, listingId: listing._id }, { _id: 1, stage: 1 }).lean<{
+        _id: Types.ObjectId;
+        stage: string;
+      }>(),
       Source.findById(listing.sourceId, { name: 1, kind: 1, scope: 1 }).lean<SourceDoc>(),
       similarListings(_id, listing),
     ]);
@@ -157,12 +225,19 @@ export function createFeedRouter(ctx: AppContext): Router {
       listing: toListingPublic(listing),
       descriptionHtml: renderDescription(listing.descriptionMd),
       fit,
-      matchedSkills: fit ? [...fit.details.skills.matchedRequired, ...fit.details.skills.matchedNice] : [],
-      missingSkills: fit ? [...fit.details.skills.missingRequired, ...fit.details.skills.missingNice] : [],
+      matchedSkills: fit
+        ? [...fit.details.skills.matchedRequired, ...fit.details.skills.matchedNice]
+        : [],
+      missingSkills: fit
+        ? [...fit.details.skills.missingRequired, ...fit.details.skills.missingNice]
+        : [],
       saved: interaction?.saved ?? false,
       hidden: interaction?.hidden ?? false,
       trackerItemId: tracker?._id.toString() ?? null,
-      source: source ? { id: source._id.toString(), name: source.name, kind: source.kind, scope: source.scope } : null,
+      tracker: toTrackerRef(tracker),
+      source: source
+        ? { id: source._id.toString(), name: source.name, kind: source.kind, scope: source.scope }
+        : null,
       applyLinkHealth: applyLinkHealth(listing),
       similar,
     });
@@ -188,7 +263,29 @@ export function createFeedRouter(ctx: AppContext): Router {
         { $set: set, $setOnInsert: { userId: _id, listingId: listing._id } },
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       ).lean<InteractionDoc>();
-      res.json({ listingId: listing._id.toString(), saved: doc?.saved ?? false, hidden: doc?.hidden ?? false });
+      // Save = Tracker (UX-RESTRUCTURE D3): saving tracks the listing at `saved` (an existing item
+      // keeps its stage); unsaving removes the item only while it is still `saved`.
+      let tracker = await TrackerItem.findOne(
+        { userId: _id, listingId: listing._id },
+        { _id: 1, stage: 1 },
+      ).lean<{
+        _id: Types.ObjectId;
+        stage: string;
+      }>();
+      if (action === 'save' && !tracker) {
+        tracker = await createTrackerItem(ctx, _id, trackerFieldsFor(listing), 'saved');
+      } else if (action === 'unsave' && tracker?.stage === 'saved') {
+        await TrackerItem.deleteOne({ _id: tracker._id, userId: _id });
+        await compactColumn(_id, 'saved');
+        tracker = null;
+      }
+      res.json({
+        listingId: listing._id.toString(),
+        saved: doc?.saved ?? false,
+        hidden: doc?.hidden ?? false,
+        trackerItemId: tracker?._id.toString() ?? null,
+        tracker: toTrackerRef(tracker),
+      });
     });
   }
 

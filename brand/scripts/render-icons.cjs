@@ -14,7 +14,7 @@ fs.mkdirSync(out, { recursive: true });
 const tile = fs.readFileSync(path.join(brand, 'beacon-mark-accent.svg'), 'utf8');
 // iOS and Android apply their own corner mask, so apple-touch and maskable icons are full-bleed squares.
 const fullBleed = Buffer.from(tile.replace(' rx="112"', ''));
-const ACCENT = '#F5A524'; // signal amber (tile colour)
+const ACCENT = '#2F5BFF'; // electric cobalt (tile colour)
 
 const jobs = [
   { src: Buffer.from(tile), file: 'icon-192.png', size: 192 },

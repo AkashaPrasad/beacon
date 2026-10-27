@@ -11,6 +11,7 @@
  * - `useRefreshSource()`    POST /v1/sources/:id/refresh (requested in SHARED-REQUESTS; falls back to PATCH enabled)
  * - `removeSourceFromCache` + `deleteSourceRequest`     DELETE with a deferred commit, so Undo restores the same source
  * - `useTogglePack()`       POST /v1/sources/packs/:id/enable|disable, optimistic (packs + community rows)
+ * - `useSourceRuns(id)`     GET  /v1/sources/:id/runs   recent checks (requested in SHARED-REQUESTS; hidden when absent)
  */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
@@ -47,7 +48,15 @@ export type SourceRow = SourceDTO & {
 export type CommunityRow = CommunitySourceDTO & {
   healthCode?: string | null;
   lastSuccessAt?: Date | null;
+  /** Every pack containing it (API §5); `packId` is the first. */
+  packIds?: string[];
+  consecutiveFailures?: number;
 };
+
+/** True when a community source belongs to `packId` (first pack or any of `packIds`). */
+export function isInPack(s: Pick<CommunityRow, 'packId' | 'packIds'>, packId: string): boolean {
+  return s.packId === packId || Boolean(s.packIds?.includes(packId));
+}
 
 export interface SourcePatch {
   name?: string;
@@ -175,6 +184,56 @@ export function prefetchSourcePage(qc: QueryClient, id: string): void {
   void qc.prefetchQuery(sourceListingsQuery(id));
 }
 
+/**
+ * One check of a source, as the worker records it in `sourceRuns` (WORKER.md; the same shape the
+ * admin overview's `recentRuns` uses). `status`: ok | not_modified | error | deferred.
+ */
+export interface SourceRunDTO {
+  id: string;
+  sourceId: string;
+  reason: string | null;
+  status: 'ok' | 'not_modified' | 'error' | 'deferred' | (string & {});
+  startedAt: Date | string | null;
+  finishedAt: Date | string | null;
+  durationMs: number | null;
+  found: number;
+  new: number;
+  updated: number;
+  unchanged: number;
+  errors: { kind: string; message: string }[];
+  backend: string | null;
+  creditsUsed: number;
+}
+
+const sourceRunsKey = (id: string) => [...queryKeys.sources.all, 'runs', id] as const;
+
+/**
+ * Recent checks of one source (`GET /v1/sources/:id/runs`, newest first). The route is requested in
+ * SHARED-REQUESTS (web-workspace → api); until it ships the query resolves to `null` on 404 and the
+ * source page falls back to the last-check facts it already has.
+ */
+export function useSourceRuns(id: string) {
+  return useQuery({
+    queryKey: sourceRunsKey(id),
+    queryFn: async ({ signal }): Promise<SourceRunDTO[] | null> => {
+      try {
+        const res = await api.get<{ items: SourceRunDTO[] }>(
+          `/v1/sources/${encodeURIComponent(id)}/runs`,
+          { signal, query: { limit: 10 } },
+        );
+        return res.items;
+      } catch (error) {
+        if (isApiError(error) && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: Boolean(id),
+    staleTime: 30_000,
+    retry: false,
+    meta: { persist: false },
+  });
+}
+
 export function useCredits() {
   return useQuery({
     queryKey: queryKeys.sources.credits,
@@ -265,7 +324,6 @@ function optimisticRow(body: CreateSourceVariables, id: string): SourceRow {
   };
 }
 
-
 /** Add a personal source. The row appears at the top immediately ("Checking…"). */
 export function useCreateSource() {
   const qc = useQueryClient();
@@ -340,7 +398,10 @@ export function useRefreshSource() {
     onMutate: (id) => {
       setMine(qc, (rows) => rows.map((r) => (r.id === id ? { ...r, health: 'pending' } : r)));
     },
-    onSettled: () => void qc.invalidateQueries({ queryKey: queryKeys.sources.mine }),
+    onSettled: (_data, _error, id) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.sources.mine });
+      void qc.invalidateQueries({ queryKey: sourceRunsKey(id) });
+    },
   });
 }
 
@@ -380,7 +441,7 @@ export function useTogglePack() {
       const community = qc.getQueryData<CommunityList>(COMMUNITY_KEY);
       if (community) {
         qc.setQueryData<CommunityList>(COMMUNITY_KEY, {
-          items: community.items.map((s) => (s.packId === id ? { ...s, subscribed: enabled } : s)),
+          items: community.items.map((s) => (isInPack(s, id) ? { ...s, subscribed: enabled } : s)),
         });
       }
       return { previous, community };

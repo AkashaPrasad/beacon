@@ -4,8 +4,16 @@
  * phones; "Pin as a sidebar" turns it into the shell rail) and Tune (minimum fit with its live count,
  * sort, view and saved views). Every control from the old toolbar is still here, one click away.
  */
-import { formatShortDate, springs, tweens } from '@kestrel/ui';
-import { CalendarRange, CircleCheck, CircleDashed, LayoutGrid, Radar, Settings2, SlidersHorizontal, X } from 'lucide-react';
+import {
+  CalendarRange,
+  CircleCheck,
+  CircleDashed,
+  LayoutGrid,
+  Radar,
+  Settings2,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
 import { m } from 'motion/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -14,14 +22,14 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-
-import type { RadarSort, RadarView } from '../lib/filters';
-import { formatCount } from '../lib/format';
-import type { SavedView } from '../lib/savedViews';
+import { formatShortDate, springs, tweens } from '@kestrel/ui';
 
 import type { WarmingSummary } from './FeedStates';
 import { SavedViews } from './FilterRail';
 import { FitThreshold, ViewSwitch, type FitThresholdProps } from './RadarToolbar';
+import type { RadarSort, RadarView } from '../lib/filters';
+import { formatCount } from '../lib/format';
+import type { SavedView } from '../lib/savedViews';
 
 // ── Today band ────────────────────────────────────────────────────────────────────────────────
 
@@ -67,8 +75,16 @@ export function TodayBand({
 
   if (warming) {
     return (
-      <div data-testid="radar-warming-strip" className="relative mx-gutter mt-3 overflow-hidden rounded-lg border border-border bg-surface-sunken">
-        <div data-testid="radar-warming-up" data-phase="warming" className="flex items-start gap-3 px-4 py-3" aria-live="polite">
+      <div
+        data-testid="radar-warming-strip"
+        className="e2 relative mx-gutter mt-3 overflow-hidden rounded-xl border border-border-subtle"
+      >
+        <div
+          data-testid="radar-warming-up"
+          data-phase="warming"
+          className="flex items-start gap-3 px-4 py-3"
+          aria-live="polite"
+        >
           <CircleDashed
             className="mt-0.5 size-4 shrink-0 animate-spin text-fg-tertiary [animation-duration:2.4s] motion-reduce:animate-none"
             strokeWidth={1.5}
@@ -82,7 +98,9 @@ export function TodayBand({
                 : 'New fits appear here as each source finishes.'}
             </p>
             <p className="mt-0.5 text-caption text-fg-tertiary">
-              {slow ? 'Taking a little longer than usual. Feel free to browse; rows keep arriving.' : 'Grab a coffee, it only takes a minute.'}
+              {slow
+                ? 'Taking a little longer than usual. Feel free to browse; rows keep arriving.'
+                : 'Grab a coffee, it only takes a minute.'}
             </p>
           </div>
         </div>
@@ -116,19 +134,30 @@ export function TodayBand({
       aria-label="Today"
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0, transition: springs.smooth }}
-      className="mx-gutter mt-3 flex items-start gap-3 rounded-lg border border-border bg-surface-sunken px-4 py-3"
+      className="mx-gutter mt-5 mb-1 flex items-start gap-2.5"
     >
       {showReady ? (
-        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+        <CircleCheck
+          className="mt-1 size-4 shrink-0 text-success"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
       ) : (
-        <Radar className="mt-0.5 size-4 shrink-0 text-accent-strong" strokeWidth={1.5} aria-hidden="true" />
+        <Radar
+          className="mt-1 size-4 shrink-0 text-accent-strong"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
       )}
       <div className="min-w-0 flex-1 text-small text-fg-secondary" role="status">
-        <p className="font-medium text-fg">{showReady ? `Your radar is ready${first ? `, ${first}` : ''}.` : hello}</p>
+        <p className="font-display text-h2 text-fg">
+          {showReady ? `Your radar is ready${first ? `, ${first}` : ''}.` : hello}
+        </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
           {showReady ? (
             <span>
-              <Count value={summary?.total ?? 0} /> fits ranked. Your own sources keep updating in the background.
+              <Count value={summary?.total ?? 0} /> fits ranked. Your own sources keep updating in
+              the background.
             </span>
           ) : (
             <>
@@ -143,16 +172,26 @@ export function TodayBand({
                   {lastSeen ? ` since ${formatShortDate(lastSeen)}` : ''}
                 </button>
               ) : (
-                <span>Nothing new{lastSeen ? ` since ${formatShortDate(lastSeen)}` : ''}, so the best of the rest is below.</span>
+                <span>
+                  Nothing new{lastSeen ? ` since ${formatShortDate(lastSeen)}` : ''}, so the best of
+                  the rest is below.
+                </span>
               )}
               <span aria-hidden="true">·</span>
-              <Link to="/deadlines" className="rounded-xs underline-offset-3 hover:text-fg hover:underline focus-visible:focus-ring">
+              <Link
+                to="/deadlines"
+                className="rounded-xs underline-offset-3 hover:text-fg hover:underline focus-visible:focus-ring"
+              >
                 <Count value={deadlines} /> {deadlines === 1 ? 'deadline' : 'deadlines'} this week
               </Link>
               {saved > 0 && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <button type="button" onClick={onSavedOnly} className="rounded-xs underline-offset-3 hover:text-fg hover:underline focus-visible:focus-ring">
+                  <button
+                    type="button"
+                    onClick={onSavedOnly}
+                    className="rounded-xs underline-offset-3 hover:text-fg hover:underline focus-visible:focus-ring"
+                  >
                     <Count value={saved} /> saved
                   </button>
                 </>
@@ -181,7 +220,12 @@ const SORT_OPTIONS: { value: RadarSort; label: string }[] = [
   { value: 'posted', label: 'Newest' },
 ];
 
-const VIEW_ICON: Record<RadarView, typeof LayoutGrid | null> = { list: null, timeline: CalendarRange, board: LayoutGrid };
+const VIEW_ICON: Record<RadarView, typeof LayoutGrid | null> = {
+  grid: null,
+  list: null,
+  timeline: CalendarRange,
+  board: LayoutGrid,
+};
 
 export function TunePopover({
   fit,
@@ -206,24 +250,46 @@ export function TunePopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="secondary" size="sm" data-testid="radar-tune" aria-label={`Tune: fit at least ${fit.value}, sorted by ${SORT_OPTIONS.find((o) => o.value === sort)?.label ?? sort}, ${view} view`}>
+        <Button
+          variant="secondary"
+          size="sm"
+          data-testid="radar-tune"
+          aria-label={`Tune: fit at least ${fit.value}, sorted by ${SORT_OPTIONS.find((o) => o.value === sort)?.label ?? sort}, ${view} view`}
+        >
           <Settings2 strokeWidth={1.5} aria-hidden="true" />
           {!compact && 'Tune'}
           <span className="font-mono text-mono-sm text-fg-tertiary">≥ {fit.value}</span>
-          {ViewIcon && <ViewIcon className="text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />}
+          {ViewIcon && (
+            <ViewIcon className="text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+          )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-4 p-4">
+      <PopoverContent
+        align="end"
+        className="flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-4 p-4"
+      >
         <section className="flex flex-col gap-2">
           <h3 className="text-label text-fg-tertiary uppercase">Minimum fit</h3>
-          <FitThreshold {...fit} testId="radar-fit-threshold" countTestId="radar-total-live" sliderClassName="flex-1" className="w-full" />
-          <p className="text-caption text-fg-tertiary">Raise it to see only the strongest matches; lower it to explore.</p>
+          <FitThreshold
+            {...fit}
+            testId="radar-fit-threshold"
+            countTestId="radar-total-live"
+            sliderClassName="flex-1"
+            className="w-full"
+          />
+          <p className="text-caption text-fg-tertiary">
+            Raise it to see only the strongest matches; lower it to explore.
+          </p>
         </section>
         <section className="flex flex-col gap-2">
           <h3 className="text-label text-fg-tertiary uppercase" id="radar-sort-label">
             Sort by
           </h3>
-          <div role="radiogroup" aria-labelledby="radar-sort-label" className="flex rounded-sm bg-surface-sunken p-0.5">
+          <div
+            role="radiogroup"
+            aria-labelledby="radar-sort-label"
+            className="flex rounded-sm bg-surface-sunken p-0.5"
+          >
             {SORT_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -234,7 +300,9 @@ export function TunePopover({
                 onClick={() => onSort(option.value)}
                 className={cn(
                   'h-7 flex-1 rounded-xs text-small transition-colors duration-fast focus-visible:focus-ring',
-                  sort === option.value ? 'bg-surface-raised text-fg shadow-sm' : 'text-fg-secondary hover:text-fg',
+                  sort === option.value
+                    ? 'bg-surface-raised text-fg shadow-sm'
+                    : 'text-fg-secondary hover:text-fg',
                 )}
               >
                 {option.label}
@@ -292,7 +360,9 @@ export function FiltersControl({
         <Drawer open={open} onOpenChange={onOpenChange}>
           <DrawerContent handleLabel="Close filters" className="max-h-[85dvh]">
             <DrawerTitle className="sr-only">Filters</DrawerTitle>
-            <DrawerDescription className="sr-only">{count ? `${count} active` : 'Narrow down what reaches your radar'}</DrawerDescription>
+            <DrawerDescription className="sr-only">
+              {count ? `${count} active` : 'Narrow down what reaches your radar'}
+            </DrawerDescription>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
           </DrawerContent>
         </Drawer>
@@ -302,7 +372,10 @@ export function FiltersControl({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[min(70vh,40rem)] w-80 overflow-y-auto overscroll-contain p-0">
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,40rem)] w-80 overflow-y-auto overscroll-contain p-0"
+      >
         {children}
       </PopoverContent>
     </Popover>

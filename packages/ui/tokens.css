@@ -8,7 +8,7 @@
  *
  * All theme switches live on <html>:
  *   class="dark" | data-theme="light|dark"   colour theme (set before first paint by the inline script in index.html)
- *   data-accent="amber|teal|cobalt|ink"      accent preset (default amber = signal amber; Settings > Appearance)
+ *   data-accent="cobalt|teal|amber|ink"      secondary-accent preset (default = evergreen; Settings > Appearance)
  *   data-density="comfortable|compact"       row/control density (default comfortable)
  *   data-font-size="sm|md|lg|xl"             root font scale (default md = 16px)
  *   data-motion="reduced|full"               overrides prefers-reduced-motion either way (absent = follow OS)
@@ -22,59 +22,99 @@
 /* ───────────────────────────── 1. Theme-independent tokens ───────────────────────────── */
 :root {
   /* Typography: families (self-hosted via @fontsource; the "Variable" names are fontsource's family names) */
-  --font-display: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-  --font-sans: 'Geist Variable', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display:
+    'Geist Variable', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-serif:
+    'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif; /* marketing + onboarding prompts only */
+  --font-sans:
+    'Geist Variable', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-mono:
+    'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Type scale (rem, so data-font-size scales everything). size / line-height / tracking / weight */
-  --text-display-xl: 4rem;          --text-display-xl--line-height: 4rem;       --text-display-xl--letter-spacing: -0.02em;   --text-display-xl--font-weight: 400;
-  --text-display: 3rem;             --text-display--line-height: 3.25rem;       --text-display--letter-spacing: -0.015em;     --text-display--font-weight: 400;
-  --text-h1: 2rem;                  --text-h1--line-height: 2.25rem;            --text-h1--letter-spacing: -0.01em;           --text-h1--font-weight: 400;
-  --text-h2: 1.125rem;              --text-h2--line-height: 1.5rem;             --text-h2--letter-spacing: -0.011em;          --text-h2--font-weight: 600;
-  --text-h3: 0.9375rem;             --text-h3--line-height: 1.25rem;            --text-h3--letter-spacing: -0.006em;          --text-h3--font-weight: 600;
-  --text-body-lg: 1rem;             --text-body-lg--line-height: 1.5rem;        --text-body-lg--letter-spacing: -0.006em;
-  --text-body: 0.875rem;            --text-body--line-height: 1.25rem;          --text-body--letter-spacing: 0em;
-  --text-small: 0.8125rem;          --text-small--line-height: 1.125rem;        --text-small--letter-spacing: 0em;
-  --text-caption: 0.75rem;          --text-caption--line-height: 1rem;          --text-caption--letter-spacing: 0.005em;
-  --text-label: 0.6875rem;          --text-label--line-height: 1rem;            --text-label--letter-spacing: 0.06em;         --text-label--font-weight: 500;
-  --text-mono-lg: 1.5rem;           --text-mono-lg--line-height: 2rem;          --text-mono-lg--letter-spacing: -0.02em;      --text-mono-lg--font-weight: 500;
-  --text-mono: 0.8125rem;           --text-mono--line-height: 1.25rem;          --text-mono--letter-spacing: 0em;
-  --text-mono-sm: 0.75rem;          --text-mono-sm--line-height: 1rem;          --text-mono-sm--letter-spacing: 0em;
+  --text-display-xl: 4rem;
+  --text-display-xl--line-height: 4rem;
+  --text-display-xl--letter-spacing: -0.03em;
+  --text-display-xl--font-weight: 600;
+  --text-display: 3rem;
+  --text-display--line-height: 3.25rem;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 600;
+  --text-h1: 2rem;
+  --text-h1--line-height: 2.25rem;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 600;
+  --text-h2: 1.125rem;
+  --text-h2--line-height: 1.5rem;
+  --text-h2--letter-spacing: -0.011em;
+  --text-h2--font-weight: 600;
+  --text-h3: 0.9375rem;
+  --text-h3--line-height: 1.25rem;
+  --text-h3--letter-spacing: -0.006em;
+  --text-h3--font-weight: 600;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-lg--letter-spacing: -0.006em;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-body--letter-spacing: 0em;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.125rem;
+  --text-small--letter-spacing: 0em;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--letter-spacing: 0.005em;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.06em;
+  --text-label--font-weight: 500;
+  --text-mono-lg: 1.5rem;
+  --text-mono-lg--line-height: 2rem;
+  --text-mono-lg--letter-spacing: -0.02em;
+  --text-mono-lg--font-weight: 500;
+  --text-mono: 0.8125rem;
+  --text-mono--line-height: 1.25rem;
+  --text-mono--letter-spacing: 0em;
+  --text-mono-sm: 0.75rem;
+  --text-mono-sm--line-height: 1rem;
+  --text-mono-sm--letter-spacing: 0em;
 
   /* Spacing: 4-pt grid. Tailwind multiplies this (p-1 = 4px, p-3 = 12px, p-6 = 24px). Use only steps
      0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24. */
   --spacing: 0.25rem;
 
   /* Radius */
-  --radius-xs: 4px;   /* chips, kbd, checkbox */
-  --radius-sm: 6px;   /* buttons, inputs, badges, logo tiles */
-  --radius-md: 8px;   /* cards, rows-as-cards, menus items, Kanban cards */
-  --radius-lg: 12px;  /* popovers, dialogs, palette, drawer (inner edge) */
-  --radius-xl: 16px;  /* bottom sheet top corners, landing feed frame */
+  --radius-xs: 4px; /* chips, kbd, checkbox */
+  --radius-sm: 8px; /* buttons, inputs, badges, logo tiles */
+  --radius-md: 10px; /* cards, rows-as-cards, menu items, Kanban cards */
+  --radius-lg: 14px; /* popovers, dialogs, palette, drawer (inner edge) */
+  --radius-xl: 14px; /* bottom sheet top corners, landing feed frame */
   --radius-full: 9999px;
   --radius: var(--radius-md); /* shadcn base */
 
   /* Z-index (portals included) */
   --z-base: 0;
   --z-raised: 1;
-  --z-sticky: 10;     /* sticky list headers, table header */
-  --z-rail: 20;       /* filter rail, sidebar */
-  --z-topbar: 30;     /* app top bar, mobile tab bar */
-  --z-drawer: 40;     /* detail drawer (non-modal, desktop) */
-  --z-scrim: 50;      /* modal backdrop */
-  --z-modal: 60;      /* dialog, sheet, bottom sheet */
-  --z-popover: 70;    /* popover, dropdown, select, hover-card (above modals: they open from them) */
-  --z-palette: 80;    /* command palette */
-  --z-coachmark: 85;  /* onboarding tour */
+  --z-sticky: 10; /* sticky list headers, table header */
+  --z-rail: 20; /* filter rail, sidebar */
+  --z-topbar: 30; /* app top bar, mobile tab bar */
+  --z-drawer: 40; /* detail drawer (non-modal, desktop) */
+  --z-scrim: 50; /* modal backdrop */
+  --z-modal: 60; /* dialog, sheet, bottom sheet */
+  --z-popover: 70; /* popover, dropdown, select, hover-card (above modals: they open from them) */
+  --z-palette: 80; /* command palette */
+  --z-coachmark: 85; /* onboarding tour */
   --z-toast: 90;
   --z-tooltip: 100;
 
   /* Motion */
-  --duration-fast: 120ms;   /* hover, press, toggles, exits, palette open */
-  --duration-base: 180ms;   /* list enter, toasts, popovers, tabs */
-  --duration-slow: 240ms;   /* drawer, sheet, score ring fill, Kanban settle */
-  --duration-fade: 120ms;   /* opacity-only transitions; kept under reduced motion */
-  --stagger: 20ms;          /* list enter stagger, first 12 rows only */
+  --duration-fast: 120ms; /* hover, press, toggles, exits, palette open */
+  --duration-base: 180ms; /* list enter, toasts, popovers, tabs */
+  --duration-slow: 240ms; /* drawer, sheet, score ring fill, Kanban settle */
+  --duration-fade: 120ms; /* opacity-only transitions; kept under reduced motion */
+  --stagger: 20ms; /* list enter stagger, first 12 rows only */
   --motion-distance-sm: 4px;
   --motion-distance-md: 8px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -82,16 +122,42 @@
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   /* Critically-near spring (stiffness 400, damping 34, mass 1; zeta 0.85, 0.6% overshoot), sampled to linear().
      Pair with --duration-slow or --duration-base. */
-  --ease-spring: linear(0, 0.047, 0.154, 0.287, 0.423, 0.548, 0.658, 0.749, 0.822, 0.878, 0.92, 0.951, 0.972, 0.987, 0.996, 1.002, 1.005, 1.006, 1.006, 1.006, 1.005, 1.004, 1.003, 1.003, 1);
+  --ease-spring: linear(
+    0,
+    0.047,
+    0.154,
+    0.287,
+    0.423,
+    0.548,
+    0.658,
+    0.749,
+    0.822,
+    0.878,
+    0.92,
+    0.951,
+    0.972,
+    0.987,
+    0.996,
+    1.002,
+    1.005,
+    1.006,
+    1.006,
+    1.006,
+    1.005,
+    1.004,
+    1.003,
+    1.003,
+    1
+  );
 
   /* Density: comfortable (default) */
-  --row-h: 4rem;              /* radar feed row: title line + meta line + chips inline */
-  --row-h-table: 2.75rem;     /* sources / tracker table rows */
-  --control-h: 2.25rem;       /* buttons, inputs, selects (md) */
-  --control-h-sm: 1.75rem;    /* toolbar buttons, chips with actions */
-  --control-h-lg: 2.75rem;    /* primary CTAs, mobile controls */
-  --card-pad: 0.75rem;        /* Kanban card, timeline pill group */
-  --cell-px: 0.75rem;         /* table cell horizontal padding */
+  --row-h: 4rem; /* radar feed row: title line + meta line + chips inline */
+  --row-h-table: 2.75rem; /* sources / tracker table rows */
+  --control-h: 2.25rem; /* buttons, inputs, selects (md) */
+  --control-h-sm: 1.75rem; /* toolbar buttons, chips with actions */
+  --control-h-lg: 2.75rem; /* primary CTAs, mobile controls */
+  --card-pad: 0.75rem; /* Kanban card, timeline pill group */
+  --cell-px: 0.75rem; /* table cell horizontal padding */
 
   /* Layout */
   --topbar-h: 3rem;
@@ -103,8 +169,8 @@
   --content-max: 75rem;
   --prose-max: 40rem;
   --gutter: 1.5rem;
-  --target-min: 1.5rem;        /* WCAG 2.2 AA 2.5.8 */
-  --target-touch: 2.75rem;     /* coarse pointers */
+  --target-min: 1.5rem; /* WCAG 2.2 AA 2.5.8 */
+  --target-touch: 2.75rem; /* coarse pointers */
 
   /* Focus ring geometry (colour is per theme) */
   --focus-ring-width: 2px;
@@ -113,92 +179,213 @@
 
 @media (max-width: 39.999rem) {
   :root {
-    --text-display-xl: 2.75rem; --text-display-xl--line-height: 3rem;
-    --text-display: 2.25rem;    --text-display--line-height: 2.5rem;
-    --text-h1: 1.75rem;         --text-h1--line-height: 2rem;
+    --text-display-xl: 2.75rem;
+    --text-display-xl--line-height: 3rem;
+    --text-display: 2.25rem;
+    --text-display--line-height: 2.5rem;
+    --text-h1: 1.75rem;
+    --text-h1--line-height: 2rem;
     --gutter: 1rem;
-    --control-h: 2.75rem;        /* touch first: 44px controls on phones */
+    --control-h: 2.75rem; /* touch first: 44px controls on phones */
   }
 }
 
 /* Root font scale (Settings > Appearance > Text size) */
-[data-font-size='sm'] { font-size: 93.75%; }  /* 15px */
-[data-font-size='md'] { font-size: 100%; }    /* 16px */
-[data-font-size='lg'] { font-size: 106.25%; } /* 17px */
-[data-font-size='xl'] { font-size: 112.5%; }  /* 18px */
+[data-font-size='sm'] {
+  font-size: 93.75%;
+} /* 15px */
+[data-font-size='md'] {
+  font-size: 100%;
+} /* 16px */
+[data-font-size='lg'] {
+  font-size: 106.25%;
+} /* 17px */
+[data-font-size='xl'] {
+  font-size: 112.5%;
+} /* 18px */
 
-/* ───────────────────────────── 2. Light theme (default) ───────────────────────────── */
+/* ───────────────────────────── 2. Light theme (DEFAULT) — "Graphite & Evergreen" ─────────────────────────────
+   Flat warm-neutral fields, hairlines, one soft shadow per elevation. No colour gradients anywhere; a 2% grain is
+   the only texture. Primary actions are graphite; evergreen marks what is selected, linked or focused. */
 :root,
 .light,
 [data-theme='light'] {
   color-scheme: light;
 
-  /* Background layers: bg (canvas) < surface (panels, feed) < surface-raised (cards, inputs) < overlay (menus, dialogs) */
-  --color-bg: #f7f6f3;
-  --color-surface: #fcfbf9;
+  --color-bg: #fafaf9;
+  --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-surface-sunken: #f0eeea;   /* wells, tracks, skeleton base, code */
-  --color-surface-hover: #f2f0ec;
-  --color-surface-active: #ebe8e3;   /* selected / keyboard-cursor row */
+  --color-surface-sunken: #f3f3f1; /* wells, input beds, tracks, skeleton base */
+  --color-surface-hover: #f5f5f3;
+  --color-surface-active: #ededeb; /* selected / keyboard-cursor row */
   --color-overlay: #ffffff;
-  --color-scrim: rgb(28 25 23 / 0.32);
-  --color-skeleton-shine: rgb(255 255 255 / 0.6);
+  --color-scrim: rgb(17 19 24 / 0.32);
+  --color-skeleton-shine: rgb(255 255 255 / 0.8);
+  --color-surface-tint-top: transparent;
+  --color-glass: rgb(255 255 255 / 0.92);
+  --color-glass-border: #e6e6e3;
 
-  /* Text */
-  --color-fg: #1c1917;               /* 16.9:1 on surface */
-  --color-fg-secondary: #57524c;     /* 7.5:1 */
-  --color-fg-tertiary: #736c65;      /* 5.0:1 — still AA for body text */
-  --color-fg-disabled: #a9a39c;      /* 2.4:1 — disabled only (exempt) */
-  --color-fg-inverse: #f7f6f3;
+  --color-fg: #111318; /* 17.8:1 */
+  --color-fg-secondary: #52555e; /* 7.0:1 */
+  --color-fg-tertiary: #62656e; /* 4.9:1 (spec #8a8d96 is 3.4:1, kept for disabled/meta icons via fg-disabled) */
+  --color-fg-disabled: #b4b6bc;
+  --color-fg-inverse: #fafaf9;
 
-  /* Borders */
-  --color-border-subtle: #ece9e4;    /* row dividers */
-  --color-border: #e1ddd7;           /* cards, panels */
-  --color-border-strong: #cdc8c0;    /* hover border, separators that must show */
-  --color-border-input: #8e877f;     /* form control outline: 3.4:1 (WCAG 1.4.11) */
+  --color-border-subtle: #eeeeec;
+  --color-border: #e6e6e3;
+  --color-border-strong: #d4d4d0;
+  --color-border-input: #8a8d96; /* 3.4:1 (WCAG 1.4.11) */
 
-  /* Accent — Beacon signal amber. Two roles, because a bright amber cannot be text on paper (2:1):
-     --color-accent        = the light: fills (primary buttons, selected segments, app tile, beacon dot)
-     --color-accent-strong = accent you must READ on a surface: text, links, icons, 2 px bars, focus ring */
-  --color-accent: #f5a524;           /* fill; accent-fg on it 8.8:1 */
-  --color-accent-hover: #e89a14;     /* accent-fg on it 7.8:1 */
-  --color-accent-active: #db8f0c;    /* accent-fg on it 6.8:1 */
-  --color-accent-strong: #945300;    /* 5.8:1 on surface, 5.6:1 on bg */
-  --color-accent-subtle: #fdf2dc;
-  --color-accent-subtle-fg: #7a4800; /* 6.9:1 on accent-subtle */
-  --color-accent-fg: #1f1505;        /* lamp black: text and icons on accent fills */
-  --color-focus-ring: #945300;       /* = accent-strong; 5.6:1 on bg */
+  /* Accent: the primary ACTION is graphite (--color-accent); the readable/selected accent is evergreen (--color-accent-strong). */
+  --color-accent: #111318;
+  --color-accent-hover: #1c1f25;
+  --color-accent-active: #0a0b0e;
+  --color-accent-fg: #ffffff;
+  --color-accent-strong: #1e6b4f; /* 6.2:1 — links, focus, active nav text, selected ring */
+  --color-accent-strong-hover: #175a42;
+  --color-accent-subtle: rgb(30 107 79 / 0.08);
+  --color-accent-subtle-fg: #1e6b4f;
+  --color-accent-glow: transparent;
+  --color-focus-ring: #1e6b4f;
 
-  /* Semantic: each with a subtle background; text-on-subtle uses the base colour */
-  --color-success: #1e7a4c;  --color-success-subtle: #e5f2ea;
-  --color-warning: #b3410e;  --color-warning-subtle: #fcebe2;   /* orange-red (hue 19°), kept clear of the amber accent (hue 37°) */
-  --color-danger: #b42338;   --color-danger-subtle: #fbe8eb;   --color-danger-fg: #ffffff;
-  --color-info: #2d5e9a;     --color-info-subtle: #e7eef7;
+  --color-success: #1e6b4f;
+  --color-success-subtle: rgb(30 107 79 / 0.1);
+  --color-warning: #855c16;
+  --color-warning-subtle: rgb(168 115 28 / 0.1); /* ochre */
+  --color-danger: #b43c3c;
+  --color-danger-subtle: rgb(180 60 60 / 0.1);
+  --color-danger-fg: #ffffff; /* brick */
+  --color-info: #111318;
+  --color-info-subtle: rgb(17 19 24 / 0.06);
 
-  /* Fit-score ramp: monotonic in lightness so it reads in greyscale; always paired with number + label */
-  --color-fit-low: #736c65;   --color-fit-low-subtle: #f3f1ee;    /* 0–39  Long shot */
-  --color-fit-mid: #56695e;   --color-fit-mid-subtle: #ecf1ed;    /* 40–59 Worth a look */
-  --color-fit-good: #256b4f;  --color-fit-good-subtle: #e4f1eb;   /* 60–79 Good fit */
-  --color-fit-great: #16613f; --color-fit-great-subtle: #dcefe4;  /* 80–100 Strong fit */
-  --color-fit-track: #e1ddd7;
+  /* Fit ramp (ring strokes; labels use fg-secondary): grey → evergreen */
+  --color-fit-low: #62656e;
+  --color-fit-low-subtle: rgb(154 157 165 / 0.1); /* 0–39 */
+  --color-fit-mid: #496f5d;
+  --color-fit-mid-subtle: rgb(124 154 138 / 0.1); /* 40–59 */
+  --color-fit-good: #286e4c;
+  --color-fit-good-subtle: rgb(60 138 99 / 0.1); /* 60–79 */
+  --color-fit-great: #1e6b4f;
+  --color-fit-great-subtle: rgb(30 107 79 / 0.1); /* 80–100 */
+  --color-fit-track: #e6e6e3;
 
-  /* Ghost / stale risk */
-  --color-ghost-low: var(--color-fg-tertiary);  --color-ghost-low-subtle: var(--color-surface-sunken);
-  --color-ghost-med: var(--color-warning);      --color-ghost-med-subtle: var(--color-warning-subtle);
-  --color-ghost-high: var(--color-danger);      --color-ghost-high-subtle: var(--color-danger-subtle);
+  --color-ghost-low: var(--color-fg-tertiary);
+  --color-ghost-low-subtle: var(--color-surface-sunken);
+  --color-ghost-med: var(--color-warning);
+  --color-ghost-med-subtle: var(--color-warning-subtle);
+  --color-ghost-high: var(--color-danger);
+  --color-ghost-high-subtle: var(--color-danger-subtle);
 
-  /* Tooltip (inverted in light) */
-  --color-tooltip: #1c1917;
-  --color-tooltip-fg: #f7f6f3;
+  --color-tooltip: #111318;
+  --color-tooltip-fg: #fafaf9;
 
-  /* Letter-avatar tints for company fallback logos (text: --color-fg-secondary) */
-  --color-avatar-1: #ede6df; --color-avatar-2: #e4e8e1; --color-avatar-3: #e2e6ec;
-  --color-avatar-4: #ede3e6; --color-avatar-5: #e9e5da; --color-avatar-6: #e1e8e7;
+  --color-avatar-1: #eceff2;
+  --color-avatar-2: #eceeea;
+  --color-avatar-3: #f1ebe6;
+  --color-avatar-4: #eaeee7;
+  --color-avatar-5: #eeeaf0;
+  --color-avatar-6: #e8efee;
 
-  /* Shadows: three levels, subtle, warm-tinted */
-  --shadow-sm: 0 1px 2px 0 rgb(28 25 23 / 0.05);
-  --shadow-md: 0 1px 2px 0 rgb(28 25 23 / 0.04), 0 4px 12px -2px rgb(28 25 23 / 0.08);
-  --shadow-lg: 0 2px 4px -1px rgb(28 25 23 / 0.05), 0 16px 40px -8px rgb(28 25 23 / 0.18);
+  /* Palette roles (muted; tints at 8–10% + a 100% dot/icon; text on tints stays graphite) */
+  --color-slate: #5b6b7f;
+  --color-slate-subtle: rgb(91 107 127 / 0.09);
+  --color-slate-fg: #5b6b7f;
+  --color-graphite: #3f434c;
+  --color-graphite-subtle: rgb(63 67 76 / 0.08);
+  --color-graphite-fg: #3f434c;
+  --color-clay: #a65e3b;
+  --color-clay-subtle: rgb(166 94 59 / 0.09);
+  --color-clay-fg: #a65e3b;
+  --color-moss: #5c7a4a;
+  --color-moss-subtle: rgb(92 122 74 / 0.09);
+  --color-moss-fg: #4d693c;
+  --color-plum: #7a5a86;
+  --color-plum-subtle: rgb(122 90 134 / 0.09);
+  --color-plum-fg: #7a5a86;
+  --color-teal: #3e7c7a;
+  --color-teal-subtle: rgb(62 124 122 / 0.09);
+  --color-teal-fg: #326b69;
+  --color-ochre: #9a7a2b;
+  --color-ochre-subtle: rgb(154 122 43 / 0.1);
+  --color-ochre-fg: #7e6220;
+  --color-cobalt: var(--color-slate);
+  --color-cobalt-subtle: var(--color-slate-subtle);
+  --color-cobalt-fg: var(--color-slate-fg);
+  --color-indigo: var(--color-graphite);
+  --color-indigo-subtle: var(--color-graphite-subtle);
+  --color-indigo-fg: var(--color-graphite-fg);
+  --color-violet: var(--color-plum);
+  --color-violet-subtle: var(--color-plum-subtle);
+  --color-violet-fg: var(--color-plum-fg);
+  --color-orange: var(--color-clay);
+  --color-orange-subtle: var(--color-clay-subtle);
+  --color-orange-fg: var(--color-clay-fg);
+  --color-pink: var(--color-plum);
+  --color-pink-subtle: var(--color-plum-subtle);
+  --color-pink-fg: var(--color-plum-fg);
+  --color-lime: var(--color-moss);
+  --color-lime-subtle: var(--color-moss-subtle);
+  --color-lime-fg: var(--color-moss-fg);
+  --color-amber: var(--color-ochre);
+  --color-amber-subtle: var(--color-ochre-subtle);
+  --color-amber-fg: var(--color-ochre-fg);
+  /* Opportunity types → roles (DESIGN §2.3) */
+  --color-type-internship: var(--color-slate);
+  --color-type-internship-subtle: var(--color-slate-subtle);
+  --color-type-internship-fg: var(--color-slate-fg);
+  --color-type-fulltime: var(--color-graphite);
+  --color-type-fulltime-subtle: var(--color-graphite-subtle);
+  --color-type-fulltime-fg: var(--color-graphite-fg);
+  --color-type-hackathon: var(--color-clay);
+  --color-type-hackathon-subtle: var(--color-clay-subtle);
+  --color-type-hackathon-fg: var(--color-clay-fg);
+  --color-type-scholarship: var(--color-moss);
+  --color-type-scholarship-subtle: var(--color-moss-subtle);
+  --color-type-scholarship-fg: var(--color-moss-fg);
+  --color-type-fellowship: var(--color-plum);
+  --color-type-fellowship-subtle: var(--color-plum-subtle);
+  --color-type-fellowship-fg: var(--color-plum-fg);
+  --color-type-research: var(--color-teal);
+  --color-type-research-subtle: var(--color-teal-subtle);
+  --color-type-research-fg: var(--color-teal-fg);
+  --color-type-opensource: var(--color-ochre);
+  --color-type-opensource-subtle: var(--color-ochre-subtle);
+  --color-type-opensource-fg: var(--color-ochre-fg);
+  /* Tracker stages → roles */
+  --color-stage-saved: var(--color-slate);
+  --color-stage-saved-subtle: var(--color-slate-subtle);
+  --color-stage-saved-fg: var(--color-slate-fg);
+  --color-stage-applied: var(--color-graphite);
+  --color-stage-applied-subtle: var(--color-graphite-subtle);
+  --color-stage-applied-fg: var(--color-graphite-fg);
+  --color-stage-oa: var(--color-ochre);
+  --color-stage-oa-subtle: var(--color-ochre-subtle);
+  --color-stage-oa-fg: var(--color-ochre-fg);
+  --color-stage-interview: var(--color-plum);
+  --color-stage-interview-subtle: var(--color-plum-subtle);
+  --color-stage-interview-fg: var(--color-plum-fg);
+  --color-stage-offer: var(--color-moss);
+  --color-stage-offer-subtle: var(--color-moss-subtle);
+  --color-stage-offer-fg: var(--color-moss-fg);
+  --color-stage-rejected: var(--color-graphite);
+  --color-stage-rejected-subtle: var(--color-graphite-subtle);
+  --color-stage-rejected-fg: var(--color-graphite-fg);
+  --color-stage-ghosted: var(--color-clay);
+  --color-stage-ghosted-subtle: var(--color-clay-subtle);
+  --color-stage-ghosted-fg: var(--color-clay-fg);
+
+  /* Shadows: one soft level per elevation, neutral, short */
+  --shadow-sm: 0 1px 2px 0 rgb(17 19 24 / 0.05);
+  --shadow-md: 0 1px 2px 0 rgb(17 19 24 / 0.05), 0 6px 16px -10px rgb(17 19 24 / 0.12);
+  --shadow-lg: 0 2px 4px 0 rgb(17 19 24 / 0.05), 0 12px 32px -12px rgb(17 19 24 / 0.18);
+  --shadow-e1: 0 0 0 1px #e6e6e3;
+  --shadow-e2: 0 1px 2px 0 rgb(17 19 24 / 0.05), 0 6px 16px -10px rgb(17 19 24 / 0.12);
+  --shadow-e3: 0 2px 4px 0 rgb(17 19 24 / 0.05), 0 12px 32px -12px rgb(17 19 24 / 0.18);
+  --highlight-inset: none;
+  --glow-accent: none;
+  --atmo-1: transparent;
+  --atmo-2: transparent;
+  --grain-opacity: 0.02;
 }
 
 /* ───────────────────────────── 3. Dark theme ───────────────────────────── */
@@ -206,97 +393,228 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --color-bg: #131110;
-  --color-surface: #191716;
-  --color-surface-raised: #201e1c;
-  --color-surface-sunken: #0f0e0d;
-  --color-surface-hover: #211f1d;
-  --color-surface-active: #2a2725;
-  --color-overlay: #272422;
+  --color-bg: #0e0f12;
+  --color-surface: #15171b;
+  --color-surface-raised: #1c1f25;
+  --color-surface-sunken: #0a0b0e;
+  --color-surface-hover: #202329;
+  --color-surface-active: #262a31;
+  --color-overlay: #1c1f25;
   --color-scrim: rgb(0 0 0 / 0.6);
-  --color-skeleton-shine: rgb(255 255 255 / 0.04);
+  --color-skeleton-shine: rgb(255 255 255 / 0.05);
+  --color-surface-tint-top: transparent;
+  --color-glass: rgb(14 15 18 / 0.92);
+  --color-glass-border: rgb(255 255 255 / 0.08);
 
-  --color-fg: #edeae6;               /* 14.9:1 on surface */
-  --color-fg-secondary: #b3ada6;     /* 8.0:1 */
-  --color-fg-tertiary: #968f88;      /* 5.6:1 (4.8:1 on overlay) */
-  --color-fg-disabled: #5c5651;
-  --color-fg-inverse: #131110;
+  --color-fg: #f2f2f0;
+  --color-fg-secondary: #a9acb4; /* 8.3:1 */
+  --color-fg-tertiary: #8a8e98; /* 5.6:1 */
+  --color-fg-disabled: #4f535c;
+  --color-fg-inverse: #0e0f12;
 
-  --color-border-subtle: #24211f;
-  --color-border: #2e2b28;
-  --color-border-strong: #3c3834;
-  --color-border-input: #6e6760;     /* 3.2:1 */
+  --color-border-subtle: rgb(255 255 255 / 0.06);
+  --color-border: rgb(255 255 255 / 0.08);
+  --color-border-strong: rgb(255 255 255 / 0.14);
+  --color-border-input: #6a6e78;
 
-  --color-accent: #ffb547;           /* the light in the dark: 10.2:1 on surface; accent-fg on it 10.2:1 */
-  --color-accent-hover: #ffc266;
-  --color-accent-active: #f5a62e;
-  --color-accent-strong: #ffb547;    /* in dark the fill is already readable as text */
-  --color-accent-subtle: #352710;
-  --color-accent-subtle-fg: #ffc873; /* 9.5:1 on accent-subtle */
-  --color-accent-fg: #1f1505;
-  --color-focus-ring: #ffb547;
+  --color-accent: #f2f2f0; /* primary action = white, graphite text */
+  --color-accent-hover: #ffffff;
+  --color-accent-active: #dcdcda;
+  --color-accent-fg: #111318;
+  --color-accent-strong: #4fa886; /* evergreen, lifted: 7.6:1 */
+  --color-accent-strong-hover: #63b797;
+  --color-accent-subtle: rgb(79 168 134 / 0.14);
+  --color-accent-subtle-fg: #7cc4a8;
+  --color-accent-glow: transparent;
+  --color-focus-ring: #4fa886;
 
-  --color-success: #5dbe8b;  --color-success-subtle: #132a1e;
-  --color-warning: #ff9466;  --color-warning-subtle: #37200f;
-  --color-danger: #f27d8e;   --color-danger-subtle: #36171c;   --color-danger-fg: #1a0d07;
-  --color-info: #82a9e2;     --color-info-subtle: #16233a;
+  --color-success: #4fa886;
+  --color-success-subtle: rgb(79 168 134 / 0.14);
+  --color-warning: #d1a04a;
+  --color-warning-subtle: rgb(209 160 74 / 0.14);
+  --color-danger: #ef9292;
+  --color-danger-subtle: rgb(224 112 112 / 0.14);
+  --color-danger-fg: #1a0707;
+  --color-info: #f2f2f0;
+  --color-info-subtle: rgb(255 255 255 / 0.08);
 
-  --color-fit-low: #8f8881;   --color-fit-low-subtle: #24211f;
-  --color-fit-mid: #93a89b;   --color-fit-mid-subtle: #1e2521;
-  --color-fit-good: #62b892;  --color-fit-good-subtle: #16271f;
-  --color-fit-great: #7fd8ac; --color-fit-great-subtle: #12291d;
-  --color-fit-track: #2e2b28;
+  --color-fit-low: #a2a6b0;
+  --color-fit-low-subtle: rgb(122 126 136 / 0.14);
+  --color-fit-mid: #8fb3a2;
+  --color-fit-mid-subtle: rgb(143 179 162 / 0.14);
+  --color-fit-good: #6bbf98;
+  --color-fit-good-subtle: rgb(107 191 152 / 0.14);
+  --color-fit-great: #4fa886;
+  --color-fit-great-subtle: rgb(79 168 134 / 0.14);
+  --color-fit-track: rgb(255 255 255 / 0.08);
 
-  --color-ghost-low: var(--color-fg-tertiary);  --color-ghost-low-subtle: var(--color-surface-raised);
-  --color-ghost-med: var(--color-warning);      --color-ghost-med-subtle: var(--color-warning-subtle);
-  --color-ghost-high: var(--color-danger);      --color-ghost-high-subtle: var(--color-danger-subtle);
+  --color-ghost-low: var(--color-fg-tertiary);
+  --color-ghost-low-subtle: var(--color-surface-raised);
+  --color-ghost-med: var(--color-warning);
+  --color-ghost-med-subtle: var(--color-warning-subtle);
+  --color-ghost-high: var(--color-danger);
+  --color-ghost-high-subtle: var(--color-danger-subtle);
 
-  --color-tooltip: #34302d;
-  --color-tooltip-fg: #edeae6;
+  --color-tooltip: #2a2e36;
+  --color-tooltip-fg: #f2f2f0;
 
-  --color-avatar-1: #2e2723; --color-avatar-2: #242a24; --color-avatar-3: #23272e;
-  --color-avatar-4: #2d2427; --color-avatar-5: #2b2820; --color-avatar-6: #222a29;
+  --color-avatar-1: #23282f;
+  --color-avatar-2: #262a27;
+  --color-avatar-3: #2b2623;
+  --color-avatar-4: #252a22;
+  --color-avatar-5: #2a252c;
+  --color-avatar-6: #222b2a;
+
+  /* Palette roles (muted; tints at 8–10% + a 100% dot/icon; text on tints stays graphite) */
+  --color-slate: #8fa0b4;
+  --color-slate-subtle: rgb(143 160 180 / 0.14);
+  --color-slate-fg: #8fa0b4;
+  --color-graphite: #a9acb4;
+  --color-graphite-subtle: rgb(169 172 180 / 0.12);
+  --color-graphite-fg: #a9acb4;
+  --color-clay: #d08a66;
+  --color-clay-subtle: rgb(208 138 102 / 0.14);
+  --color-clay-fg: #d08a66;
+  --color-moss: #8fae7a;
+  --color-moss-subtle: rgb(143 174 122 / 0.14);
+  --color-moss-fg: #8fae7a;
+  --color-plum: #ad8fb8;
+  --color-plum-subtle: rgb(173 143 184 / 0.14);
+  --color-plum-fg: #ad8fb8;
+  --color-teal: #6fb0ad;
+  --color-teal-subtle: rgb(111 176 173 / 0.14);
+  --color-teal-fg: #6fb0ad;
+  --color-ochre: #c9a654;
+  --color-ochre-subtle: rgb(201 166 84 / 0.14);
+  --color-ochre-fg: #c9a654;
+  --color-cobalt: var(--color-slate);
+  --color-cobalt-subtle: var(--color-slate-subtle);
+  --color-cobalt-fg: var(--color-slate-fg);
+  --color-indigo: var(--color-graphite);
+  --color-indigo-subtle: var(--color-graphite-subtle);
+  --color-indigo-fg: var(--color-graphite-fg);
+  --color-violet: var(--color-plum);
+  --color-violet-subtle: var(--color-plum-subtle);
+  --color-violet-fg: var(--color-plum-fg);
+  --color-orange: var(--color-clay);
+  --color-orange-subtle: var(--color-clay-subtle);
+  --color-orange-fg: var(--color-clay-fg);
+  --color-pink: var(--color-plum);
+  --color-pink-subtle: var(--color-plum-subtle);
+  --color-pink-fg: var(--color-plum-fg);
+  --color-lime: var(--color-moss);
+  --color-lime-subtle: var(--color-moss-subtle);
+  --color-lime-fg: var(--color-moss-fg);
+  --color-amber: var(--color-ochre);
+  --color-amber-subtle: var(--color-ochre-subtle);
+  --color-amber-fg: var(--color-ochre-fg);
+  /* Opportunity types → roles (DESIGN §2.3) */
+  --color-type-internship: var(--color-slate);
+  --color-type-internship-subtle: var(--color-slate-subtle);
+  --color-type-internship-fg: var(--color-slate-fg);
+  --color-type-fulltime: var(--color-graphite);
+  --color-type-fulltime-subtle: var(--color-graphite-subtle);
+  --color-type-fulltime-fg: var(--color-graphite-fg);
+  --color-type-hackathon: var(--color-clay);
+  --color-type-hackathon-subtle: var(--color-clay-subtle);
+  --color-type-hackathon-fg: var(--color-clay-fg);
+  --color-type-scholarship: var(--color-moss);
+  --color-type-scholarship-subtle: var(--color-moss-subtle);
+  --color-type-scholarship-fg: var(--color-moss-fg);
+  --color-type-fellowship: var(--color-plum);
+  --color-type-fellowship-subtle: var(--color-plum-subtle);
+  --color-type-fellowship-fg: var(--color-plum-fg);
+  --color-type-research: var(--color-teal);
+  --color-type-research-subtle: var(--color-teal-subtle);
+  --color-type-research-fg: var(--color-teal-fg);
+  --color-type-opensource: var(--color-ochre);
+  --color-type-opensource-subtle: var(--color-ochre-subtle);
+  --color-type-opensource-fg: var(--color-ochre-fg);
+  /* Tracker stages → roles */
+  --color-stage-saved: var(--color-slate);
+  --color-stage-saved-subtle: var(--color-slate-subtle);
+  --color-stage-saved-fg: var(--color-slate-fg);
+  --color-stage-applied: var(--color-graphite);
+  --color-stage-applied-subtle: var(--color-graphite-subtle);
+  --color-stage-applied-fg: var(--color-graphite-fg);
+  --color-stage-oa: var(--color-ochre);
+  --color-stage-oa-subtle: var(--color-ochre-subtle);
+  --color-stage-oa-fg: var(--color-ochre-fg);
+  --color-stage-interview: var(--color-plum);
+  --color-stage-interview-subtle: var(--color-plum-subtle);
+  --color-stage-interview-fg: var(--color-plum-fg);
+  --color-stage-offer: var(--color-moss);
+  --color-stage-offer-subtle: var(--color-moss-subtle);
+  --color-stage-offer-fg: var(--color-moss-fg);
+  --color-stage-rejected: var(--color-graphite);
+  --color-stage-rejected-subtle: var(--color-graphite-subtle);
+  --color-stage-rejected-fg: var(--color-graphite-fg);
+  --color-stage-ghosted: var(--color-clay);
+  --color-stage-ghosted-subtle: var(--color-clay-subtle);
+  --color-stage-ghosted-fg: var(--color-clay-fg);
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.05), 0 16px 40px -8px rgb(0 0 0 / 0.65);
+  --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px -10px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --shadow-e1: 0 0 0 1px rgb(255 255 255 / 0.06);
+  --shadow-e2: 0 6px 16px -10px rgb(0 0 0 / 0.6);
+  --shadow-e3: 0 0 0 1px rgb(255 255 255 / 0.1), 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --highlight-inset: none;
+  --glow-accent: none;
+  --atmo-1: transparent;
+  --atmo-2: transparent;
+  --grain-opacity: 0.03;
 }
 
 /* ───────────────────────────── 4. Accent presets (Settings > Appearance) ─────────────────────────────
-   All presets verified AA in both themes (docs/DESIGN.md §3.4). Signal amber is the brand (no rule needed: it is the
-   default above); presets are a user preference and always set accent-strong too. */
-[data-accent='teal'],
-[data-accent='teal'] .light,
-[data-accent='teal'] [data-theme='light'] {
-  --color-accent: #0f6e6a; --color-accent-strong: #0f6e6a; --color-accent-hover: #0c5d5a; --color-accent-active: #0a4d4a;
-  --color-accent-subtle: #e3f1ef; --color-accent-subtle-fg: #0b5a57; --color-accent-fg: #ffffff; --color-focus-ring: #0f6e6a;
-}
-[data-accent='teal'].dark, [data-accent='teal'][data-theme='dark'],
-[data-accent='teal'] .dark, [data-accent='teal'] [data-theme='dark'] {
-  --color-accent: #4fbfb5; --color-accent-strong: #4fbfb5; --color-accent-hover: #6ccdc4; --color-accent-active: #3baea4;
-  --color-accent-subtle: #132a28; --color-accent-subtle-fg: #8fdcd4; --color-accent-fg: #04201e; --color-focus-ring: #4fbfb5;
-}
+   Electric cobalt is the brand default (no rule needed). Presets are a user preference and always set
+   accent-strong, glow and focus too. All verified AA in both themes (docs/DESIGN.md §3). */
+/* Legacy preset IDs remain compatible with saved account settings. All use neutral actions. */
 [data-accent='cobalt'],
 [data-accent='cobalt'] .light,
 [data-accent='cobalt'] [data-theme='light'] {
-  --color-accent: #2f55c4; --color-accent-strong: #2f55c4; --color-accent-hover: #2747a6; --color-accent-active: #1f3a88;
-  --color-accent-subtle: #e8edfa; --color-accent-subtle-fg: #2747a6; --color-accent-fg: #ffffff; --color-focus-ring: #2f55c4;
+  --color-accent-strong: #1e6b4f;
+  --color-accent-subtle: #edf3ef;
+  --color-accent-subtle-fg: #1e6b4f;
+  --color-focus-ring: #1e6b4f;
 }
-[data-accent='cobalt'].dark, [data-accent='cobalt'][data-theme='dark'],
-[data-accent='cobalt'] .dark, [data-accent='cobalt'] [data-theme='dark'] {
-  --color-accent: #86a6f5; --color-accent-strong: #86a6f5; --color-accent-hover: #9db7f7; --color-accent-active: #6f92ee;
-  --color-accent-subtle: #18213a; --color-accent-subtle-fg: #b0c5f8; --color-accent-fg: #0a1430; --color-focus-ring: #86a6f5;
+[data-accent='teal'],
+[data-accent='teal'] .light,
+[data-accent='teal'] [data-theme='light'] {
+  --color-accent-strong: #326b69;
+  --color-accent-subtle: #edf3f2;
+  --color-accent-subtle-fg: #326b69;
+  --color-focus-ring: #326b69;
 }
 [data-accent='ink'],
 [data-accent='ink'] .light,
 [data-accent='ink'] [data-theme='light'] {
-  --color-accent: #2a2622; --color-accent-strong: #2a2622; --color-accent-hover: #3a3530; --color-accent-active: #141210;
-  --color-accent-subtle: #eceae6; --color-accent-subtle-fg: #2a2622; --color-accent-fg: #ffffff; --color-focus-ring: #2a2622;
+  --color-accent-strong: #3f434c;
+  --color-accent-subtle: #efefed;
+  --color-accent-subtle-fg: #3f434c;
+  --color-focus-ring: #3f434c;
 }
-[data-accent='ink'].dark, [data-accent='ink'][data-theme='dark'],
-[data-accent='ink'] .dark, [data-accent='ink'] [data-theme='dark'] {
-  --color-accent: #e6e2dc; --color-accent-strong: #e6e2dc; --color-accent-hover: #f2efea; --color-accent-active: #d6d1ca;
-  --color-accent-subtle: #2b2825; --color-accent-subtle-fg: #edeae6; --color-accent-fg: #171513; --color-focus-ring: #e6e2dc;
+[data-accent='cobalt'].dark,
+[data-accent='cobalt'][data-theme='dark'],
+[data-accent='cobalt'] .dark,
+[data-accent='cobalt'] [data-theme='dark'],
+[data-accent='teal'].dark,
+[data-accent='teal'][data-theme='dark'],
+[data-accent='teal'] .dark,
+[data-accent='teal'] [data-theme='dark'] {
+  --color-accent-strong: #8fc5aa;
+  --color-accent-subtle: #20342a;
+  --color-accent-subtle-fg: #8fc5aa;
+  --color-focus-ring: #8fc5aa;
+}
+[data-accent='ink'].dark,
+[data-accent='ink'][data-theme='dark'],
+[data-accent='ink'] .dark,
+[data-accent='ink'] [data-theme='dark'] {
+  --color-accent-strong: #dededb;
+  --color-accent-subtle: #2b2d30;
+  --color-accent-subtle-fg: #dededb;
+  --color-focus-ring: #dededb;
 }
 
 /* ───────────────────────────── 5. Aliases (re-declared per theme scope so they follow local overrides) ───────────────────────────── */
@@ -340,15 +658,15 @@
   --color-chart-4: var(--color-info);
   --color-chart-5: var(--color-warning);
   /* Deadline urgency */
-  --color-deadline-far: var(--color-fg-tertiary);   /* > 14 days */
+  --color-deadline-far: var(--color-fg-tertiary); /* > 14 days */
   --color-deadline-near: var(--color-fg-secondary); /* 4–14 days */
-  --color-deadline-soon: var(--color-warning);      /* 1–3 days */
-  --color-deadline-today: var(--color-danger);      /* due today / < 24 h */
+  --color-deadline-soon: var(--color-warning); /* 1–3 days */
+  --color-deadline-today: var(--color-danger); /* due today / < 24 h */
 }
 
 /* ───────────────────────────── 6. Density: compact ───────────────────────────── */
 [data-density='compact'] {
-  --row-h: 2.75rem;          /* single line: title · company · meta, chips hidden */
+  --row-h: 2.75rem; /* single line: title · company · meta, chips hidden */
   --row-h-table: 2.25rem;
   --control-h: 2rem;
   --control-h-sm: 1.5rem;
@@ -358,7 +676,10 @@
   --topbar-h: 2.75rem;
 }
 @media (pointer: coarse) {
-  [data-density='compact'] { --control-h: 2.75rem; --control-h-sm: 2.75rem; } /* never below touch size on touch */
+  [data-density='compact'] {
+    --control-h: 2.75rem;
+    --control-h-sm: 2.75rem;
+  } /* never below touch size on touch */
 }
 
 /* ───────────────────────────── 7. Reduced motion ─────────────────────────────
@@ -418,28 +739,66 @@
   --color-black: #000000;
 
   --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
   /* Beacon type scale */
-  --text-display-xl: var(--text-display-xl); --text-display-xl--line-height: var(--text-display-xl--line-height); --text-display-xl--letter-spacing: var(--text-display-xl--letter-spacing); --text-display-xl--font-weight: var(--text-display-xl--font-weight);
-  --text-display: var(--text-display); --text-display--line-height: var(--text-display--line-height); --text-display--letter-spacing: var(--text-display--letter-spacing); --text-display--font-weight: var(--text-display--font-weight);
-  --text-h1: var(--text-h1); --text-h1--line-height: var(--text-h1--line-height); --text-h1--letter-spacing: var(--text-h1--letter-spacing); --text-h1--font-weight: var(--text-h1--font-weight);
-  --text-h2: var(--text-h2); --text-h2--line-height: var(--text-h2--line-height); --text-h2--letter-spacing: var(--text-h2--letter-spacing); --text-h2--font-weight: var(--text-h2--font-weight);
-  --text-h3: var(--text-h3); --text-h3--line-height: var(--text-h3--line-height); --text-h3--letter-spacing: var(--text-h3--letter-spacing); --text-h3--font-weight: var(--text-h3--font-weight);
-  --text-body-lg: var(--text-body-lg); --text-body-lg--line-height: var(--text-body-lg--line-height); --text-body-lg--letter-spacing: var(--text-body-lg--letter-spacing);
-  --text-body: var(--text-body); --text-body--line-height: var(--text-body--line-height); --text-body--letter-spacing: var(--text-body--letter-spacing);
-  --text-small: var(--text-small); --text-small--line-height: var(--text-small--line-height); --text-small--letter-spacing: var(--text-small--letter-spacing);
-  --text-caption: var(--text-caption); --text-caption--line-height: var(--text-caption--line-height); --text-caption--letter-spacing: var(--text-caption--letter-spacing);
-  --text-label: var(--text-label); --text-label--line-height: var(--text-label--line-height); --text-label--letter-spacing: var(--text-label--letter-spacing); --text-label--font-weight: var(--text-label--font-weight);
-  --text-mono-lg: var(--text-mono-lg); --text-mono-lg--line-height: var(--text-mono-lg--line-height); --text-mono-lg--letter-spacing: var(--text-mono-lg--letter-spacing); --text-mono-lg--font-weight: var(--text-mono-lg--font-weight);
-  --text-mono: var(--text-mono); --text-mono--line-height: var(--text-mono--line-height); --text-mono--letter-spacing: var(--text-mono--letter-spacing);
-  --text-mono-sm: var(--text-mono-sm); --text-mono-sm--line-height: var(--text-mono-sm--line-height); --text-mono-sm--letter-spacing: var(--text-mono-sm--letter-spacing);
+  --text-display-xl: var(--text-display-xl);
+  --text-display-xl--line-height: var(--text-display-xl--line-height);
+  --text-display-xl--letter-spacing: var(--text-display-xl--letter-spacing);
+  --text-display-xl--font-weight: var(--text-display-xl--font-weight);
+  --text-display: var(--text-display);
+  --text-display--line-height: var(--text-display--line-height);
+  --text-display--letter-spacing: var(--text-display--letter-spacing);
+  --text-display--font-weight: var(--text-display--font-weight);
+  --text-h1: var(--text-h1);
+  --text-h1--line-height: var(--text-h1--line-height);
+  --text-h1--letter-spacing: var(--text-h1--letter-spacing);
+  --text-h1--font-weight: var(--text-h1--font-weight);
+  --text-h2: var(--text-h2);
+  --text-h2--line-height: var(--text-h2--line-height);
+  --text-h2--letter-spacing: var(--text-h2--letter-spacing);
+  --text-h2--font-weight: var(--text-h2--font-weight);
+  --text-h3: var(--text-h3);
+  --text-h3--line-height: var(--text-h3--line-height);
+  --text-h3--letter-spacing: var(--text-h3--letter-spacing);
+  --text-h3--font-weight: var(--text-h3--font-weight);
+  --text-body-lg: var(--text-body-lg);
+  --text-body-lg--line-height: var(--text-body-lg--line-height);
+  --text-body-lg--letter-spacing: var(--text-body-lg--letter-spacing);
+  --text-body: var(--text-body);
+  --text-body--line-height: var(--text-body--line-height);
+  --text-body--letter-spacing: var(--text-body--letter-spacing);
+  --text-small: var(--text-small);
+  --text-small--line-height: var(--text-small--line-height);
+  --text-small--letter-spacing: var(--text-small--letter-spacing);
+  --text-caption: var(--text-caption);
+  --text-caption--line-height: var(--text-caption--line-height);
+  --text-caption--letter-spacing: var(--text-caption--letter-spacing);
+  --text-label: var(--text-label);
+  --text-label--line-height: var(--text-label--line-height);
+  --text-label--letter-spacing: var(--text-label--letter-spacing);
+  --text-label--font-weight: var(--text-label--font-weight);
+  --text-mono-lg: var(--text-mono-lg);
+  --text-mono-lg--line-height: var(--text-mono-lg--line-height);
+  --text-mono-lg--letter-spacing: var(--text-mono-lg--letter-spacing);
+  --text-mono-lg--font-weight: var(--text-mono-lg--font-weight);
+  --text-mono: var(--text-mono);
+  --text-mono--line-height: var(--text-mono--line-height);
+  --text-mono--letter-spacing: var(--text-mono--letter-spacing);
+  --text-mono-sm: var(--text-mono-sm);
+  --text-mono-sm--line-height: var(--text-mono-sm--line-height);
+  --text-mono-sm--letter-spacing: var(--text-mono-sm--letter-spacing);
   /* Tailwind/shadcn defaults remapped onto the Beacon scale (shadcn components use text-xs/sm/base/lg) */
-  --text-xs: var(--text-caption); --text-xs--line-height: var(--text-caption--line-height);
-  --text-sm: var(--text-body); --text-sm--line-height: var(--text-body--line-height);
-  --text-base: var(--text-body-lg); --text-base--line-height: var(--text-body-lg--line-height);
-  --text-lg: var(--text-h2); --text-lg--line-height: var(--text-h2--line-height);
+  --text-xs: var(--text-caption);
+  --text-xs--line-height: var(--text-caption--line-height);
+  --text-sm: var(--text-body);
+  --text-sm--line-height: var(--text-body--line-height);
+  --text-base: var(--text-body-lg);
+  --text-base--line-height: var(--text-body-lg--line-height);
+  --text-lg: var(--text-h2);
+  --text-lg--line-height: var(--text-h2--line-height);
 
   --spacing: var(--spacing);
   --spacing-row: var(--row-h);
@@ -469,6 +828,11 @@
   --radius-full: var(--radius-full);
 
   --shadow-xs: var(--shadow-sm); /* shadcn uses shadow-xs on inputs/buttons */
+  --shadow-e1: var(--shadow-e1);
+  --shadow-e2: var(--shadow-e2);
+  --shadow-e3: var(--shadow-e3);
+  --shadow-glow: var(--glow-accent);
+  --shadow-highlight: var(--highlight-inset);
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
@@ -497,10 +861,10 @@
   --ease-spring: var(--ease-spring);
 
   /* Breakpoints (literal: media queries cannot read variables) */
-  --breakpoint-sm: 40rem;  /* 640 */
-  --breakpoint-md: 48rem;  /* 768  : tablet — rail becomes a sheet, drawer overlays */
-  --breakpoint-lg: 64rem;  /* 1024 : desktop — rail inline (collapsible), drawer overlays feed */
-  --breakpoint-xl: 80rem;  /* 1280 : three panes — rail + feed + pushed drawer */
+  --breakpoint-sm: 40rem; /* 640 */
+  --breakpoint-md: 48rem; /* 768  : tablet — rail becomes a sheet, drawer overlays */
+  --breakpoint-lg: 64rem; /* 1024 : desktop — rail inline (collapsible), drawer overlays feed */
+  --breakpoint-xl: 80rem; /* 1280 : three panes — rail + feed + pushed drawer */
   --breakpoint-2xl: 96rem; /* 1536 : wide drawer */
 
   /* Colours */
@@ -528,7 +892,96 @@
   --color-accent-subtle: var(--color-accent-subtle);
   --color-accent-subtle-fg: var(--color-accent-subtle-fg);
   --color-accent-fg: var(--color-accent-fg);
+  --color-accent-glow: var(--color-accent-glow);
+  --color-glass: var(--color-glass);
+  --color-glass-border: var(--color-glass-border);
+  --color-surface-tint-top: var(--color-surface-tint-top);
   --color-focus-ring: var(--color-focus-ring);
+  --color-slate: var(--color-slate);
+  --color-slate-subtle: var(--color-slate-subtle);
+  --color-slate-fg: var(--color-slate-fg);
+  --color-graphite: var(--color-graphite);
+  --color-graphite-subtle: var(--color-graphite-subtle);
+  --color-graphite-fg: var(--color-graphite-fg);
+  --color-clay: var(--color-clay);
+  --color-clay-subtle: var(--color-clay-subtle);
+  --color-clay-fg: var(--color-clay-fg);
+  --color-moss: var(--color-moss);
+  --color-moss-subtle: var(--color-moss-subtle);
+  --color-moss-fg: var(--color-moss-fg);
+  --color-plum: var(--color-plum);
+  --color-plum-subtle: var(--color-plum-subtle);
+  --color-plum-fg: var(--color-plum-fg);
+  --color-ochre: var(--color-ochre);
+  --color-ochre-subtle: var(--color-ochre-subtle);
+  --color-ochre-fg: var(--color-ochre-fg);
+  --color-accent-strong-hover: var(--color-accent-strong-hover);
+  --color-cobalt: var(--color-cobalt);
+  --color-cobalt-subtle: var(--color-cobalt-subtle);
+  --color-cobalt-fg: var(--color-cobalt-fg);
+  --color-indigo: var(--color-indigo);
+  --color-indigo-subtle: var(--color-indigo-subtle);
+  --color-indigo-fg: var(--color-indigo-fg);
+  --color-violet: var(--color-violet);
+  --color-violet-subtle: var(--color-violet-subtle);
+  --color-violet-fg: var(--color-violet-fg);
+  --color-teal: var(--color-teal);
+  --color-teal-subtle: var(--color-teal-subtle);
+  --color-teal-fg: var(--color-teal-fg);
+  --color-orange: var(--color-orange);
+  --color-orange-subtle: var(--color-orange-subtle);
+  --color-orange-fg: var(--color-orange-fg);
+  --color-pink: var(--color-pink);
+  --color-pink-subtle: var(--color-pink-subtle);
+  --color-pink-fg: var(--color-pink-fg);
+  --color-lime: var(--color-lime);
+  --color-lime-subtle: var(--color-lime-subtle);
+  --color-lime-fg: var(--color-lime-fg);
+  --color-amber: var(--color-amber);
+  --color-amber-subtle: var(--color-amber-subtle);
+  --color-amber-fg: var(--color-amber-fg);
+  --color-type-internship: var(--color-type-internship);
+  --color-type-internship-subtle: var(--color-type-internship-subtle);
+  --color-type-internship-fg: var(--color-type-internship-fg);
+  --color-type-fulltime: var(--color-type-fulltime);
+  --color-type-fulltime-subtle: var(--color-type-fulltime-subtle);
+  --color-type-fulltime-fg: var(--color-type-fulltime-fg);
+  --color-type-hackathon: var(--color-type-hackathon);
+  --color-type-hackathon-subtle: var(--color-type-hackathon-subtle);
+  --color-type-hackathon-fg: var(--color-type-hackathon-fg);
+  --color-type-scholarship: var(--color-type-scholarship);
+  --color-type-scholarship-subtle: var(--color-type-scholarship-subtle);
+  --color-type-scholarship-fg: var(--color-type-scholarship-fg);
+  --color-type-fellowship: var(--color-type-fellowship);
+  --color-type-fellowship-subtle: var(--color-type-fellowship-subtle);
+  --color-type-fellowship-fg: var(--color-type-fellowship-fg);
+  --color-type-research: var(--color-type-research);
+  --color-type-research-subtle: var(--color-type-research-subtle);
+  --color-type-research-fg: var(--color-type-research-fg);
+  --color-type-opensource: var(--color-type-opensource);
+  --color-type-opensource-subtle: var(--color-type-opensource-subtle);
+  --color-type-opensource-fg: var(--color-type-opensource-fg);
+  --color-stage-saved: var(--color-stage-saved);
+  --color-stage-saved-subtle: var(--color-stage-saved-subtle);
+  --color-stage-saved-fg: var(--color-stage-saved-fg);
+  --color-stage-applied: var(--color-stage-applied);
+  --color-stage-applied-subtle: var(--color-stage-applied-subtle);
+  --color-stage-applied-fg: var(--color-stage-applied-fg);
+  --color-stage-oa: var(--color-stage-oa);
+  --color-stage-oa-subtle: var(--color-stage-oa-subtle);
+  --color-stage-oa-fg: var(--color-stage-oa-fg);
+  --color-stage-interview: var(--color-stage-interview);
+  --color-stage-interview-subtle: var(--color-stage-interview-subtle);
+  --color-stage-interview-fg: var(--color-stage-interview-fg);
+  --color-stage-offer: var(--color-stage-offer);
+  --color-stage-offer-subtle: var(--color-stage-offer-subtle);
+  --color-stage-offer-fg: var(--color-stage-offer-fg);
+  --color-stage-rejected: var(--color-stage-rejected);
+  --color-stage-rejected-subtle: var(--color-stage-rejected-subtle);
+  --color-stage-rejected-fg: var(--color-stage-rejected-fg);
+  --color-stage-ghosted: var(--color-stage-ghosted);
+  --color-stage-ghosted-subtle: var(--color-stage-ghosted-subtle);
+  --color-stage-ghosted-fg: var(--color-stage-ghosted-fg);
   --color-success: var(--color-success);
   --color-success-subtle: var(--color-success-subtle);
   --color-warning: var(--color-warning);

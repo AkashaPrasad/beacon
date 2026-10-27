@@ -37,7 +37,11 @@ export const googleAuthSchema = z.union([
   z.object({ code: z.string().min(4).max(2_048), redirectUri: httpUrlSchema }).strict(),
 ]);
 
-const emailSchema = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address').max(254));
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email('Enter a valid email address').max(254));
 
 export const registerSchema = z
   .object({ email: emailSchema, password: passwordSchema, name: z.string().trim().min(1).max(120) })
@@ -78,30 +82,98 @@ function mongoSafeKeys(value: unknown, depth = 0): boolean {
   if (depth > 8) return false;
   if (Array.isArray(value)) return value.every((v) => mongoSafeKeys(v, depth + 1));
   if (value && typeof value === 'object') {
-    return Object.entries(value).every(([k, v]) => !k.startsWith('$') && !k.includes('.') && mongoSafeKeys(v, depth + 1));
+    return Object.entries(value).every(
+      ([k, v]) => !k.startsWith('$') && !k.includes('.') && mongoSafeKeys(v, depth + 1),
+    );
   }
   return true;
 }
 
 const onboardingAnswersSchema = z
   .record(
-    z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, 'Answer ids are 1..64 letters, digits, _ or -, starting with a letter'),
+    z
+      .string()
+      .regex(
+        /^[A-Za-z][A-Za-z0-9_-]{0,63}$/,
+        'Answer ids are 1..64 letters, digits, _ or -, starting with a letter',
+      ),
     z.json(),
   )
-  .refine((a) => Object.keys(a).length <= ONBOARDING_ANSWERS_MAX_KEYS, `At most ${ONBOARDING_ANSWERS_MAX_KEYS} answers`)
-  .refine((a) => mongoSafeKeys(a), 'Nested keys may not start with "$" or contain "."; nesting is limited to 8 levels');
+  .refine(
+    (a) => Object.keys(a).length <= ONBOARDING_ANSWERS_MAX_KEYS,
+    `At most ${ONBOARDING_ANSWERS_MAX_KEYS} answers`,
+  )
+  .refine(
+    (a) => mongoSafeKeys(a),
+    'Nested keys may not start with "$" or contain "."; nesting is limited to 8 levels',
+  );
 
 /** PATCH /v1/profile/onboarding: the step the user is on plus answers to merge (`null` removes one). */
 export const onboardingProgressSchema = z
   .object({
-    step: z.string().regex(ONBOARDING_STEP_ID, 'Step ids are lower-case slugs (a-z, 0-9, -), 1..40 chars').optional(),
+    step: z
+      .string()
+      .regex(ONBOARDING_STEP_ID, 'Step ids are lower-case slugs (a-z, 0-9, -), 1..40 chars')
+      .optional(),
     answers: onboardingAnswersSchema.optional(),
   })
   .strict()
   .refine((b) => b.step !== undefined || b.answers !== undefined, 'Send a step, answers, or both');
 
 /** POST /v1/profile/onboarding/complete: optional last answers to merge first. */
-export const onboardingCompleteSchema = z.object({ answers: onboardingAnswersSchema.optional() }).strict().default({});
+export const onboardingCompleteSchema = z
+  .object({ answers: onboardingAnswersSchema.optional() })
+  .strict()
+  .default({});
+
+// ── Hints (tour, tips, rail UI state) ────────────────────────────────────────
+
+export const HINT_TIPS_MAX = 200;
+const tipIdSchema = z
+  .string()
+  .regex(
+    /^[a-z][a-z0-9:_-]{0,63}$/,
+    'Tip ids are lower-case slugs (a-z, 0-9, :, _, -), 1..64 chars',
+  );
+
+/** PATCH /v1/settings/hints: every field optional (at least one). */
+export const hintsPatchSchema = z
+  .object({
+    /** true marks the tour completed now; false clears completed + dismissed (replay "Show me around"). */
+    tourDone: z.boolean().optional(),
+    tourStep: z
+      .union([z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), z.number().int().min(0).max(50)])
+      .nullable()
+      .optional(),
+    /** Stamps `tour.offeredAt` the first time (later calls keep the first time). */
+    tourOffered: z.literal(true).optional(),
+    /** true stamps `tour.dismissedAt` now; false clears it. */
+    tourDismissed: z.boolean().optional(),
+    /** Per tip / coach mark: true (dismissed now) or an ISO time (dismissed then); null shows it again. */
+    tips: z
+      .record(
+        tipIdSchema,
+        z.union([
+          z.null(),
+          z.literal(true),
+          z.iso.datetime({ offset: true }).transform((v) => new Date(v)),
+        ]),
+      )
+      .refine(
+        (t) => Object.keys(t).length <= HINT_TIPS_MAX,
+        `At most ${HINT_TIPS_MAX} tips per request`,
+      )
+      .optional(),
+    ui: z
+      .object({
+        railCollapsed: z.boolean().optional(),
+        radarView: z.enum(['grid', 'list']).optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .refine((b) => Object.values(b).some((v) => v !== undefined), 'Send at least one field');
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 

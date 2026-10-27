@@ -17,7 +17,6 @@ import {
   type RadarView,
 } from '../lib/filters';
 
-
 const LAST_SEARCH_KEY = 'beacon:radar:last-search';
 
 type Updater = RadarFilters | ((current: RadarFilters) => RadarFilters);
@@ -64,7 +63,7 @@ export function useRadarFilters() {
       setParams(
         (prev) => {
           const out = new URLSearchParams(prev);
-          if (next === 'list') out.delete(PARAM.view);
+          if (next === 'grid') out.delete(PARAM.view);
           else out.set(PARAM.view, next);
           return out;
         },
@@ -83,14 +82,17 @@ export function useRadarFilters() {
       Promise.resolve(
         navigate(
           { pathname: `/radar/${encodeURIComponent(id)}`, search: location.search },
-          { replace, preventScrollReset: true },
+          { replace, preventScrollReset: true, state: { fromList: true } },
         ),
       ),
     [navigate, location.search],
   );
 
   const closeListing = useCallback(() => {
-    void navigate({ pathname: '/radar', search: location.search }, { replace: false, preventScrollReset: true });
+    void navigate(
+      { pathname: '/radar', search: location.search },
+      { replace: false, preventScrollReset: true },
+    );
   }, [navigate, location.search]);
 
   return { filters, view, search, listingId, setFilters, setView, openListing, closeListing };

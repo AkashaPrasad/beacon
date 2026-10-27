@@ -1,6 +1,7 @@
 /**
  * Source and pack actions shared by the list, the source page and the pack page: optimistic
- * mutations with calm toasts, undo for anything destructive (DESIGN §8 rule 6).
+ * mutations with calm toasts. Turning a pack off has Undo; deleting a source is irreversible (its
+ * check history goes), so callers confirm first (UX v2 D19) and the delete is sent at once.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -19,7 +20,6 @@ import {
 import { errorMessage } from '@/lib/api';
 import { withUndo } from '@/lib/undo';
 
-import { deferCommit } from './deferred';
 import type { SourceTableRow } from './rows';
 
 type RowRef = Pick<SourceTableRow, 'id' | 'name'>;
@@ -29,7 +29,7 @@ export interface SourceActions {
   /** `onSaved` runs when the server confirms (for an inline "Saved"). */
   update: (row: RowRef, patch: SourcePatch, onSaved?: () => void) => void;
   refresh: (row: RowRef) => void;
-  /** Removes the row at once; the DELETE is sent when the 6 s undo window closes. */
+  /** Deletes the source (after the caller's confirm): the row goes at once, back on failure. */
   remove: (row: RowRef) => void;
   togglePack: (pack: PackDTO, enabled: boolean) => void;
 }
@@ -46,8 +46,7 @@ export function useSourceActions(): SourceActions {
         updateMutation.mutate(
           { id: row.id, patch: { enabled } },
           {
-            onSuccess: () =>
-              toast(enabled ? `Watching ${row.name} again.` : `Paused ${row.name}.`),
+            onSuccess: () => toast(enabled ? `Watching ${row.name} again.` : `Paused ${row.name}.`),
             onError: (e) =>
               toast.error(`Couldn't update ${row.name}. ${errorMessage(e)}`, { duration: 8000 }),
           },
@@ -69,20 +68,13 @@ export function useSourceActions(): SourceActions {
         }),
       remove: (row) => {
         const previous = removeSourceFromCache(qc, row.id);
-        const pending = deferCommit(`source:${row.id}`, () =>
-          deleteSourceRequest(qc, row.id).catch((error: unknown) => {
+        deleteSourceRequest(qc, row.id).then(
+          () => toast(`Deleted “${row.name}”.`),
+          (error: unknown) => {
             restoreSourcesCache(qc, previous);
             toast.error(`Couldn't delete ${row.name}. ${errorMessage(error)}`, { duration: 8000 });
-          }),
-        );
-        withUndo({
-          message: `Deleted “${row.name}”.`,
-          run: () => undefined,
-          undo: () => {
-            pending.cancel();
-            restoreSourcesCache(qc, previous);
           },
-        });
+        );
       },
       togglePack: (pack, enabled) => {
         if (enabled) {

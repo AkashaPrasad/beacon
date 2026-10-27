@@ -8,7 +8,13 @@ import {
   type AiProvider,
 } from '@kestrel/shared';
 
-import { byokConfig, PROVIDER_BASE_URLS, serverConfig, testLlm, type LlmConfig } from '../ai/llm.js';
+import {
+  byokConfig,
+  PROVIDER_BASE_URLS,
+  serverConfig,
+  testLlm,
+  type LlmConfig,
+} from '../ai/llm.js';
 import type { AppContext } from '../context.js';
 import { aiKeyAad, encryptSecret } from '../lib/crypto.js';
 import { badRequest, HttpError } from '../lib/errors.js';
@@ -28,10 +34,15 @@ import {
   TrackerItem,
 } from '../models/activity.js';
 import { Profile } from '../models/profile.js';
-import { Settings, type SettingsDoc } from '../models/settings.js';
+import { Settings, type HintsDoc, type SettingsDoc } from '../models/settings.js';
 import { Source } from '../models/source.js';
 import { User, type UserDoc } from '../models/user.js';
-import { aiSettingsPutSchema, aiTestSchema } from '../schemas/index.js';
+import {
+  aiSettingsPutSchema,
+  aiTestSchema,
+  HINT_TIPS_MAX,
+  hintsPatchSchema,
+} from '../schemas/index.js';
 import { toAiSettingsDTO, toPublicUser, toSettingsDTO } from '../services/serialize.js';
 import { getSettings } from '../services/settings.js';
 
@@ -61,6 +72,26 @@ const EXPORT_COLLECTIONS: readonly [string, OwnedModel, Record<string, 0>][] = [
   ['pushSubscriptions', owned(PushSubscription), { keys: 0 }],
   ['explanations', owned(Explanation), {}],
 ];
+
+/** `GET /v1/settings/hints` shape (defaults filled in). */
+export function toHintsDTO(hints: HintsDoc | undefined) {
+  const tour = {
+    offeredAt: hints?.tour?.offeredAt ?? null,
+    completedAt: hints?.tour?.completedAt ?? null,
+    dismissedAt: hints?.tour?.dismissedAt ?? null,
+  };
+  return {
+    tourDone: Boolean(tour.completedAt ?? tour.dismissedAt),
+    tourStep: hints?.tourStep ?? null,
+    tour,
+    tips: hints?.tips ?? {},
+    ui: {
+      railCollapsed: hints?.ui?.railCollapsed ?? null,
+      radarView: hints?.ui?.radarView ?? null,
+    },
+    updatedAt: hints?.updatedAt ?? null,
+  };
+}
 
 function write(res: Response, chunk: string): Promise<void> {
   return new Promise((resolve) => {
@@ -107,25 +138,76 @@ export function createSettingsRouter(ctx: AppContext): Router {
     if (patch.ai) {
       const { consent, ...ai } = patch.ai;
       await checkBaseUrl(ctx, ai.baseUrl);
-      for (const [key, value] of Object.entries(ai)) if (value !== undefined) set[`ai.${key}`] = value;
+      for (const [key, value] of Object.entries(ai))
+        if (value !== undefined) set[`ai.${key}`] = value;
       if (consent !== undefined) set['ai.consentGivenAt'] = consent ? ctx.now() : null;
     }
     let weightsChanged = false;
     if (patch.weights) {
       const merged = { ...current.weights, ...patch.weights };
       set['weights'] = parse(weightsInputSchema, merged);
-      weightsChanged = JSON.stringify(normaliseWeights(current.weights)) !== JSON.stringify(normaliseWeights(merged));
+      weightsChanged =
+        JSON.stringify(normaliseWeights(current.weights)) !==
+        JSON.stringify(normaliseWeights(merged));
     }
-    const updated = await Settings.findOneAndUpdate({ userId: _id }, { $set: set }, { returnDocument: 'after' }).lean<SettingsDoc>();
+    const updated = await Settings.findOneAndUpdate(
+      { userId: _id },
+      { $set: set },
+      { returnDocument: 'after' },
+    ).lean<SettingsDoc>();
     if (weightsChanged) await enqueueMatch(ctx, id);
     res.json(toSettingsDTO(updated!));
+  });
+
+  router.get('/settings/hints', async (req, res) => {
+    res.json(toHintsDTO((await getSettings(currentUser(req)._id)).hints));
+  });
+
+  router.patch('/settings/hints', async (req, res) => {
+    const { _id } = currentUser(req);
+    const body = parse(hintsPatchSchema, req.body);
+    const current = (await getSettings(_id)).hints;
+    const now = ctx.now();
+    const set: Record<string, unknown> = { 'hints.updatedAt': now };
+    const unset: Record<string, ''> = {};
+    if (body.tourDone === true && !current?.tour?.completedAt) set['hints.tour.completedAt'] = now;
+    if (body.tourDone === false) {
+      set['hints.tour.completedAt'] = null;
+      set['hints.tour.dismissedAt'] = null;
+    }
+    if (body.tourStep !== undefined) set['hints.tourStep'] = body.tourStep;
+    if (body.tourOffered && !current?.tour?.offeredAt) set['hints.tour.offeredAt'] = now;
+    if (body.tourDismissed !== undefined)
+      set['hints.tour.dismissedAt'] = body.tourDismissed ? now : null;
+    const tips = Object.entries(body.tips ?? {});
+    const dismissedAfter = new Set(Object.keys(current?.tips ?? {}));
+    for (const [id, value] of tips) {
+      if (value === null) {
+        unset[`hints.tips.${id}`] = '';
+        dismissedAfter.delete(id);
+      } else {
+        set[`hints.tips.${id}`] = value === true ? now : value;
+        dismissedAfter.add(id);
+      }
+    }
+    if (dismissedAfter.size > HINT_TIPS_MAX * 2)
+      throw badRequest(`At most ${HINT_TIPS_MAX * 2} dismissed tips are stored`);
+    for (const [key, value] of Object.entries(body.ui ?? {}))
+      if (value !== undefined) set[`hints.ui.${key}`] = value;
+    const update: Record<string, unknown> = { $set: set };
+    if (Object.keys(unset).length) update['$unset'] = unset;
+    const updated = await Settings.findOneAndUpdate({ userId: _id }, update, {
+      returnDocument: 'after',
+    }).lean<SettingsDoc>();
+    res.json(toHintsDTO(updated?.hints));
   });
 
   router.put('/settings/ai', async (req, res) => {
     const { _id, id } = currentUser(req);
     const body = parse(aiSettingsPutSchema, req.body);
     const current = await getSettings(_id);
-    if (body.provider === 'custom' && !body.baseUrl) throw badRequest('A custom provider needs a baseUrl');
+    if (body.provider === 'custom' && !body.baseUrl)
+      throw badRequest('A custom provider needs a baseUrl');
     await checkBaseUrl(ctx, body.baseUrl);
     const set: Record<string, unknown> = {
       'ai.provider': body.provider,
@@ -141,7 +223,11 @@ export function createSettingsRouter(ctx: AppContext): Router {
       set['ai.keyCiphertext'] = null;
       set['ai.keyLast4'] = null;
     }
-    const updated = await Settings.findOneAndUpdate({ userId: _id }, { $set: set }, { returnDocument: 'after' }).lean<SettingsDoc>();
+    const updated = await Settings.findOneAndUpdate(
+      { userId: _id },
+      { $set: set },
+      { returnDocument: 'after' },
+    ).lean<SettingsDoc>();
     res.json({ ai: toAiSettingsDTO(updated!.ai) });
   });
 
@@ -163,7 +249,10 @@ export function createSettingsRouter(ctx: AppContext): Router {
     let tokens: Record<string, string> = {};
     try {
       [calls, tokens] = await withTimeout(
-        Promise.all([ctx.redis.get(redisKeys.llmCalls(id, day)), ctx.redis.hgetall(redisKeys.llmTokens(id, day))]),
+        Promise.all([
+          ctx.redis.get(redisKeys.llmCalls(id, day)),
+          ctx.redis.hgetall(redisKeys.llmTokens(id, day)),
+        ]),
         1_500,
         'ai usage',
       );
@@ -175,7 +264,11 @@ export function createSettingsRouter(ctx: AppContext): Router {
       date: day,
       calls: num(calls),
       cap: ctx.env.LLM_DAILY_USER_CAP,
-      tokens: { prompt: num(tokens['prompt']), completion: num(tokens['completion']), total: num(tokens['total']) },
+      tokens: {
+        prompt: num(tokens['prompt']),
+        completion: num(tokens['completion']),
+        total: num(tokens['total']),
+      },
     });
   });
 
@@ -192,7 +285,10 @@ export function createSettingsRouter(ctx: AppContext): Router {
       } else {
         const baseURL = body.baseUrl ?? settings.ai.baseUrl ?? PROVIDER_BASE_URLS[provider];
         const saved = provider === settings.ai.provider ? byokConfig(ctx, id, settings.ai) : null;
-        const model = body.model ?? settings.ai.model ?? (saved && saved !== 'key_unreadable' ? saved.model : null);
+        const model =
+          body.model ??
+          settings.ai.model ??
+          (saved && saved !== 'key_unreadable' ? saved.model : null);
         const apiKey = body.apiKey ?? (saved && saved !== 'key_unreadable' ? saved.apiKey : null);
         if (baseURL && model) config = { provider, baseURL, model, apiKey, source: 'byok' };
       }
@@ -203,7 +299,11 @@ export function createSettingsRouter(ctx: AppContext): Router {
       config = saved === 'key_unreadable' ? null : saved;
     }
     if (!config) {
-      throw new HttpError(422, 'AI_NOT_CONFIGURED', 'Nothing to test: choose a provider, model and key first');
+      throw new HttpError(
+        422,
+        'AI_NOT_CONFIGURED',
+        'Nothing to test: choose a provider, model and key first',
+      );
     }
     const result = await testLlm(ctx, config);
     res.json({ ...result, model: config.model, provider: config.provider });
@@ -234,10 +334,15 @@ export function createSettingsRouter(ctx: AppContext): Router {
     await write(res, `{"exportedAt":${JSON.stringify(ctx.now())}`);
     const me = fresh ?? user.doc;
     await write(res, `,"user":${JSON.stringify(toPublicUser(me))}`);
-    const onboarding = { step: me.onboardingStep, completedAt: me.onboardingCompletedAt ?? null, answers: me.onboardingAnswers ?? {} };
+    const onboarding = {
+      step: me.onboardingStep,
+      completedAt: me.onboardingCompletedAt ?? null,
+      answers: me.onboardingAnswers ?? {},
+    };
     await write(res, `,"onboarding":${JSON.stringify(onboarding)}`);
     await write(res, `,"profile":${JSON.stringify(profile)}`);
     await write(res, `,"settings":${JSON.stringify(toSettingsDTO(settings))}`);
+    await write(res, `,"hints":${JSON.stringify(toHintsDTO(settings.hints))}`);
     await write(res, `,"sources":${JSON.stringify(sources)}`);
     for (const [name, model, projection] of EXPORT_COLLECTIONS) {
       await write(res, `,${JSON.stringify(name)}:[`);

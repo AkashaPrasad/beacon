@@ -63,15 +63,21 @@ function PackCard({
       data-enabled={pack.enabled}
       {...hoverLift}
       className={cn(
-        'group relative flex h-full flex-col gap-4 rounded-md border bg-surface-raised p-4',
-        'after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:opacity-0 after:shadow-md after:transition-opacity after:duration-fade hover:after:opacity-100',
-        pack.enabled ? 'border-border-strong' : 'border-border',
+        'e2 group relative flex h-full flex-col gap-4 rounded-lg border p-4 has-[a:focus-visible]:focus-ring',
+        'after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:opacity-0 after:shadow-e3 after:transition-opacity after:duration-fade hover:after:opacity-100',
+        pack.enabled ? 'border-accent-strong/30' : 'border-border-subtle',
       )}
     >
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h3 id={titleId} className="text-h3 text-fg">
-            {pack.name}
+            {/* Stretched link: the whole card opens the pack page; the switch sits above it. */}
+            <Link
+              to={packPath(pack.id)}
+              className="rounded-xs outline-none after:absolute after:inset-0 after:rounded-lg after:content-['']"
+            >
+              {pack.name}
+            </Link>
           </h3>
           <p className="mt-0.5 text-small text-fg-secondary">
             {PACK_BLURBS[pack.id] ?? 'A curated list of sources, refreshed for everyone.'}
@@ -80,7 +86,8 @@ function PackCard({
         <Switch
           checked={pack.enabled}
           onCheckedChange={onToggle}
-          aria-label={`${pack.enabled ? 'Turn off' : 'Turn on'} ${pack.name}`}
+          aria-label={`Watch ${pack.name}`}
+          className="relative z-raised"
         />
       </header>
 
@@ -108,13 +115,17 @@ function PackCard({
         </p>
       </div>
 
-      <Link
-        to={packPath(pack.id)}
-        className="mt-auto -ml-1 inline-flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 text-small font-medium text-accent-strong underline-offset-3 hover:underline focus-visible:focus-ring"
+      <span
+        aria-hidden="true"
+        className="mt-auto inline-flex w-fit items-center gap-1 text-small font-medium text-accent-strong group-hover:underline group-hover:underline-offset-3"
       >
-        What’s in this pack<span className="sr-only">: {pack.name}</span>
-        <ChevronRight className="size-4" strokeWidth={1.5} aria-hidden="true" />
-      </Link>
+        What’s in this pack
+        <ChevronRight
+          className="size-4 transition-transform duration-fast group-hover:translate-x-0.5"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+      </span>
     </m.section>
   );
 }

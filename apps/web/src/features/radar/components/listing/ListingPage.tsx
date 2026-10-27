@@ -10,6 +10,28 @@
  * through the list the page was opened from; s / h / a / ⌘↵ act on this listing.
  */
 import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowUpRight,
+  Ban,
+  Bookmark,
+  BookmarkCheck,
+  ChevronLeft,
+  ChevronRight,
+  EyeOff,
+  KanbanSquare,
+} from 'lucide-react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+
+import { PENDING_TRACKER_ID, useExplain, useListing, type ListingDetail } from '@/api/listings';
+import { rememberRecentListing } from '@/components/command-palette/registry';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { isApiError } from '@/lib/api';
+import { useShortcut, useShortcutScope } from '@/lib/shortcuts';
+import { useMediaQuery } from '@/lib/use-media-query';
+import { cn } from '@/lib/utils';
+import {
   CompanyLogo,
   DeadlineCountdown,
   EmptyState,
@@ -22,22 +44,6 @@ import {
   TypeBadge,
   usePrefersReducedMotion,
 } from '@kestrel/ui';
-import { AlertCircle, ArrowLeft, ArrowUpRight, Ban, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, EyeOff, KanbanSquare } from 'lucide-react';
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-
-import { PENDING_TRACKER_ID, useExplain, useListing, type ListingDetail } from '@/api/listings';
-import { rememberRecentListing } from '@/components/command-palette/registry';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { isApiError } from '@/lib/api';
-import { useShortcut, useShortcutScope } from '@/lib/shortcuts';
-import { useMediaQuery } from '@/lib/use-media-query';
-import { cn } from '@/lib/utils';
-
-import type { ActionListing, ListingActions } from '../../hooks/useListingActions';
-import { locationText, postedText, sourceLabel, stipendText } from '../../lib/format';
-import { APPLY_WINDOW_MS, clearPendingApply, readPendingApply, rememberApply } from '../../lib/listingContext';
-import { ECHO_MS, getMorphingId, subscribeMorph, viewTransitionName } from '../../lib/motion';
 
 import { FitBreakdown } from './FitBreakdown';
 import {
@@ -52,6 +58,15 @@ import {
   Tips,
   WhyAndGaps,
 } from './ListingSections';
+import type { ActionListing, ListingActions } from '../../hooks/useListingActions';
+import { locationText, postedText, sourceLabel, stipendText } from '../../lib/format';
+import {
+  APPLY_WINDOW_MS,
+  clearPendingApply,
+  readPendingApply,
+  rememberApply,
+} from '../../lib/listingContext';
+import { ECHO_MS, getMorphingId, subscribeMorph, viewTransitionName } from '../../lib/motion';
 
 export interface ListingPageProps {
   listingId: string;
@@ -82,11 +97,33 @@ function vt(part: 'logo' | 'title' | 'ring', id: string, morphing: string | null
 
 type Echo = 'save' | 'hide' | 'track' | 'apply' | null;
 
-function IconNav({ label, shortcut, disabled, onClick, testId, children }: { label: string; shortcut: string; disabled: boolean; onClick: () => void; testId: string; children: ReactNode }) {
+function IconNav({
+  label,
+  shortcut,
+  disabled,
+  onClick,
+  testId,
+  children,
+}: {
+  label: string;
+  shortcut: string;
+  disabled: boolean;
+  onClick: () => void;
+  testId: string;
+  children: ReactNode;
+}) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={label} aria-keyshortcuts={shortcut} disabled={disabled} onClick={onClick} data-testid={testId}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          aria-keyshortcuts={shortcut}
+          disabled={disabled}
+          onClick={onClick}
+          data-testid={testId}
+        >
           {children}
         </Button>
       </TooltipTrigger>
@@ -99,7 +136,19 @@ function IconNav({ label, shortcut, disabled, onClick, testId, children }: { lab
 }
 
 export function ListingPage(props: ListingPageProps) {
-  const { listingId, prevId, nextId, position, backLabel, onBack, onPrev, onNext, actions, onHide, nowMs } = props;
+  const {
+    listingId,
+    prevId,
+    nextId,
+    position,
+    backLabel,
+    onBack,
+    onPrev,
+    onNext,
+    actions,
+    onHide,
+    nowMs,
+  } = props;
   useShortcutScope('listing');
   const query = useListing(listingId);
   const detail = query.data;
@@ -118,11 +167,18 @@ export function ListingPage(props: ListingPageProps) {
   }, [listingId]);
   const listing = detail?.listing;
   useEffect(() => {
-    if (listing) rememberRecentListing({ id: listing.id, title: listing.title, company: listing.company });
+    if (listing)
+      rememberRecentListing({ id: listing.id, title: listing.title, company: listing.company });
   }, [listing]);
 
   const current: ActionListing | null = detail
-    ? { id: detail.listing.id, title: detail.listing.title, applyUrl: detail.listing.applyUrl, saved: detail.saved, trackerItemId: detail.trackerItemId }
+    ? {
+        id: detail.listing.id,
+        title: detail.listing.title,
+        applyUrl: detail.listing.applyUrl,
+        saved: detail.saved,
+        trackerItemId: detail.trackerItemId,
+      }
     : null;
   const closed = Boolean(listing?.deadlineAt && listing.deadlineAt.getTime() < nowMs);
   const keys = { scope: 'listing', group: 'Listing' } as const;
@@ -149,7 +205,13 @@ export function ListingPage(props: ListingPageProps) {
 
   const nav = (
     <div className="sticky top-(--topbar-h) z-sticky -mx-gutter flex h-12 items-center gap-2 border-b border-border-subtle bg-surface px-gutter md:mx-0 md:rounded-b-lg md:px-2">
-      <Button variant="ghost" size="sm" onClick={onBack} data-testid="drawer-close" aria-keyshortcuts="Escape">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onBack}
+        data-testid="drawer-close"
+        aria-keyshortcuts="Escape"
+      >
         <ArrowLeft strokeWidth={1.5} aria-hidden="true" />
         {backLabel}
       </Button>
@@ -159,10 +221,22 @@ export function ListingPage(props: ListingPageProps) {
             {position.index + 1} of {position.total.toLocaleString('en-IN')}
           </span>
         )}
-        <IconNav label="Previous listing" shortcut="K" disabled={!prevId} onClick={onPrev} testId="drawer-prev">
+        <IconNav
+          label="Previous listing"
+          shortcut="K"
+          disabled={!prevId}
+          onClick={onPrev}
+          testId="drawer-prev"
+        >
           <ChevronLeft strokeWidth={1.5} />
         </IconNav>
-        <IconNav label="Next listing" shortcut="J" disabled={!nextId} onClick={onNext} testId="drawer-next">
+        <IconNav
+          label="Next listing"
+          shortcut="J"
+          disabled={!nextId}
+          onClick={onNext}
+          testId="drawer-next"
+        >
           <ChevronRight strokeWidth={1.5} />
         </IconNav>
       </div>
@@ -170,22 +244,51 @@ export function ListingPage(props: ListingPageProps) {
   );
 
   return (
-    <article data-testid="listing-page" data-listing-id={listingId} aria-labelledby="listing-title" className="mx-auto w-full max-w-6xl px-gutter pb-28 md:px-8 md:pb-12">
+    <article
+      data-testid="listing-page"
+      data-listing-id={listingId}
+      aria-labelledby="listing-title"
+      className="mx-auto w-full max-w-6xl px-gutter pb-28 md:px-8 md:pb-12"
+    >
       {nav}
       <div data-testid="listing-drawer" className="pt-6">
         {query.isError && !detail ? (
-          <PageError error={query.error} onRetry={() => void query.refetch()} onBack={onBack} backLabel={backLabel} />
+          <PageError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            onBack={onBack}
+            backLabel={backLabel}
+          />
         ) : !detail ? (
           <PageSkeleton titleRef={titleRef} />
         ) : (
-          <PageBody {...props} detail={detail} loadingDetail={query.isPlaceholderData} morphing={morphing} titleRef={titleRef} echo={echo} run={run} closed={closed} />
+          <PageBody
+            {...props}
+            detail={detail}
+            loadingDetail={query.isPlaceholderData}
+            morphing={morphing}
+            titleRef={titleRef}
+            echo={echo}
+            run={run}
+            closed={closed}
+          />
         )}
       </div>
     </article>
   );
 }
 
-function PageError({ error, onRetry, onBack, backLabel }: { error: unknown; onRetry: () => void; onBack: () => void; backLabel: string }) {
+function PageError({
+  error,
+  onRetry,
+  onBack,
+  backLabel,
+}: {
+  error: unknown;
+  onRetry: () => void;
+  onBack: () => void;
+  backLabel: string;
+}) {
   const missing = isApiError(error) && error.status === 404;
   return (
     <div data-testid="drawer" className="py-10">
@@ -195,7 +298,11 @@ function PageError({ error, onRetry, onBack, backLabel }: { error: unknown; onRe
       <EmptyState
         icon={AlertCircle}
         title={missing ? 'This one has gone.' : "Couldn't load this listing."}
-        body={missing ? 'It may have closed or been taken down by its source.' : 'Check your connection, then try again.'}
+        body={
+          missing
+            ? 'It may have closed or been taken down by its source.'
+            : 'Check your connection, then try again.'
+        }
         action={
           missing ? (
             <Button variant="primary" onClick={onBack}>
@@ -214,13 +321,23 @@ function PageError({ error, onRetry, onBack, backLabel }: { error: unknown; onRe
 
 function PageSkeleton({ titleRef }: { titleRef: React.RefObject<HTMLHeadingElement | null> }) {
   return (
-    <div data-testid="drawer" aria-busy="true" className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <div
+      data-testid="drawer"
+      aria-busy="true"
+      className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]"
+    >
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-sm" />
           <Skeleton className="h-3.5 w-40" />
         </div>
-        <h1 id="listing-title" ref={titleRef} tabIndex={-1} data-testid="listing-drawer-title" className="outline-none">
+        <h1
+          id="listing-title"
+          ref={titleRef}
+          tabIndex={-1}
+          data-testid="listing-drawer-title"
+          className="outline-none"
+        >
           <span className="sr-only">Loading…</span>
           <Skeleton className="h-8 w-3/4" />
         </h1>
@@ -260,17 +377,32 @@ function PageBody({
   const now = new Date(nowMs);
   const tracked = Boolean(detail.trackerItemId);
   const ghost = ghostLevelOf(listing.ghostRisk.score);
-  const meta = [locationText(listing), stipendText(listing, { short: false }), `posted ${postedText(listing, now)}`, `via ${sourceLabel(listing, detail.source)}`]
+  const meta = [
+    locationText(listing),
+    stipendText(listing, { short: false }),
+    `posted ${postedText(listing, now)}`,
+    `via ${sourceLabel(listing, detail.source)}`,
+  ]
     .filter(Boolean)
     .join(' · ');
 
   const applyButton = (wide: boolean) =>
     closed ? (
-      <Button variant="primary" disabled data-testid="drawer-apply" className={cn(wide && 'w-full')}>
+      <Button
+        variant="primary"
+        disabled
+        data-testid="drawer-apply"
+        className={cn(wide && 'w-full')}
+      >
         Closed
       </Button>
     ) : (
-      <Button variant="primary" asChild className={cn(wide && 'w-full')} data-pressed={echo === 'apply' || undefined}>
+      <Button
+        variant="primary"
+        asChild
+        className={cn(wide && 'w-full')}
+        data-pressed={echo === 'apply' || undefined}
+      >
         <a
           href={listing.applyUrl}
           target="_blank"
@@ -281,7 +413,10 @@ function PageBody({
         >
           Apply
           <ArrowUpRight strokeWidth={1.5} aria-hidden="true" />
-          <span className="sr-only"> on {sourceLabel(listing, detail.source)} (opens in a new tab)</span>
+          <span className="sr-only">
+            {' '}
+            on {sourceLabel(listing, detail.source)} (opens in a new tab)
+          </span>
         </a>
       </Button>
     );
@@ -296,7 +431,11 @@ function PageBody({
         onClick={() => run('save')}
         className="flex-1"
       >
-        {detail.saved ? <BookmarkCheck className="text-accent-strong" strokeWidth={1.5} /> : <Bookmark strokeWidth={1.5} />}
+        {detail.saved ? (
+          <BookmarkCheck className="text-accent-strong" strokeWidth={1.5} />
+        ) : (
+          <Bookmark strokeWidth={1.5} />
+        )}
         {detail.saved ? 'Saved' : 'Save'}
       </Button>
       <Button
@@ -313,7 +452,15 @@ function PageBody({
       </Button>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Hide this listing" aria-keyshortcuts="H" data-testid="drawer-hide" data-pressed={echo === 'hide' || undefined} onClick={() => run('hide')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Hide this listing"
+            aria-keyshortcuts="H"
+            data-testid="drawer-hide"
+            data-pressed={echo === 'hide' || undefined}
+            onClick={() => run('hide')}
+          >
             <EyeOff strokeWidth={1.5} />
           </Button>
         </TooltipTrigger>
@@ -334,7 +481,10 @@ function PageBody({
               <CompanyLogo name={listing.company} domain={listing.companyDomain} size={40} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-body font-medium text-fg-secondary" title={listing.company}>
+              <p
+                className="truncate text-body font-medium text-fg-secondary"
+                title={listing.company}
+              >
                 {listing.company}
               </p>
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -343,7 +493,11 @@ function PageBody({
               </div>
             </div>
             <span style={vt('ring', listing.id, morphing)} className="inline-flex shrink-0">
-              {fit ? <FitRing score={fit.score} size={40} label="right" /> : <span className="text-caption text-fg-tertiary">Ranking…</span>}
+              {fit ? (
+                <FitRing score={fit.score} size={40} label="right" />
+              ) : (
+                <span className="text-caption text-fg-tertiary">Ranking…</span>
+              )}
             </span>
           </div>
           <h1
@@ -352,7 +506,7 @@ function PageBody({
             tabIndex={-1}
             data-testid="listing-drawer-title"
             style={vt('title', listing.id, morphing)}
-            className="font-display text-h1 break-words text-fg outline-none focus-visible:focus-ring"
+            className="font-display text-h1 break-words text-fg outline-none"
           >
             {listing.title}
           </h1>
@@ -368,34 +522,71 @@ function PageBody({
           onTrackApplied={() => run('track')}
         />
 
-        <Card id="fit" title="Your fit" testId="listing-fit" aside={fit ? <span className="font-mono text-mono-sm normal-case">{fit.score} · {fitBandOf(fit.score).label}</span> : undefined}>
+        <Card
+          id="fit"
+          title="Your fit"
+          testId="listing-fit"
+          aside={
+            fit ? (
+              <span className="font-mono text-mono-sm normal-case">
+                {fit.score} · {fitBandOf(fit.score).label}
+              </span>
+            ) : undefined
+          }
+        >
           {fit ? (
             <>
               <FitBreakdown fit={fit} animate={!reduced} />
               {fit.hardFails.length > 0 && (
                 <p className="flex items-start gap-1.5 text-small text-fg-secondary">
-                  <Ban className="mt-0.5 size-4 shrink-0 text-fit-low" strokeWidth={1.5} aria-hidden="true" />
+                  <Ban
+                    className="mt-0.5 size-4 shrink-0 text-fit-low"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
                   Not eligible: {fit.hardFails.map((f) => f.reason.replace(/\.$/, '')).join('; ')}
                 </p>
               )}
               <div className="border-t border-border-subtle pt-3">
-                <WhyAndGaps fit={fit} explain={explain.data} loading={explain.isLoading} failed={explain.isError} aiEnabled={aiEnabled} />
+                <WhyAndGaps
+                  fit={fit}
+                  explain={explain.data}
+                  loading={explain.isLoading}
+                  failed={explain.isError}
+                  aiEnabled={aiEnabled}
+                />
               </div>
-              <Tips explain={explain.data} loading={explain.isLoading || (loadingDetail && !explain.data)} aiEnabled={aiEnabled} />
+              <Tips
+                explain={explain.data}
+                loading={explain.isLoading || (loadingDetail && !explain.data)}
+                aiEnabled={aiEnabled}
+              />
             </>
           ) : (
-            <p className="text-small text-fg-secondary">Still ranking this one for you. The breakdown appears as soon as it has a score.</p>
+            <p className="text-small text-fg-secondary">
+              Still ranking this one for you. The breakdown appears as soon as it has a score.
+            </p>
           )}
         </Card>
 
         <Card id="description" title="About the role" testId="listing-description">
-          <Description html={detail.descriptionHtml} loading={loadingDetail} fallback={listing.descriptionMd} />
+          <Description
+            html={detail.descriptionHtml}
+            loading={loadingDetail}
+            fallback={listing.descriptionMd}
+          />
         </Card>
       </div>
 
       {/* ── Side column ── */}
-      <aside aria-label="Actions and details" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[calc(var(--topbar-h)+4rem)] lg:self-start">
-        <section aria-label="Apply" className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-4">
+      <aside
+        aria-label="Actions and details"
+        className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[calc(var(--topbar-h)+4rem)] lg:self-start"
+      >
+        <section
+          aria-label="Apply"
+          className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-4"
+        >
           <div className="flex flex-col gap-0.5">
             <p className="text-label text-fg-tertiary uppercase">Deadline</p>
             <p className="flex flex-wrap items-baseline gap-x-2">
@@ -405,9 +596,15 @@ function PageBody({
                 data-timezone={timeZone}
                 className="font-mono text-mono text-fg"
               >
-                {listing.deadlineAt ? formatAbsolute(listing.deadlineAt, timeZone) : listing.deadlineKind === 'rolling' ? 'Rolling' : 'No fixed deadline'}
+                {listing.deadlineAt
+                  ? formatAbsolute(listing.deadlineAt, timeZone)
+                  : listing.deadlineKind === 'rolling'
+                    ? 'Rolling'
+                    : 'No fixed deadline'}
               </span>
-              {listing.deadlineAt && <DeadlineCountdown deadlineAt={listing.deadlineAt} now={now} />}
+              {listing.deadlineAt && (
+                <DeadlineCountdown deadlineAt={listing.deadlineAt} now={now} />
+              )}
             </p>
           </div>
           {!phone && (
@@ -429,7 +626,12 @@ function PageBody({
         <Card id="skills" title="Skills" testId="listing-skills">
           <SkillsLists detail={detail} />
         </Card>
-        <Card id="ghost" title="Is it still open?" testId="listing-ghost" defaultOpen={ghost !== 'low'}>
+        <Card
+          id="ghost"
+          title="Is it still open?"
+          testId="listing-ghost"
+          defaultOpen={ghost !== 'low'}
+        >
           <GhostCheck listing={listing} />
         </Card>
         {detail.similar.length > 0 && (

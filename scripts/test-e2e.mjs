@@ -18,7 +18,14 @@ if (!hasConfig) {
 
 const result = spawnSync(
   'pnpm',
-  ['--filter', '@kestrel/web', 'exec', 'playwright', 'test', ...process.argv.slice(2)],
+  [
+    '--filter',
+    '@kestrel/web',
+    'exec',
+    'playwright',
+    'test',
+    ...(process.argv.length > 2 ? process.argv.slice(2) : ['e2e/smoke-all.spec.ts']),
+  ],
   { cwd: root, stdio: 'inherit' },
 );
 process.exit(result.status ?? 1);

@@ -14,7 +14,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type TestIdOwner = 'web-foundation' | 'web-onboarding' | 'web-radar' | 'web-workspace';
+export type TestIdOwner =
+  'web-foundation' | 'web-onboarding' | 'web-radar' | 'web-workspace' | 'web-marketing';
 
 export interface TestIdSpec {
   id: string;
@@ -46,8 +47,16 @@ export const TESTIDS = [
   { id: 'user-menu', owner: 'web-foundation', note: 'Avatar menu trigger' },
   { id: 'route-error', owner: 'web-foundation', note: 'Route error boundary; has a Retry button' },
   { id: 'not-found-page', owner: 'web-foundation', note: '404 route' },
-  { id: 'notifications-page', owner: 'web-foundation', note: 'Notification centre route (`/notifications`)' },
-  { id: 'auth-callback-page', owner: 'web-onboarding', note: '`/auth/callback` while the code is exchanged' },
+  {
+    id: 'notifications-page',
+    owner: 'web-foundation',
+    note: 'Notification centre route (`/notifications`)',
+  },
+  {
+    id: 'auth-callback-page',
+    owner: 'web-onboarding',
+    note: '`/auth/callback` while the code is exchanged',
+  },
 
   // ── Landing, sign-in, consent, onboarding ─────────────────────────────────
   { id: 'landing-page', owner: 'web-onboarding', note: 'Public landing root (`/`)' },
@@ -241,6 +250,94 @@ export const TESTIDS = [
     owner: 'web-workspace',
     note: 'Time zone select / combobox (Notifications tab)',
   },
+  // ── Added for smoke-all / a11y (UX restructure: full pages, onboarding sequence, tour) ──
+  { id: 'features-page', owner: 'web-marketing', note: 'Public `/features` root' },
+  { id: 'how-it-works-page', owner: 'web-marketing', note: 'Public `/how-it-works` root' },
+  {
+    id: 'sources-directory-page',
+    owner: 'web-marketing',
+    note: 'Public source directory root (`/packs`)',
+  },
+  { id: 'pricing-page', owner: 'web-marketing', note: 'Public `/pricing` root' },
+  { id: 'about-page', owner: 'web-marketing', note: 'Public `/about` root' },
+  { id: 'privacy-page', owner: 'web-marketing', note: 'Public `/privacy` root' },
+  { id: 'terms-page', owner: 'web-marketing', note: 'Public `/terms` root' },
+  {
+    id: 'email-auth-form',
+    owner: 'web-onboarding',
+    note: 'Email + password form on `/login`; `data-mode` = `signin` | `register`',
+  },
+  { id: 'email-auth-email', owner: 'web-onboarding', note: 'Email input' },
+  { id: 'email-auth-password', owner: 'web-onboarding', note: 'Password input' },
+  { id: 'email-auth-submit', owner: 'web-onboarding', note: 'Submit button' },
+  {
+    id: 'email-auth-toggle',
+    owner: 'web-onboarding',
+    note: '"Create an account" / "Sign in" switch',
+  },
+  { id: 'email-auth-name', owner: 'web-onboarding', note: 'Name input (register mode)' },
+  {
+    id: 'onboarding-customising',
+    owner: 'web-onboarding',
+    note: '"Customising your radar" screen after Review; routes to `/radar` when the feed is ready',
+  },
+  {
+    id: 'tour',
+    owner: 'web-onboarding',
+    note: 'Spotlight tour overlay on `/radar`; `data-stop` = current stop id',
+  },
+  { id: 'tour-card', owner: 'web-onboarding', note: 'Tour explainer card (role=dialog)' },
+  { id: 'tour-position', owner: 'web-onboarding', note: '"3 of 8" (aria-live)' },
+  { id: 'tour-next', owner: 'web-onboarding', note: 'Tour [Next] (the last step reads [Done])' },
+  { id: 'tour-back', owner: 'web-onboarding', note: 'Tour [Back]' },
+  { id: 'tour-skip', owner: 'web-onboarding', note: 'Tour [Skip]' },
+  {
+    id: 'listing-page',
+    owner: 'web-radar',
+    note: '`/radar/:listingId` full page; `data-listing-id`',
+  },
+  {
+    id: 'radar-tune',
+    owner: 'web-radar',
+    note: 'Tune popover trigger (fit threshold, sort, view)',
+  },
+  {
+    id: 'radar-filter-rail',
+    owner: 'web-radar',
+    note: 'Left filter rail (desktop) / filter sheet (phone)',
+  },
+  {
+    id: 'radar-filters-button',
+    owner: 'web-radar',
+    note: 'Opens the filter popover / sheet when the rail is not pinned',
+  },
+  { id: 'tracker-item-page', owner: 'web-workspace', note: '`/tracker/:id` full page' },
+  { id: 'source-page', owner: 'web-workspace', note: '`/sources/:id` full page' },
+  { id: 'pack-page', owner: 'web-workspace', note: '`/sources/packs/:id` full page' },
+  { id: 'sources-tab-packs', owner: 'web-workspace', note: 'Packs tab on `/sources`' },
+  {
+    id: 'alert-editor-page',
+    owner: 'web-workspace',
+    note: '`/alerts/new` and `/alerts/:id` full page',
+  },
+  { id: 'alerts-new', owner: 'web-workspace', note: '[New rule] on `/alerts`' },
+  { id: 'alerts-rule', owner: 'web-workspace', note: 'One rule card on `/alerts`' },
+  { id: 'alerts-save', owner: 'web-workspace', note: '[Save alert] on the editor page' },
+  {
+    id: 'alerts-test',
+    owner: 'web-workspace',
+    note: '[Test] for a rule (editor page or rule menu)',
+  },
+  {
+    id: 'settings-theme-option',
+    owner: 'web-workspace',
+    note: 'Theme tile; `data-value` = light | dark | system, `aria-pressed`',
+  },
+  { id: 'settings-density', owner: 'web-workspace', note: 'Density radio group' },
+  { id: 'settings-ai-key-input', owner: 'web-workspace', note: 'API key input (own-key provider)' },
+  { id: 'settings-ai-save', owner: 'web-workspace', note: '[Save key] / [Save changes]' },
+  { id: 'settings-export', owner: 'web-workspace', note: '[Export my data] (downloads JSON)' },
+  { id: 'admin-page', owner: 'web-foundation', note: '`/admin` ops dashboard root (admins only)' },
 ] as const satisfies readonly TestIdSpec[];
 
 export type TestId = (typeof TESTIDS)[number]['id'];

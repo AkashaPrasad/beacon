@@ -7,7 +7,15 @@
  */
 import { useDraggable } from '@dnd-kit/core';
 import { ArrowUpRight, BookmarkCheck, KanbanSquare } from 'lucide-react';
-import { forwardRef, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -41,7 +49,10 @@ const BAND_STROKE: Record<string, string> = {
 export function MiniFitRing({ score, className }: { score: number | null; className?: string }) {
   if (score == null) {
     return (
-      <span className={cn('font-mono text-mono-sm text-fg-tertiary', className)} aria-label="Fit not ranked yet">
+      <span
+        className={cn('font-mono text-mono-sm text-fg-tertiary', className)}
+        aria-label="Fit not ranked yet"
+      >
         –
       </span>
     );
@@ -90,12 +101,16 @@ export function PillFace({ item, closed, className, style, trailing }: PillFaceP
     <span
       className={cn(
         'relative flex h-7 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-sm border border-border bg-surface-raised pr-1.5 pl-2.5',
-        closed && 'opacity-50',
+        closed && 'text-fg-secondary',
         className,
       )}
       style={style}
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ background: typeColor(item.type) }} />
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: typeColor(item.type) }}
+      />
       <Icon
         className="size-3.5 shrink-0"
         strokeWidth={1.5}
@@ -103,7 +118,13 @@ export function PillFace({ item, closed, className, style, trailing }: PillFaceP
         style={{ color: typeColor(item.type, 'var(--color-fg-secondary)') }}
       />
       <span className="min-w-0 flex-1 truncate text-caption font-medium text-fg">{item.title}</span>
-      {item.saved && <BookmarkCheck className="size-3 shrink-0 text-accent-strong" strokeWidth={1.5} aria-hidden="true" />}
+      {item.saved && (
+        <BookmarkCheck
+          className="size-3 shrink-0 text-accent-strong"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+      )}
       {trailing ?? <MiniFitRing score={item.score} />}
     </span>
   );
@@ -140,11 +161,15 @@ export function PillDetails({
         <dd className="flex flex-wrap items-baseline gap-x-2 text-fg-secondary">
           {item.deadlineAt ? (
             <>
-              <span className="font-mono text-mono-sm text-fg">{formatAbsolute(item.deadlineAt, timeZone)}</span>
+              <span className="font-mono text-mono-sm text-fg">
+                {formatAbsolute(item.deadlineAt, timeZone)}
+              </span>
               <DeadlineCountdown deadlineAt={item.deadlineAt} now={now} />
             </>
           ) : (
-            <span className="font-mono text-mono-sm">{item.deadlineKind === 'rolling' ? 'Rolling' : 'No fixed deadline'}</span>
+            <span className="font-mono text-mono-sm">
+              {item.deadlineKind === 'rolling' ? 'Rolling' : 'No fixed deadline'}
+            </span>
           )}
         </dd>
         <dt className="text-fg-tertiary">Type</dt>
@@ -155,7 +180,8 @@ export function PillDetails({
           <>
             <dt className="text-fg-tertiary">Fit</dt>
             <dd className="text-fg-secondary">
-              <span className="font-mono text-mono-sm text-fg">{Math.round(item.score)}</span> · {fitBandOf(item.score).label}
+              <span className="font-mono text-mono-sm text-fg">{Math.round(item.score)}</span> ·{' '}
+              {fitBandOf(item.score).label}
             </dd>
           </>
         )}
@@ -173,11 +199,22 @@ export function PillDetails({
           Open details
           <kbd className="ml-auto font-mono text-mono-sm text-fg-tertiary">↵</kbd>
         </Button>
-        <Button size="sm" variant="ghost" onClick={onTrack} disabled={tracked} aria-keyshortcuts="A">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onTrack}
+          disabled={tracked}
+          aria-keyshortcuts="A"
+        >
           <KanbanSquare strokeWidth={1.5} aria-hidden="true" />
           {tracked ? 'Tracked' : 'Track'}
         </Button>
-        <Button size="icon-sm" variant="ghost" asChild aria-label={`Apply for ${item.title} (opens in a new tab)`}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          asChild
+          aria-label={`Apply for ${item.title} (opens in a new tab)`}
+        >
           <a href={item.applyUrl} target="_blank" rel="noopener noreferrer">
             <ArrowUpRight strokeWidth={1.5} />
           </a>
@@ -229,7 +266,11 @@ export const TimelinePill = forwardRef<HTMLButtonElement, TimelinePillProps>(fun
   // A dragged pill never shows its hover card.
   const showCard = card && !isDragging;
 
-  const status = closed ? 'Closed' : item.deadlineAt ? formatAbsolute(item.deadlineAt, timeZone) : 'No fixed deadline';
+  const status = closed
+    ? 'Closed'
+    : item.deadlineAt
+      ? formatAbsolute(item.deadlineAt, timeZone)
+      : 'No fixed deadline';
   return (
     <Popover open={showCard} onOpenChange={setCard}>
       <PopoverAnchor asChild>

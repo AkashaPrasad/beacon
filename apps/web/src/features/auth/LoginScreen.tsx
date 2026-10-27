@@ -30,7 +30,11 @@ function Facts({ className }: { className?: string }) {
     <ul className={className}>
       {FACTS.map((fact) => (
         <li key={fact} className="flex gap-2.5 text-body text-fg-secondary">
-          <Check className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+          <Check
+            className="mt-0.5 size-4 shrink-0 text-success"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
           {fact}
         </li>
       ))}
@@ -58,7 +62,7 @@ export function LoginScreen() {
           className="flex items-center gap-2 rounded-sm text-fg focus-visible:focus-ring"
           aria-label="Beacon home"
         >
-          <BeaconMark className="size-6 text-accent-strong" />
+          <BeaconMark className="size-7 text-accent-strong" />
           <span className="font-display text-[1.375rem] leading-none tracking-[-0.009em]">
             Beacon
           </span>
@@ -72,7 +76,7 @@ export function LoginScreen() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-display text-balance text-fg">
-              Sign in to <em className="text-fg-secondary">Beacon</em>
+              Sign in to <span className="text-accent-strong">Beacon</span>
             </h1>
             <p className="max-w-prose text-body-lg text-fg-secondary">
               Every opportunity that fits you, ranked against your resume, with the reasons shown.
@@ -81,10 +85,7 @@ export function LoginScreen() {
           <Facts className="hidden flex-col gap-2.5 lg:flex" />
         </div>
 
-        <section
-          aria-label="Sign in"
-          className="flex flex-col gap-5 rounded-xl border border-border bg-surface-raised p-5 shadow-sm sm:p-6"
-        >
+        <section aria-label="Sign in" className="e2 flex flex-col gap-5 rounded-xl p-5 sm:p-6">
           {error && (
             <div
               role="alert"

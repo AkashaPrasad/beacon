@@ -28,7 +28,7 @@ export interface Appearance {
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
-  theme: 'system',
+  theme: 'light',
   accent: 'amber',
   density: 'comfortable',
   fontSize: 'md',
@@ -36,9 +36,9 @@ export const DEFAULT_APPEARANCE: Appearance = {
 };
 
 export const ACCENT_LABELS: Record<Accent, string> = {
-  amber: 'Signal amber',
+  amber: 'Evergreen',
   teal: 'Teal',
-  cobalt: 'Cobalt',
+  cobalt: 'Forest',
   ink: 'Ink',
 };
 

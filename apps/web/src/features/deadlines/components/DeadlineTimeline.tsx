@@ -25,7 +25,16 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { AlertCircle, CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -33,8 +42,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useShortcut, useShortcutScope } from '@/lib/shortcuts';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
-import { dragActivation, dropAnimation, EmptyState, Skeleton, usePrefersReducedMotion } from '@kestrel/ui';
-
+import {
+  dragActivation,
+  dropAnimation,
+  EmptyState,
+  Skeleton,
+  usePrefersReducedMotion,
+} from '@kestrel/ui';
 
 import { AgendaList } from './AgendaList';
 import { PillFace, TimelinePill } from './TimelinePill';
@@ -50,7 +64,16 @@ import {
   type TimelineItem,
   type TimelineModel,
 } from '../lib/timeline';
-import { dayHeader, dayProgress, diffDays, formatClock, formatDayKey, formatRange, isWeekend, type WeekRow } from '../lib/weeks';
+import {
+  dayHeader,
+  dayProgress,
+  diffDays,
+  formatClock,
+  formatDayKey,
+  formatRange,
+  isWeekend,
+  type WeekRow,
+} from '../lib/weeks';
 
 export interface DeadlineTimelineProps {
   feed: DeadlineFeed;
@@ -130,7 +153,10 @@ function DayMore({
                 }}
                 aria-label={`${item.title}, ${item.company}${item.deadlineAt ? `, due ${formatClock(item.deadlineAt, timeZone)}` : ''}`}
               >
-                <PillFace item={item} closed={closed || Boolean(item.deadlineAt && item.deadlineAt < now)} />
+                <PillFace
+                  item={item}
+                  closed={closed || Boolean(item.deadlineAt && item.deadlineAt < now)}
+                />
               </button>
             </li>
           ))}
@@ -154,7 +180,19 @@ interface StripProps {
   registerStrip: (offset: number, el: HTMLElement | null) => void;
 }
 
-function WeekStrip({ week, model, now, timeZone, openId, focusId, draggable, onOpen, onTrack, onFocusTarget, registerStrip }: StripProps) {
+function WeekStrip({
+  week,
+  model,
+  now,
+  timeZone,
+  openId,
+  focusId,
+  draggable,
+  onOpen,
+  onTrack,
+  onFocusTarget,
+  registerStrip,
+}: StripProps) {
   const total = week.days.reduce((sum, d) => sum + (model.byDay.get(d)?.length ?? 0), 0);
   const current = week.offset === 0;
   return (
@@ -164,11 +202,15 @@ function WeekStrip({ week, model, now, timeZone, openId, focusId, draggable, onO
       data-offset={week.offset}
       data-current={current || undefined}
       aria-label={`Week ${week.isoWeek}, ${formatRange(week.days[0]!, week.days[6]!)}: ${total} ${total === 1 ? 'deadline' : 'deadlines'}`}
-      className="flex w-[calc(100%-4rem)] max-w-[80rem] shrink-0 snap-center snap-always flex-col overflow-hidden rounded-lg border border-border bg-surface"
+      className="e2 flex w-[calc(100%-4rem)] max-w-[80rem] shrink-0 snap-center snap-always flex-col overflow-hidden rounded-xl border border-border-subtle"
     >
       <header className="flex h-10 items-center gap-2 border-b border-border-subtle px-3">
-        <span className={cn('font-mono text-mono-sm', current ? 'text-fg' : 'text-fg-tertiary')}>W{week.isoWeek}</span>
-        <span className="text-small text-fg-secondary">{formatRange(week.days[0]!, week.days[6]!)}</span>
+        <span className={cn('font-mono text-mono-sm', current ? 'text-fg' : 'text-fg-tertiary')}>
+          W{week.isoWeek}
+        </span>
+        <span className="text-small text-fg-secondary">
+          {formatRange(week.days[0]!, week.days[6]!)}
+        </span>
         {current && <span className="text-label text-accent-strong uppercase">This week</span>}
         <span className="ml-auto font-mono text-mono-sm text-fg-tertiary">
           {total} {total === 1 ? 'deadline' : 'deadlines'}
@@ -195,10 +237,21 @@ function WeekStrip({ week, model, now, timeZone, openId, focusId, draggable, onO
               )}
             >
               <div className="flex h-8 items-center gap-1.5 px-2 font-mono text-mono-sm">
-                <span className={cn('uppercase', past ? 'text-fg-disabled' : today ? 'text-accent-strong' : 'text-fg-tertiary')}>
+                <span
+                  className={cn(
+                    'uppercase',
+                    past ? 'text-fg-tertiary' : today ? 'text-accent-strong' : 'text-fg-tertiary',
+                  )}
+                >
                   {weekday}
                 </span>
-                <span className={cn(past ? 'text-fg-disabled' : today ? 'text-accent-strong' : 'text-fg-secondary')}>{num}</span>
+                <span
+                  className={cn(
+                    past ? 'text-fg-tertiary' : today ? 'text-accent-strong' : 'text-fg-secondary',
+                  )}
+                >
+                  {num}
+                </span>
                 {today && (
                   <span className="ml-auto text-accent-strong uppercase">
                     Today<span className="sr-only">, {formatClock(now, timeZone)}</span>
@@ -220,7 +273,10 @@ function WeekStrip({ week, model, now, timeZone, openId, focusId, draggable, onO
                   <li key={item.id}>
                     <TimelinePill
                       item={item}
-                      closed={past || Boolean(item.deadlineAt && item.deadlineAt.getTime() < now.getTime())}
+                      closed={
+                        past ||
+                        Boolean(item.deadlineAt && item.deadlineAt.getTime() < now.getTime())
+                      }
                       tabbable={focusId === item.id}
                       open={openId === item.id}
                       timeZone={timeZone}
@@ -261,10 +317,17 @@ function WeekStrip({ week, model, now, timeZone, openId, focusId, draggable, onO
 
 function TimelineSkeleton() {
   return (
-    <div data-testid="deadlines-skeleton" aria-hidden="true" className="flex gap-4 overflow-hidden px-8 py-4">
-      <div className="grid h-64 w-full grid-cols-7 overflow-hidden rounded-lg border border-border bg-surface">
+    <div
+      data-testid="deadlines-skeleton"
+      aria-hidden="true"
+      className="flex gap-4 overflow-hidden px-8 py-4"
+    >
+      <div className="e2 grid h-64 w-full grid-cols-7 overflow-hidden rounded-xl border border-border-subtle">
         {Array.from({ length: 7 }, (_, i) => (
-          <div key={i} className="flex flex-col gap-1.5 border-r border-border-subtle p-2 last:border-r-0">
+          <div
+            key={i}
+            className="flex flex-col gap-1.5 border-r border-border-subtle p-2 last:border-r-0"
+          >
             <Skeleton className="h-3 w-12" />
             {i % 3 !== 2 && <Skeleton className="h-7 w-full rounded-sm" />}
             {i % 2 === 0 && <Skeleton className="h-7 w-full rounded-sm" />}
@@ -297,14 +360,16 @@ function NoFixedGroup({
     <section
       data-testid="deadlines-no-fixed-group"
       aria-labelledby="deadlines-no-fixed-title"
-      className="mx-gutter mt-4 rounded-lg border border-border bg-surface md:mx-8"
+      className="e2 mx-gutter mt-4 rounded-xl border border-border-subtle md:mx-8"
     >
       <header className="flex h-10 items-center gap-2 border-b border-border-subtle px-3">
         <h3 id="deadlines-no-fixed-title" className="text-label text-fg-tertiary uppercase">
           No fixed deadline
         </h3>
         <span className="font-mono text-mono-sm text-fg-tertiary">{items.length}</span>
-        <span className="ml-auto hidden text-caption text-fg-tertiary sm:inline">Rolling or not stated. Never placed on the grid.</span>
+        <span className="ml-auto hidden text-caption text-fg-tertiary sm:inline">
+          Rolling or not stated. Never placed on the grid.
+        </span>
       </header>
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-1.5 p-2">
         {items.map((item) => (
@@ -356,9 +421,13 @@ export function DeadlineTimeline({
   const [dragging, setDragging] = useState<TimelineItem | null>(null);
 
   // The roving tab stop: keep it on an existing target, defaulting to the pill nearest today.
-  const tabStop = focusId && (focusId.startsWith('more:') || grid.cells.size === 0 || [...grid.cells.values()].some((ids) => ids.includes(focusId)))
-    ? focusId
-    : nearestTarget(grid, model.todayKey);
+  const tabStop =
+    focusId &&
+    (focusId.startsWith('more:') ||
+      grid.cells.size === 0 ||
+      [...grid.cells.values()].some((ids) => ids.includes(focusId)))
+      ? focusId
+      : nearestTarget(grid, model.todayKey);
 
   const registerStrip = useCallback((offset: number, el: HTMLElement | null) => {
     if (el) strips.current.set(offset, el);
@@ -391,7 +460,9 @@ export function DeadlineTimeline({
     if (!scroller || phone || typeof IntersectionObserver === 'undefined') return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        const best = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const best = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
         const offset = Number((best?.target as HTMLElement | undefined)?.dataset.offset);
         if (Number.isFinite(offset)) setVisibleOffset(offset);
       },
@@ -404,12 +475,15 @@ export function DeadlineTimeline({
   const offsets = model.weeks.map((w) => w.offset);
   const minOffset = offsets[0] ?? 0;
   const maxOffset = offsets[offsets.length - 1] ?? 0;
-  const stepWeek = (delta: 1 | -1) => scrollToOffset(Math.min(maxOffset, Math.max(minOffset, visibleOffset + delta)));
+  const stepWeek = (delta: 1 | -1) =>
+    scrollToOffset(Math.min(maxOffset, Math.max(minOffset, visibleOffset + delta)));
 
   const focusTarget = (id: string | null) => {
     if (!id) return;
     setFocusId(id);
-    const el = scrollerRef.current?.querySelector<HTMLElement>(`[data-target-id="${CSS.escape(id)}"]`);
+    const el = scrollerRef.current?.querySelector<HTMLElement>(
+      `[data-target-id="${CSS.escape(id)}"]`,
+    );
     if (!el) return;
     el.focus({ preventScroll: true });
     const strip = el.closest<HTMLElement>('[data-offset]');
@@ -424,9 +498,24 @@ export function DeadlineTimeline({
     else if (target) setFocusId(target);
   };
 
-  useShortcut('t', goToday, { scope: 'deadlines', description: 'Jump to today', group: 'Deadlines', enabled: !phone });
-  useShortcut('[', () => stepWeek(-1), { scope: 'deadlines', description: 'Previous week', group: 'Deadlines', enabled: !phone });
-  useShortcut(']', () => stepWeek(1), { scope: 'deadlines', description: 'Next week', group: 'Deadlines', enabled: !phone });
+  useShortcut('t', goToday, {
+    scope: 'deadlines',
+    description: 'Jump to today',
+    group: 'Deadlines',
+    enabled: !phone,
+  });
+  useShortcut('[', () => stepWeek(-1), {
+    scope: 'deadlines',
+    description: 'Previous week',
+    group: 'Deadlines',
+    enabled: !phone,
+  });
+  useShortcut(']', () => stepWeek(1), {
+    scope: 'deadlines',
+    description: 'Next week',
+    group: 'Deadlines',
+    enabled: !phone,
+  });
   useShortcut('arrowleft', () => stepWeek(-1), { scope: 'deadlines', enabled: !phone });
   useShortcut('arrowright', () => stepWeek(1), { scope: 'deadlines', enabled: !phone });
 
@@ -451,15 +540,18 @@ export function DeadlineTimeline({
     return map;
   }, [model]);
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${itemsById.get(String(active.id))?.title ?? 'deadline'}. Drop it on the tracker dock to track it.`,
-    onDragOver: ({ over }) => (over?.id === TRACKER_DOCK_ID ? 'Over the tracker dock.' : 'Not over the dock.'),
+    onDragStart: ({ active }) =>
+      `Picked up ${itemsById.get(String(active.id))?.title ?? 'deadline'}. Drop it on the tracker dock to track it.`,
+    onDragOver: ({ over }) =>
+      over?.id === TRACKER_DOCK_ID ? 'Over the tracker dock.' : 'Not over the dock.',
     onDragEnd: ({ active, over }) =>
       over?.id === TRACKER_DOCK_ID
         ? `Added ${itemsById.get(String(active.id))?.title ?? 'deadline'} to the tracker.`
         : 'Dropped outside the dock. Nothing changed.',
     onDragCancel: () => 'Cancelled. The deadline stays on the timeline.',
   };
-  const onDragStart = (event: DragStartEvent) => setDragging(itemsById.get(String(event.active.id)) ?? null);
+  const onDragStart = (event: DragStartEvent) =>
+    setDragging(itemsById.get(String(event.active.id)) ?? null);
   const onDragEnd = (event: DragEndEvent) => {
     const item = itemsById.get(String(event.active.id));
     setDragging(null);
@@ -491,7 +583,11 @@ export function DeadlineTimeline({
         <EmptyState
           icon={CalendarClock}
           title={`No deadlines in the next ${weeks} weeks`}
-          body={model.later > 0 ? `for these filters. ${model.later} fall after ${formatDayKey(model.range.to)}.` : 'for these filters.'}
+          body={
+            model.later > 0
+              ? `for these filters. ${model.later} fall after ${formatDayKey(model.range.to)}.`
+              : 'for these filters.'
+          }
           action={
             onShowAllTypes ? (
               <Button variant="primary" onClick={onShowAllTypes}>
@@ -533,7 +629,13 @@ export function DeadlineTimeline({
             Previous week <kbd className="font-mono text-mono-sm">[</kbd>
           </TooltipContent>
         </Tooltip>
-        <Button variant="secondary" size="sm" onClick={goToday} aria-keyshortcuts="T" data-testid="deadlines-today-button">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={goToday}
+          aria-keyshortcuts="T"
+          data-testid="deadlines-today-button"
+        >
           Today
           <kbd className="font-mono text-mono-sm text-fg-tertiary">T</kbd>
         </Button>
@@ -560,7 +662,8 @@ export function DeadlineTimeline({
         W{visibleWeek.isoWeek} · {formatRange(visibleWeek.days[0]!, visibleWeek.days[6]!)}
       </p>
       <p className="font-mono text-mono-sm text-fg-tertiary">
-        {model.inWindow} {model.inWindow === 1 ? 'deadline' : 'deadlines'} · {formatRange(model.range.from, model.range.to)}
+        {model.inWindow} {model.inWindow === 1 ? 'deadline' : 'deadlines'} ·{' '}
+        {formatRange(model.range.from, model.range.to)}
         {model.later > 0 ? ` · ${model.later} later` : ''}
       </p>
       {toolbar && <div className="ml-auto flex items-center gap-2">{toolbar}</div>}
@@ -570,8 +673,23 @@ export function DeadlineTimeline({
   if (phone) {
     return (
       <div className="flex flex-col pb-4">
-        <AgendaList model={model} now={now} openId={openId} stickyTop={stickyTop} onOpen={onOpen} onTrack={onTrack} />
-        <NoFixedGroup items={model.undated} now={now} timeZone={timeZone} openId={openId} draggable={false} onOpen={onOpen} onTrack={onTrack} />
+        <AgendaList
+          model={model}
+          now={now}
+          openId={openId}
+          stickyTop={stickyTop}
+          onOpen={onOpen}
+          onTrack={onTrack}
+        />
+        <NoFixedGroup
+          items={model.undated}
+          now={now}
+          timeZone={timeZone}
+          openId={openId}
+          draggable={false}
+          onOpen={onOpen}
+          onTrack={onTrack}
+        />
       </div>
     );
   }
@@ -583,12 +701,19 @@ export function DeadlineTimeline({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)}
-      accessibility={{ announcements, screenReaderInstructions: { draggable: 'Press Enter to open the details, or A to add it to your tracker. With a pointer, drag it to the tracker dock.' } }}
+      accessibility={{
+        announcements,
+        screenReaderInstructions: {
+          draggable:
+            'Press Enter to open the details, or A to add it to your tracker. With a pointer, drag it to the tracker dock.',
+        },
+      }}
     >
       <div className="flex flex-col pb-24">
         {nav}
         <p id="deadlines-grid-help" className="sr-only">
-          Use the arrow keys to move between deadlines, Shift plus left or right to jump a week, Enter to open, A to track.
+          Use the arrow keys to move between deadlines, Shift plus left or right to jump a week,
+          Enter to open, A to track.
         </p>
         <div
           ref={scrollerRef}
@@ -615,12 +740,20 @@ export function DeadlineTimeline({
             />
           ))}
         </div>
-        <NoFixedGroup items={model.undated} now={now} timeZone={timeZone} openId={openId} draggable onOpen={onOpen} onTrack={onTrack} />
+        <NoFixedGroup
+          items={model.undated}
+          now={now}
+          timeZone={timeZone}
+          openId={openId}
+          draggable
+          onOpen={onOpen}
+          onTrack={onTrack}
+        />
       </div>
       <TrackerDock active={dragging != null} title={dragging?.title ?? null} />
       <DragOverlay dropAnimation={reduced ? null : dropAnimation}>
         {dragging ? (
-          <div className="w-56 scale-[1.03] rounded-sm shadow-lg">
+          <div className="w-56 scale-[1.03] rounded-md shadow-e3">
             <PillFace item={dragging} closed={false} />
           </div>
         ) : null}
