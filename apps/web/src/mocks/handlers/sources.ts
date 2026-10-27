@@ -98,44 +98,53 @@ interface Db {
 let db: Db | null = null;
 
 function communitySeed(): MockSource[] {
-  return COMMUNITY_FIXTURES.map(([packId, name, url, kind, boardToken, domain, typeTag, count], i) => {
-    const h = hash(`${packId}:${name}`);
-    const crawled = kind === 'firecrawl';
-    const failing = crawled && h % 17 === 0;
-    const degraded = !failing && h % 11 === 0;
-    return {
-      id: oid('6c', i + 1),
-      url,
-      name,
-      kind: kind as Kind,
-      scope: 'community',
-      ownerId: null,
-      packId,
-      typeTag,
-      enabled: true,
-      refreshInterval: crawled ? 'daily' : '6h',
-      health: failing ? 'failing' : degraded ? 'degraded' : 'healthy',
-      healthCode: failing ? 'blocked' : degraded ? 'ratelimited' : 'ok',
-      lastCheckedAt: iso((h % 300) * MIN + MIN),
-      lastSuccessAt: iso(failing ? 4 * DAY : (h % 300) * MIN + MIN),
-      listingsFound: failing ? 0 : count || (h % 40) + 1,
-      errorReason: failing
-        ? '403 Forbidden: the site blocks crawlers.'
-        : degraded
-          ? 'Rate limited by the source; retrying with backoff.'
-          : null,
-      config: { boardToken, feedUrl: null, provider: kind === 'publicapi' ? name.toLowerCase().split(' ')[0] ?? null : null },
-      etag: null,
-      lastModified: null,
-      createdAt: iso(30 * DAY),
-      updatedAt: iso(DAY),
-      companyDomain: domain || null,
-    };
-  });
+  return COMMUNITY_FIXTURES.map(
+    ([packId, name, url, kind, boardToken, domain, typeTag, count], i) => {
+      const h = hash(`${packId}:${name}`);
+      const crawled = kind === 'firecrawl';
+      const failing = crawled && h % 17 === 0;
+      const degraded = !failing && h % 11 === 0;
+      return {
+        id: oid('6c', i + 1),
+        url,
+        name,
+        kind: kind as Kind,
+        scope: 'community',
+        ownerId: null,
+        packId,
+        typeTag,
+        enabled: true,
+        refreshInterval: crawled ? 'daily' : '6h',
+        health: failing ? 'failing' : degraded ? 'degraded' : 'healthy',
+        healthCode: failing ? 'blocked' : degraded ? 'ratelimited' : 'ok',
+        lastCheckedAt: iso((h % 300) * MIN + MIN),
+        lastSuccessAt: iso(failing ? 4 * DAY : (h % 300) * MIN + MIN),
+        listingsFound: failing ? 0 : count || (h % 40) + 1,
+        errorReason: failing
+          ? '403 Forbidden: the site blocks crawlers.'
+          : degraded
+            ? 'Rate limited by the source; retrying with backoff.'
+            : null,
+        config: {
+          boardToken,
+          feedUrl: null,
+          provider: kind === 'publicapi' ? (name.toLowerCase().split(' ')[0] ?? null) : null,
+        },
+        etag: null,
+        lastModified: null,
+        createdAt: iso(30 * DAY),
+        updatedAt: iso(DAY),
+        companyDomain: domain || null,
+      };
+    },
+  );
 }
 
 function personalSeed(): MockSource[] {
-  const base = (n: number, s: Partial<MockSource> & Pick<MockSource, 'url' | 'name' | 'kind'>): MockSource => ({
+  const base = (
+    n: number,
+    s: Partial<MockSource> & Pick<MockSource, 'url' | 'name' | 'kind'>,
+  ): MockSource => ({
     id: oid('6a', n),
     scope: 'personal',
     ownerId: USER_ID,
@@ -227,7 +236,9 @@ function getDb(): Db {
     personal: empty ? [] : personalSeed(),
     community: communitySeed(),
     enabledPacks: new Set(
-      empty ? [] : ['top-indian-product', 'faang-plus-india', 'yc-startups-interns', 'hackathons-india'],
+      empty
+        ? []
+        : ['top-indian-product', 'faang-plus-india', 'yc-startups-interns', 'hackathons-india'],
     ),
     seq: 100,
   };
@@ -279,7 +290,12 @@ function creditsFor() {
 
 function applyCreditPause(s: MockSource): MockSource {
   if (s.kind === 'firecrawl' && creditsFor().mode === 'paused' && s.health !== 'failing') {
-    return { ...s, health: 'degraded', healthCode: 'paused:credits', errorReason: "Today's crawl budget is used up." };
+    return {
+      ...s,
+      health: 'degraded',
+      healthCode: 'paused:credits',
+      errorReason: "Today's crawl budget is used up.",
+    };
   }
   return s;
 }
@@ -365,9 +381,14 @@ function detect(input: string) {
     companyName: null as string | null,
     companyDomain: null as string | null,
     finalUrl: null as string | null,
-    config: { boardToken: null as string | null, feedUrl: null as string | null, provider: null as string | null },
+    config: {
+      boardToken: null as string | null,
+      feedUrl: null as string | null,
+      provider: null as string | null,
+    },
   };
-  const titled = (token: string) => token.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const titled = (token: string) =>
+    token.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const ats = (kind: Kind, token: string | null, apiUrl: string | null) => {
     const bad = !token || /invalid|strpie|doesnotexist|notarealboard/i.test(token);
     const count = token === 'stripe' ? 142 : token ? (hash(token) % 120) + 3 : 0;
@@ -384,23 +405,55 @@ function detect(input: string) {
       sampleTitles: bad ? [] : SAMPLE_TITLES.slice(0, 3),
       valid: !bad,
       apiUrl,
-      message: bad ? `No ${kind} board called “${token ?? ''}”.` : `Detected ${kind} board ${token ?? ''}`,
+      message: bad
+        ? `No ${kind} board called “${token ?? ''}”.`
+        : `Detected ${kind} board ${token ?? ''}`,
       config: { ...base.config, boardToken: token },
     };
   };
 
   if (/\.invalid$/.test(host) || host.startsWith('unreachable.')) return { status: 502 as const };
   if (host === 'boards.greenhouse.io' || host === 'job-boards.greenhouse.io') {
-    return { status: 200 as const, body: ats('greenhouse', first, first ? `https://boards-api.greenhouse.io/v1/boards/${first}/jobs` : null) };
+    return {
+      status: 200 as const,
+      body: ats(
+        'greenhouse',
+        first,
+        first ? `https://boards-api.greenhouse.io/v1/boards/${first}/jobs` : null,
+      ),
+    };
   }
-  if (host === 'jobs.lever.co') return { status: 200 as const, body: ats('lever', first, first ? `https://api.lever.co/v0/postings/${first}?mode=json` : null) };
+  if (host === 'jobs.lever.co')
+    return {
+      status: 200 as const,
+      body: ats(
+        'lever',
+        first,
+        first ? `https://api.lever.co/v0/postings/${first}?mode=json` : null,
+      ),
+    };
   if (host === 'jobs.ashbyhq.com') return { status: 200 as const, body: ats('ashby', first, null) };
-  if (host === 'careers.smartrecruiters.com') return { status: 200 as const, body: ats('smartrecruiters', first, null) };
-  if (host === 'apply.workable.com') return { status: 200 as const, body: ats('workable', first, null) };
-  if (host.endsWith('.myworkdayjobs.com')) return { status: 200 as const, body: ats('workday', host.split('.')[0] ?? null, null) };
+  if (host === 'careers.smartrecruiters.com')
+    return { status: 200 as const, body: ats('smartrecruiters', first, null) };
+  if (host === 'apply.workable.com')
+    return { status: 200 as const, body: ats('workable', first, null) };
+  if (host.endsWith('.myworkdayjobs.com'))
+    return { status: 200 as const, body: ats('workday', host.split('.')[0] ?? null, null) };
   if (host === 'northwind.dev' || host === 'go.northwind.dev') {
-    const redirected = ats('lever', 'northwind', 'https://api.lever.co/v0/postings/northwind?mode=json');
-    return { status: 200 as const, body: { ...redirected, confidence: 0.9, previewCount: 18, finalUrl: 'https://jobs.lever.co/northwind' } };
+    const redirected = ats(
+      'lever',
+      'northwind',
+      'https://api.lever.co/v0/postings/northwind?mode=json',
+    );
+    return {
+      status: 200 as const,
+      body: {
+        ...redirected,
+        confidence: 0.9,
+        previewCount: 18,
+        finalUrl: 'https://jobs.lever.co/northwind',
+      },
+    };
   }
   if (/(\.rss|\.xml|\/feed|\/rss)$/.test(u.pathname)) {
     return {
@@ -475,11 +528,18 @@ export const sourcesHandlers = [
     if (action === 'enable') {
       d.enabledPacks.add(id);
       const count = d.community.filter((s) => s.packId === id).length;
-      return HttpResponse.json({ pack: packDto(id), subscribed: count, ingestQueued: Math.round(count / 3) });
+      return HttpResponse.json({
+        pack: packDto(id),
+        subscribed: count,
+        ingestQueued: Math.round(count / 3),
+      });
     }
     if (action === 'disable') {
       d.enabledPacks.delete(id);
-      return HttpResponse.json({ pack: packDto(id), unsubscribed: d.community.filter((s) => s.packId === id).length });
+      return HttpResponse.json({
+        pack: packDto(id),
+        unsubscribed: d.community.filter((s) => s.packId === id).length,
+      });
     }
     return notFound();
   }),
@@ -494,17 +554,32 @@ export const sourcesHandlers = [
     await delay(600);
     if (!body?.url || !body.url.trim()) {
       return HttpResponse.json(
-        { error: { code: 'VALIDATION', message: 'Invalid request', issues: [{ path: ['url'], code: 'too_small', message: 'Required' }] } },
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Invalid request',
+            issues: [{ path: ['url'], code: 'too_small', message: 'Required' }],
+          },
+        },
         { status: 400 },
       );
     }
     const result = detect(body.url);
     if (result.status === 400) {
-      return HttpResponse.json({ error: { code: 'VALIDATION', message: 'Invalid URL' } }, { status: 400 });
+      return HttpResponse.json(
+        { error: { code: 'VALIDATION', message: 'Invalid URL' } },
+        { status: 400 },
+      );
     }
     if (result.status === 502) {
       return HttpResponse.json(
-        { error: { code: 'UPSTREAM_ERROR', message: "Couldn't reach that page", details: { reason: 'ENOTFOUND' } } },
+        {
+          error: {
+            code: 'UPSTREAM_ERROR',
+            message: "Couldn't reach that page",
+            details: { reason: 'ENOTFOUND' },
+          },
+        },
         { status: 502 },
       );
     }
@@ -522,13 +597,23 @@ export const sourcesHandlers = [
       feedUrl?: string | null;
     } | null;
     await delay(300);
-    if (!body?.url) return HttpResponse.json({ error: { code: 'VALIDATION', message: 'Invalid request' } }, { status: 400 });
+    if (!body?.url)
+      return HttpResponse.json(
+        { error: { code: 'VALIDATION', message: 'Invalid request' } },
+        { status: 400 },
+      );
     const d = getDb();
     const url = normalise(body.url);
     const existing = d.personal.find((s) => normalise(s.url) === url);
     if (existing) {
       return HttpResponse.json(
-        { error: { code: 'CONFLICT', message: 'Source already added', details: { existingId: existing.id } } },
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'Source already added',
+            details: { existingId: existing.id },
+          },
+        },
         { status: 409 },
       );
     }
@@ -553,7 +638,11 @@ export const sourcesHandlers = [
       lastSuccessAt: null,
       listingsFound: 0,
       errorReason: null,
-      config: { boardToken: body.boardToken ?? det?.boardToken ?? null, feedUrl: body.feedUrl ?? null, provider: null },
+      config: {
+        boardToken: body.boardToken ?? det?.boardToken ?? null,
+        feedUrl: body.feedUrl ?? null,
+        provider: null,
+      },
       etag: null,
       lastModified: null,
       createdAt: now,
@@ -568,7 +657,8 @@ export const sourcesHandlers = [
 
   http.get('*/v1/sources/:id', async ({ params }) => {
     const d = getDb();
-    const s = d.personal.find((x) => x.id === params.id) ?? d.community.find((x) => x.id === params.id);
+    const s =
+      d.personal.find((x) => x.id === params.id) ?? d.community.find((x) => x.id === params.id);
     return s ? HttpResponse.json({ source: publicSource(settle(s)) }) : notFound();
   }),
 
@@ -576,7 +666,10 @@ export const sourcesHandlers = [
     await delay(160);
     const d = getDb();
     if (d.community.some((x) => x.id === params.id)) {
-      return HttpResponse.json({ error: { code: 'FORBIDDEN', message: 'Community sources are shared' } }, { status: 403 });
+      return HttpResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Community sources are shared' } },
+        { status: 403 },
+      );
     }
     const s = d.personal.find((x) => x.id === params.id);
     if (!s) return notFound();
@@ -603,7 +696,10 @@ export const sourcesHandlers = [
     await delay(150);
     const d = getDb();
     if (d.community.some((x) => x.id === params.id)) {
-      return HttpResponse.json({ error: { code: 'FORBIDDEN', message: 'Community sources are shared' } }, { status: 403 });
+      return HttpResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Community sources are shared' } },
+        { status: 403 },
+      );
     }
     const before = d.personal.length;
     d.personal = d.personal.filter((x) => x.id !== params.id);

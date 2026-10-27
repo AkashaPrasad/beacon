@@ -10,4 +10,9 @@ export const PACK_BLURBS: Record<string, string> = {
 };
 
 /** USERFLOW §6 "Sources · all packs off" → [Turn on recommended packs]. */
-export const RECOMMENDED_PACKS = ['top-indian-product', 'faang-plus-india', 'yc-startups-interns', 'hackathons-india'] as const;
+export const RECOMMENDED_PACKS = [
+  'top-indian-product',
+  'faang-plus-india',
+  'yc-startups-interns',
+  'hackathons-india',
+] as const;

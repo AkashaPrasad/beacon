@@ -4,7 +4,13 @@
  */
 import type { OpportunityType, RefreshInterval, SourceHealth, SourceKind } from '@kestrel/shared';
 
-import { displayHealth, healthCodeOf, healthReason, type CreditMode, type DisplayHealth } from './health';
+import {
+  displayHealth,
+  healthCodeOf,
+  healthReason,
+  type CreditMode,
+  type DisplayHealth,
+} from './health';
 
 import type { CommunityRow, PackDTO, SourceRow } from '@/api/sources';
 
@@ -95,7 +101,13 @@ function toRow(
   packName: string | null,
   mode: CreditMode | null,
 ): SourceTableRow {
-  const input = { health: s.health, kind: s.kind, enabled: s.enabled, errorReason: s.errorReason, healthCode: s.healthCode };
+  const input = {
+    health: s.health,
+    kind: s.kind,
+    enabled: s.enabled,
+    errorReason: s.errorReason,
+    healthCode: s.healthCode,
+  };
   const status = displayHealth(input, mode);
   return {
     id: s.id,
@@ -133,7 +145,8 @@ export function buildRows(
     .filter((s) => s.subscribed)
     .sort(
       (a, b) =>
-        (packOrder.get(a.packId ?? '') ?? 99) - (packOrder.get(b.packId ?? '') ?? 99) || a.name.localeCompare(b.name),
+        (packOrder.get(a.packId ?? '') ?? 99) - (packOrder.get(b.packId ?? '') ?? 99) ||
+        a.name.localeCompare(b.name),
     )
     .map((s) => toRow(s, 'pack', s.packId ? (packNames.get(s.packId) ?? s.packId) : null, mode));
   return [...mine, ...subscribed];

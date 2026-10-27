@@ -19,7 +19,14 @@ export interface CountUpProps extends Omit<ComponentProps<'span'>, 'children'> {
  * Frames write `textContent` directly, so React never re-renders per frame. The width is reserved for
  * the final value (mono, tabular), and screen readers only get the final value.
  */
-export function CountUp({ value, format = formatCount, onceId, className, style, ...props }: CountUpProps) {
+export function CountUp({
+  value,
+  format = formatCount,
+  onceId,
+  className,
+  style,
+  ...props
+}: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const previous = useRef<number | null>(null);
   const reduced = usePrefersReducedMotion();
@@ -44,7 +51,11 @@ export function CountUp({ value, format = formatCount, onceId, className, style,
   }, [value, format, onceId, reduced]);
 
   return (
-    <span className={className} style={{ minWidth: `${text.length}ch`, display: 'inline-block', ...style }} {...props}>
+    <span
+      className={className}
+      style={{ minWidth: `${text.length}ch`, display: 'inline-block', ...style }}
+      {...props}
+    >
       <span ref={ref} aria-hidden="true" className="font-mono tabular-nums">
         {text}
       </span>

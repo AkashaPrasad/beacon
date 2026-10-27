@@ -2,8 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { findFeedItem, patchFeedItem } from './feed';
 import { queryKeys } from './keys';
-import type { ListingDetail } from './listings';
-import type { FeedItemDTO } from './types';
+import type { FeedItemDTO, ListingDetail } from './types';
 
 type FeedPatch = Partial<Pick<FeedItemDTO, 'saved' | 'hidden' | 'trackerItemId'>>;
 

@@ -1,11 +1,21 @@
-import { OPPORTUNITY_TYPE_LABELS, OPPORTUNITY_TYPES, type OpportunityType, type RefreshInterval } from '@kestrel/shared';
+import {
+  OPPORTUNITY_TYPE_LABELS,
+  OPPORTUNITY_TYPES,
+  type OpportunityType,
+  type RefreshInterval,
+} from '@kestrel/shared';
 import { durations, usePrefersReducedMotion } from '@kestrel/ui';
 import { Link2 } from 'lucide-react';
 import { useAnimate } from 'motion/react';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
-import { canSubmit, candidateUrl, estimateDailyCredits, type DetectState } from '../lib/detect-machine';
+import {
+  canSubmit,
+  candidateUrl,
+  estimateDailyCredits,
+  type DetectState,
+} from '../lib/detect-machine';
 import { markSourceJustAdded } from '../lib/just-added';
 import { INTERVAL_OPTIONS } from '../lib/rows';
 import { useSourceDetection } from '../lib/use-detect';
@@ -14,10 +24,23 @@ import { DetectPanel } from './DetectPanel';
 
 import { useCreateSource, type SourceRow } from '@/api/sources';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { errorMessage, isApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -99,16 +122,25 @@ function AddSourceForm({
   /** Invalid input: x ±3 px, 2 cycles, 240 ms (MOTION §4: the only shake in the product). */
   const shake = () => {
     if (reduced || !fieldRef.current) return;
-    void animateField(fieldRef.current, { x: [0, -3, 3, -3, 3, 0] }, { duration: durations.slow, ease: 'linear' });
+    void animateField(
+      fieldRef.current,
+      { x: [0, -3, 3, -3, 3, 0] },
+      { duration: durations.slow, ease: 'linear' },
+    );
   };
 
   const effectiveInterval = interval ?? defaultInterval(state);
   const resultUrl =
-    state.status === 'detected' || state.status === 'crawl' ? (state.result.finalUrl ?? state.url) : null;
+    state.status === 'detected' || state.status === 'crawl'
+      ? (state.result.finalUrl ?? state.url)
+      : null;
   const duplicate = resultUrl
-    ? existing.find((s) => candidateUrl(s.url) === candidateUrl(resultUrl) || candidateUrl(s.url) === candidateUrl(state.input))
+    ? existing.find(
+        (s) =>
+          candidateUrl(s.url) === candidateUrl(resultUrl) ||
+          candidateUrl(s.url) === candidateUrl(state.input),
+      )
     : undefined;
-
 
   const submit = () => {
     if (!canSubmit(state) || (state.status !== 'detected' && state.status !== 'crawl')) {
@@ -138,7 +170,12 @@ function AddSourceForm({
         onError: (error) => {
           if (isApiError(error) && error.status === 409) {
             const existingId = (error.details as { existingId?: string } | undefined)?.existingId;
-            toast('Already added.', existingId ? { action: { label: 'Show it', onClick: () => onShowExisting(existingId) } } : {});
+            toast(
+              'Already added.',
+              existingId
+                ? { action: { label: 'Show it', onClick: () => onShowExisting(existingId) } }
+                : {},
+            );
           } else {
             toast.error(`Couldn't add the source. ${errorMessage(error)}`, { duration: 8000 });
           }
@@ -155,7 +192,11 @@ function AddSourceForm({
           input: state.input,
           url: state.url,
           result: state.result,
-          error: { kind: 'duplicate', message: 'Already added. You already watch this page.', existingId: duplicate.id },
+          error: {
+            kind: 'duplicate',
+            message: 'Already added. You already watch this page.',
+            existingId: duplicate.id,
+          },
         }
       : state;
   const hint = state.status === 'typing' ? state.hint : null;
@@ -173,7 +214,8 @@ function AddSourceForm({
       <DialogHeader>
         <DialogTitle>Add a source</DialogTitle>
         <DialogDescription>
-          Paste a careers page, a Greenhouse, Lever or Ashby board, or a feed. Beacon picks the cheapest way to read it.
+          Paste a careers page, a Greenhouse, Lever or Ashby board, or a feed. Beacon picks the
+          cheapest way to read it.
         </DialogDescription>
       </DialogHeader>
 
@@ -240,7 +282,11 @@ function AddSourceForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${inputId}-interval`}>Refresh</Label>
-          <Select value={effectiveInterval} onValueChange={(v) => setIntervalValue(v as RefreshInterval)} disabled={!ready}>
+          <Select
+            value={effectiveInterval}
+            onValueChange={(v) => setIntervalValue(v as RefreshInterval)}
+            disabled={!ready}
+          >
             <SelectTrigger id={`${inputId}-interval`} className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -265,7 +311,12 @@ function AddSourceForm({
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" data-testid="source-add-submit" disabled={!ready || create.isPending}>
+        <Button
+          type="submit"
+          variant="primary"
+          data-testid="source-add-submit"
+          disabled={!ready || create.isPending}
+        >
           {shownState.status === 'crawl' ? 'Add anyway' : 'Add source'}
         </Button>
       </DialogFooter>

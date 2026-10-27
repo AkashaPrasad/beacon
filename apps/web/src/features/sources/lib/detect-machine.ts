@@ -16,7 +16,8 @@ export const DETECT_DEBOUNCE_MS = 400;
 
 export type { DetectResult };
 
-export type DetectErrorKind = 'bad-token' | 'unreachable' | 'rate-limited' | 'duplicate' | 'invalid' | 'unknown';
+export type DetectErrorKind =
+  'bad-token' | 'unreachable' | 'rate-limited' | 'duplicate' | 'invalid' | 'unknown';
 
 export interface DetectError {
   kind: DetectErrorKind;
@@ -30,9 +31,27 @@ export type DetectState =
   | { status: 'idle'; input: '' }
   | { status: 'typing'; input: string; url: string | null; hint: string | null }
   | { status: 'detecting'; input: string; url: string; requestId: number }
-  | { status: 'detected'; input: string; url: string; result: DetectResult; redirectedTo: string | null }
-  | { status: 'crawl'; input: string; url: string; result: DetectResult; redirectedTo: string | null }
-  | { status: 'error'; input: string; url: string | null; error: DetectError; result: DetectResult | null };
+  | {
+      status: 'detected';
+      input: string;
+      url: string;
+      result: DetectResult;
+      redirectedTo: string | null;
+    }
+  | {
+      status: 'crawl';
+      input: string;
+      url: string;
+      result: DetectResult;
+      redirectedTo: string | null;
+    }
+  | {
+      status: 'error';
+      input: string;
+      url: string | null;
+      error: DetectError;
+      result: DetectResult | null;
+    };
 
 export type DetectEvent =
   | { type: 'input'; value: string }
@@ -77,7 +96,8 @@ function sameTarget(a: string, b: string): boolean {
 }
 
 export function classifyResult(input: string, url: string, result: DetectResult): DetectState {
-  const redirectedTo = result.finalUrl && !sameTarget(result.finalUrl, url) ? result.finalUrl : null;
+  const redirectedTo =
+    result.finalUrl && !sameTarget(result.finalUrl, url) ? result.finalUrl : null;
   if (!result.valid) {
     return {
       status: 'error',
@@ -87,7 +107,7 @@ export function classifyResult(input: string, url: string, result: DetectResult)
       error: {
         kind: 'bad-token',
         message: result.boardToken
-        ? `${SOURCE_KIND_LABELS[result.kind]} has no board called “${result.boardToken}”. Check the link on the company's careers page.`
+          ? `${SOURCE_KIND_LABELS[result.kind]} has no board called “${result.boardToken}”. Check the link on the company's careers page.`
           : result.message || 'That board has no open listings or does not exist.',
       },
     };
@@ -122,12 +142,20 @@ export function detectReducer(state: DetectState, event: DetectEvent): DetectSta
       return classifyResult(state.input, state.url, event.result);
     case 'failure':
       if (state.status !== 'detecting' || state.requestId !== event.requestId) return state;
-      return { status: 'error', input: state.input, url: state.url, error: event.error, result: null };
+      return {
+        status: 'error',
+        input: state.input,
+        url: state.url,
+        error: event.error,
+        result: null,
+      };
   }
 }
 
 /** Should the debounce timer fire a detection for this state? */
-export function shouldDetect(state: DetectState): state is Extract<DetectState, { status: 'typing' }> & { url: string } {
+export function shouldDetect(
+  state: DetectState,
+): state is Extract<DetectState, { status: 'typing' }> & { url: string } {
   return state.status === 'typing' && state.url !== null;
 }
 
@@ -138,8 +166,11 @@ export function canSubmit(state: DetectState): boolean {
 
 /** Map an API error envelope / status to a detection error (API §1.4). */
 export function detectErrorFrom(status: number, body: unknown): DetectError {
-  const err = (body as { error?: { code?: string; message?: string; details?: Record<string, unknown> } } | null)
-    ?.error;
+  const err = (
+    body as {
+      error?: { code?: string; message?: string; details?: Record<string, unknown> };
+    } | null
+  )?.error;
   const details = err?.details ?? {};
   if (status === 429) {
     const retry = Number(details['retryAfterSeconds'] ?? 0) || undefined;
@@ -150,8 +181,13 @@ export function detectErrorFrom(status: number, body: unknown): DetectError {
     };
   }
   if (status === 409) {
-    const existingId = typeof details['existingId'] === 'string' ? details['existingId'] : undefined;
-    return { kind: 'duplicate', message: 'You already watch this page.', ...(existingId ? { existingId } : {}) };
+    const existingId =
+      typeof details['existingId'] === 'string' ? details['existingId'] : undefined;
+    return {
+      kind: 'duplicate',
+      message: 'You already watch this page.',
+      ...(existingId ? { existingId } : {}),
+    };
   }
   if (status === 400) {
     return { kind: 'invalid', message: 'That doesn’t look like a web address.' };
@@ -167,16 +203,25 @@ export function detectErrorFrom(status: number, body: unknown): DetectError {
 }
 
 /** "Greenhouse board `stripe` · 142 jobs" parts for the result line. */
-export function resultSummary(result: DetectResult): { kindLabel: string; token: string | null; count: string | null } {
+export function resultSummary(result: DetectResult): {
+  kindLabel: string;
+  token: string | null;
+  count: string | null;
+} {
   const kindLabel = SOURCE_KIND_LABELS[result.kind];
   const token = result.boardToken ?? result.config.provider ?? null;
   const count =
-    result.previewCount == null ? null : `${result.previewCount} ${result.previewCount === 1 ? 'job' : 'jobs'}`;
+    result.previewCount == null
+      ? null
+      : `${result.previewCount} ${result.previewCount === 1 ? 'job' : 'jobs'}`;
   return { kindLabel, token, count };
 }
 
 /** Approximate crawl cost per day for the crawler fallback ("uses ~N credits/day"). */
-export function estimateDailyCredits(interval: '1h' | '6h' | 'daily' | 'weekly', pages = 1): number {
+export function estimateDailyCredits(
+  interval: '1h' | '6h' | 'daily' | 'weekly',
+  pages = 1,
+): number {
   const perDay = interval === '1h' ? 24 : interval === '6h' ? 4 : interval === 'daily' ? 1 : 1 / 7;
   return Math.max(1, Math.round(perDay * pages));
 }

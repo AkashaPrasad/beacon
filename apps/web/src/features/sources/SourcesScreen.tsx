@@ -1,16 +1,13 @@
-import { TableSkeleton, PageHeader } from '@kestrel/ui';
+import { SourcesView } from './components/SourcesView';
 
 /**
- * Sources: /sources (table + add-source dialog; `?add=1` opens the dialog, DESIGN §10.5).
- *
- * TODO(wave-3): web-workspace replaces this placeholder. Keep this file path, the `Component` export and the
- * `data-testid="sources-page"` root; everything else is yours. See docs/WEB.md "How screens plug in".
+ * Sources: /sources (table + packs + add-source dialog; `?add=1` opens the dialog, `?add=<url>`
+ * prefills it, `?tab=packs` opens the Packs tab). DESIGN §10.5, USERFLOW §5.1.
  */
 export function Component() {
   return (
-    <div data-testid="sources-page" className="flex flex-col">
-      <PageHeader title="Sources" />
-      <TableSkeleton delayMs={0} />
+    <div data-testid="sources-page" className="flex min-h-0 flex-col">
+      <SourcesView />
     </div>
   );
 }

@@ -144,7 +144,7 @@ export async function signInWithGoogle(
   api.state.session = null;
   api.state.googleLogin = { user, isNew: user.onboardingStep === 'consent' };
   await mockGoogle(page, user);
-  await byTestId(page, 'auth-google-button').first().click();
+  await byTestId(page, 'google-sign-in').first().click();
   await expect
     .poll(() => api.calls('POST', '/v1/auth/google').length, {
       message: 'POST /v1/auth/google was never called',

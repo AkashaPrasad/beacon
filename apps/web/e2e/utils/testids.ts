@@ -46,12 +46,14 @@ export const TESTIDS = [
   { id: 'user-menu', owner: 'web-foundation', note: 'Avatar menu trigger' },
   { id: 'route-error', owner: 'web-foundation', note: 'Route error boundary; has a Retry button' },
   { id: 'not-found-page', owner: 'web-foundation', note: '404 route' },
+  { id: 'notifications-page', owner: 'web-foundation', note: 'Notification centre route (`/notifications`)' },
+  { id: 'auth-callback-page', owner: 'web-onboarding', note: '`/auth/callback` while the code is exchanged' },
 
   // ── Landing, sign-in, consent, onboarding ─────────────────────────────────
   { id: 'landing-page', owner: 'web-onboarding', note: 'Public landing root (`/`)' },
   { id: 'login-page', owner: 'web-onboarding', note: 'Sign-in page root (`/login`)' },
   {
-    id: 'auth-google-button',
+    id: 'google-sign-in',
     owner: 'web-onboarding',
     note: '[Continue with Google] (landing and /login)',
   },

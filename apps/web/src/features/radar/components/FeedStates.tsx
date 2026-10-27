@@ -34,7 +34,7 @@ export function useSkeletonGate(loading: boolean): boolean {
     const t = setTimeout(() => setVisible(false), remaining);
     return () => clearTimeout(t);
   }, [loading]);
-  return loading ? visible : visible && performance.now() - shownAt.current < SKELETON_MIN_MS;
+  return visible;
 }
 
 export function FeedSkeleton({ rows = 8 }: { rows?: number }) {
@@ -146,7 +146,8 @@ export function WarmingStrip({
   slow: boolean;
   onDismiss: () => void;
 }) {
-  const progress = summary?.progress;
+  // `progress` is an additive field requested from the API (SHARED-REQUESTS "web → api").
+  const progress = (summary as (FeedSummary & { progress?: { done: number; total: number } }) | undefined)?.progress;
   const fraction = progress && progress.total > 0 ? progress.done / progress.total : null;
   return (
     <div data-testid="radar-warming-strip" className="relative border-b border-border-subtle bg-surface-sunken">
@@ -205,9 +206,7 @@ export function WarmingStrip({
           aria-valuenow={fraction == null ? undefined : Math.round(fraction * 100)}
           className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-transparent"
         >
-          {fraction == null ? (
-            <span className="radar-indeterminate block h-full w-1/3 bg-accent-strong/70" />
-          ) : (
+          {fraction != null && (
             <m.span
               className="block h-full origin-left bg-accent-strong"
               initial={false}

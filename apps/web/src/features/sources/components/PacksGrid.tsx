@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
-
 /** Packs tab (DESIGN §10.5): one card per pack with its switch, logos, counts and a details sheet. */
 export function PacksGrid({
   packs,
@@ -28,7 +27,10 @@ export function PacksGrid({
 }) {
   const summaries = packSummaries(community);
   return (
-    <ul className="grid gap-3 px-gutter pb-8 sm:grid-cols-2 xl:grid-cols-3" aria-label="Source packs">
+    <ul
+      className="grid gap-3 px-gutter pb-8 sm:grid-cols-2 xl:grid-cols-3"
+      aria-label="Source packs"
+    >
       {packs.map((pack) => (
         <li key={pack.id}>
           <PackCard
@@ -77,9 +79,15 @@ function PackCard({
           <h3 id={titleId} className="text-h3 text-fg">
             {pack.name}
           </h3>
-          <p className="mt-0.5 text-small text-fg-secondary">{PACK_BLURBS[pack.id] ?? 'A curated list of sources, refreshed for everyone.'}</p>
+          <p className="mt-0.5 text-small text-fg-secondary">
+            {PACK_BLURBS[pack.id] ?? 'A curated list of sources, refreshed for everyone.'}
+          </p>
         </div>
-        <Switch checked={pack.enabled} onCheckedChange={onToggle} aria-label={`${pack.enabled ? 'Turn off' : 'Turn on'} ${pack.name}`} />
+        <Switch
+          checked={pack.enabled}
+          onCheckedChange={onToggle}
+          aria-label={`${pack.enabled ? 'Turn off' : 'Turn on'} ${pack.name}`}
+        />
       </header>
 
       <div className="flex items-center gap-3">
@@ -96,7 +104,11 @@ function PackCard({
             </m.span>
           ))}
         </div>
-        {pack.sourceCount > 6 ? <span className="font-mono text-mono-sm text-fg-tertiary">+{pack.sourceCount - Math.min(6, domains.length)}</span> : null}
+        {pack.sourceCount > 6 ? (
+          <span className="font-mono text-mono-sm text-fg-tertiary">
+            +{pack.sourceCount - Math.min(6, domains.length)}
+          </span>
+        ) : null}
       </div>
 
       <dl className="flex flex-wrap gap-x-4 gap-y-1">
@@ -119,14 +131,23 @@ function PackCard({
       </dl>
       {kinds.length ? (
         <p className="text-caption text-fg-tertiary">
-          {kinds.map(([k, n]) => `${KIND_LABELS[k as keyof typeof KIND_LABELS] ?? k} ${n}`).join(' · ')}
+          {kinds
+            .map(([k, n]) => `${KIND_LABELS[k as keyof typeof KIND_LABELS] ?? k} ${n}`)
+            .join(' · ')}
           {summary?.failing ? ` · ${summary.failing} failing` : ''}
         </p>
       ) : null}
 
       <footer className="mt-auto flex items-center justify-between gap-2 pt-1">
-        <span className={cn('inline-flex items-center gap-1 text-caption', pack.enabled ? 'text-success' : 'text-fg-tertiary')}>
-          {pack.enabled ? <CircleCheck className="size-3.5" strokeWidth={1.5} aria-hidden="true" /> : null}
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 text-caption',
+            pack.enabled ? 'text-success' : 'text-fg-tertiary',
+          )}
+        >
+          {pack.enabled ? (
+            <CircleCheck className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+          ) : null}
           {pack.enabled ? 'On · refreshed for everyone' : pack.optional ? 'Optional' : 'Off'}
         </span>
         <m.span {...press.button}>

@@ -18,9 +18,23 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { api, isApiError } from '@/lib/api';
 
 import { queryKeys } from './keys';
-import type { CommunitySourceDTO, CreditsResponse, DetectResult, PackDTO, SourceCreateBody, SourceDTO } from './types';
+import type {
+  CommunitySourceDTO,
+  CreditsResponse,
+  DetectResult,
+  PackDTO,
+  SourceCreateBody,
+  SourceDTO,
+} from './types';
 
-export type { CommunitySourceDTO, CreditsResponse, DetectResult, PackDTO, SourceCreateBody, SourceDTO };
+export type {
+  CommunitySourceDTO,
+  CreditsResponse,
+  DetectResult,
+  PackDTO,
+  SourceCreateBody,
+  SourceDTO,
+};
 
 /** Worker extras the API may expose (SHARED-REQUESTS qa → api #1). */
 export type SourceRow = SourceDTO & {
@@ -29,7 +43,10 @@ export type SourceRow = SourceDTO & {
   /** Client-only: true while an optimistic insert is in flight. */
   optimistic?: boolean;
 };
-export type CommunityRow = CommunitySourceDTO & { healthCode?: string | null; lastSuccessAt?: Date | null };
+export type CommunityRow = CommunitySourceDTO & {
+  healthCode?: string | null;
+  lastSuccessAt?: Date | null;
+};
 
 export interface SourcePatch {
   name?: string;
@@ -65,10 +82,13 @@ export async function fetchAllCommunitySources(signal?: AbortSignal): Promise<Co
   const items: CommunityRow[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < COMMUNITY_MAX_PAGES; page += 1) {
-    const res: { items: CommunityRow[]; nextCursor: string | null } = await api.get('/v1/sources/community', {
-      signal,
-      query: { limit: COMMUNITY_PAGE, cursor },
-    });
+    const res: { items: CommunityRow[]; nextCursor: string | null } = await api.get(
+      '/v1/sources/community',
+      {
+        signal,
+        query: { limit: COMMUNITY_PAGE, cursor },
+      },
+    );
     items.push(...res.items);
     cursor = res.nextCursor;
     if (!cursor) break;
@@ -128,7 +148,9 @@ export function detectSource(qc: QueryClient, url: string): Promise<DetectResult
 // ── Mutations ────────────────────────────────────────────────────────────────────────────────
 
 function setMine(qc: QueryClient, update: (rows: SourceRow[]) => SourceRow[]) {
-  qc.setQueryData<SourceList>(queryKeys.sources.mine, (data) => ({ items: update(data?.items ?? []) }));
+  qc.setQueryData<SourceList>(queryKeys.sources.mine, (data) => ({
+    items: update(data?.items ?? []),
+  }));
 }
 
 function invalidateDownstream(qc: QueryClient) {
@@ -139,7 +161,10 @@ function invalidateDownstream(qc: QueryClient) {
 
 let tempIds = 0;
 
-function optimisticRow(body: SourceCreateBody & { preview?: DetectResult | null }, id: string): SourceRow {
+function optimisticRow(
+  body: SourceCreateBody & { preview?: DetectResult | null },
+  id: string,
+): SourceRow {
   const now = new Date();
   let host = body.url;
   try {
@@ -177,7 +202,10 @@ export function useCreateSource() {
   const qc = useQueryClient();
   return useMutation({
     mutationKey: ['sources', 'create'],
-    mutationFn: ({ preview: _preview, ...body }: SourceCreateBody & { preview?: DetectResult | null }) =>
+    mutationFn: ({
+      preview: _preview,
+      ...body
+    }: SourceCreateBody & { preview?: DetectResult | null }) =>
       api.post<{ source: SourceRow; detection: DetectResult | null }>('/v1/sources', body),
     onMutate: async (body) => {
       await qc.cancelQueries({ queryKey: queryKeys.sources.mine });
@@ -215,7 +243,8 @@ export function useUpdateSource() {
     onError: (_e, _v, context) => {
       if (context) qc.setQueryData(queryKeys.sources.mine, context.previous);
     },
-    onSuccess: ({ source }) => setMine(qc, (rows) => rows.map((r) => (r.id === source.id ? { ...r, ...source } : r))),
+    onSuccess: ({ source }) =>
+      setMine(qc, (rows) => rows.map((r) => (r.id === source.id ? { ...r, ...source } : r))),
     onSettled: (_d, _e, { patch }) => {
       if (patch.enabled !== undefined) invalidateDownstream(qc);
     },
@@ -232,7 +261,8 @@ export function useRefreshSource() {
         await api.post(`/v1/sources/${id}/refresh`);
       } catch (error) {
         // Until the API ships a refresh route, re-enabling queues an ingest (API §5 side effects).
-        if (isApiError(error) && error.status === 404) await api.patch(`/v1/sources/${id}`, { enabled: true });
+        if (isApiError(error) && error.status === 404)
+          await api.patch(`/v1/sources/${id}`, { enabled: true });
         else throw error;
       }
     },
@@ -265,7 +295,9 @@ export function useTogglePack() {
   return useMutation({
     mutationKey: ['sources', 'pack'],
     mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      api.post<{ pack: PackDTO }>(`/v1/sources/packs/${encodeURIComponent(id)}/${enabled ? 'enable' : 'disable'}`),
+      api.post<{ pack: PackDTO }>(
+        `/v1/sources/packs/${encodeURIComponent(id)}/${enabled ? 'enable' : 'disable'}`,
+      ),
     onMutate: async ({ id, enabled }) => {
       await qc.cancelQueries({ queryKey: queryKeys.sources.packs });
       const previous = qc.getQueryData<PackList>(queryKeys.sources.packs);

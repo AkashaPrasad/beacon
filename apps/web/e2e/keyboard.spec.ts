@@ -53,7 +53,7 @@ test.describe('keyboard-only journey', () => {
   }) => {
     needs(
       'landing-page',
-      'auth-google-button',
+      'google-sign-in',
       'consent-page',
       'consent-continue',
       'onboarding-page',
@@ -68,7 +68,7 @@ test.describe('keyboard-only journey', () => {
 
     await tabTo(
       page,
-      (el) => el.getAttribute('data-testid') === 'auth-google-button',
+      (el) => el.getAttribute('data-testid') === 'google-sign-in',
       40,
       '[Continue with Google]',
     );

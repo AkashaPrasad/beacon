@@ -17,13 +17,22 @@ describe('meterState', () => {
   });
   it('warns at 80 % and is danger at the cap', () => {
     expect(meterState({ ...base, cloudUsedToday: 400 }).tone).toBe('warning');
-    expect(meterState({ ...base, cloudUsedToday: 500 })).toMatchObject({ tone: 'danger', mode: 'paused', ratio: 1 });
+    expect(meterState({ ...base, cloudUsedToday: 500 })).toMatchObject({
+      tone: 'danger',
+      mode: 'paused',
+      ratio: 1,
+    });
   });
   it('self-hosted standby keeps crawling after the cap', () => {
-    expect(meterState({ ...base, cloudUsedToday: 500, backend: 'selfhosted' }).mode).toBe('selfhosted');
+    expect(meterState({ ...base, cloudUsedToday: 500, backend: 'selfhosted' }).mode).toBe(
+      'selfhosted',
+    );
   });
   it('handles a zero cap without dividing by zero', () => {
-    expect(meterState({ ...base, cap: 0, cloudUsedToday: 0 })).toMatchObject({ ratio: 1, mode: 'paused' });
+    expect(meterState({ ...base, cap: 0, cloudUsedToday: 0 })).toMatchObject({
+      ratio: 1,
+      mode: 'paused',
+    });
   });
 });
 
@@ -42,13 +51,22 @@ describe('displayHealth', () => {
     expect(displayHealth({ ...src, kind: 'firecrawl', enabled: false }, 'paused')).toBe('ok');
   });
   it('honours the worker healthCode', () => {
-    expect(displayHealth({ ...src, health: 'degraded', healthCode: 'paused:credits' }, 'cloud')).toBe('paused');
+    expect(
+      displayHealth({ ...src, health: 'degraded', healthCode: 'paused:credits' }, 'cloud'),
+    ).toBe('paused');
   });
   it('treats a credit error reason as paused', () => {
-    expect(displayHealth({ ...src, health: 'failing', errorReason: '402 insufficient credits' }, 'cloud')).toBe('paused');
+    expect(
+      displayHealth(
+        { ...src, health: 'failing', errorReason: '402 insufficient credits' },
+        'cloud',
+      ),
+    ).toBe('paused');
   });
   it('explains each status', () => {
-    expect(healthReason({ ...src, health: 'failing', errorReason: '403 Forbidden' }, 'error')).toBe('403 Forbidden');
+    expect(healthReason({ ...src, health: 'failing', errorReason: '403 Forbidden' }, 'error')).toBe(
+      '403 Forbidden',
+    );
     expect(healthReason(src, 'paused')).toMatch(/00:00 IST/);
   });
 });

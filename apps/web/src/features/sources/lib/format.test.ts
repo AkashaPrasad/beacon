@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { daysSince, formatAbsolute, formatCount, formatDayMonth, formatRelative, formatShortDate, fromDateInputValue, toDateInputValue } from './format';
+import {
+  daysSince,
+  formatAbsolute,
+  formatCount,
+  formatDayMonth,
+  formatRelative,
+  formatShortDate,
+  fromDateInputValue,
+  toDateInputValue,
+} from './format';
 
 const NOW = new Date('2026-10-27T06:30:00.000Z');
 

@@ -29,7 +29,12 @@ export function DetectPanel({
 }) {
   const key = state.status === 'typing' || state.status === 'idle' ? 'none' : state.status;
   return (
-    <div data-testid="sources-detect-result" data-status={state.status} aria-live="polite" className="min-h-6">
+    <div
+      data-testid="sources-detect-result"
+      data-status={state.status}
+      aria-live="polite"
+      className="min-h-6"
+    >
       <AnimatePresence mode="popLayout" initial={false}>
         {key === 'none' ? null : (
           <m.div
@@ -47,17 +52,30 @@ export function DetectPanel({
             ) : null}
             {state.status === 'error' ? (
               <div className="flex flex-col gap-2">
-                <p data-testid="source-detect-result" className="flex items-start gap-2 text-small text-danger">
-                  <CircleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                <p
+                  data-testid="source-detect-result"
+                  className="flex items-start gap-2 text-small text-danger"
+                >
+                  <CircleAlert
+                    className="mt-0.5 size-4 shrink-0"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
                   <span>{state.error.message}</span>
                 </p>
                 <div className="flex gap-2 pl-6">
                   {state.error.kind === 'duplicate' && state.error.existingId && onShowExisting ? (
-                    <Button size="xs" variant="secondary" onClick={() => onShowExisting(state.error.existingId!)}>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => onShowExisting(state.error.existingId!)}
+                    >
                       Show it
                     </Button>
                   ) : null}
-                  {state.error.kind === 'unreachable' || state.error.kind === 'rate-limited' || state.error.kind === 'unknown' ? (
+                  {state.error.kind === 'unreachable' ||
+                  state.error.kind === 'rate-limited' ||
+                  state.error.kind === 'unknown' ? (
                     <Button size="xs" variant="ghost" onClick={onRetry}>
                       <RotateCw strokeWidth={1.5} /> Try again
                     </Button>
@@ -75,8 +93,14 @@ export function DetectPanel({
 function Detecting() {
   return (
     <div className="flex flex-col gap-2">
-      <p data-testid="source-detect-result" className="flex items-center gap-2 font-mono text-mono-sm text-fg-secondary">
-        <span className="relative inline-flex size-4 items-center justify-center" aria-hidden="true">
+      <p
+        data-testid="source-detect-result"
+        className="flex items-center gap-2 font-mono text-mono-sm text-fg-secondary"
+      >
+        <span
+          className="relative inline-flex size-4 items-center justify-center"
+          aria-hidden="true"
+        >
           <span className="size-3 rounded-full border-[1.5px] border-fg-tertiary border-t-transparent motion-safe:animate-spin" />
         </span>
         Detecting…
@@ -108,7 +132,10 @@ function Result({
   const crawl = state.status === 'crawl';
   return (
     <div className="flex flex-col gap-2">
-      <p data-testid="source-detect-result" className={cn('flex items-start gap-2 text-small', crawl ? 'text-fg' : 'text-fg')}>
+      <p
+        data-testid="source-detect-result"
+        className={cn('flex items-start gap-2 text-small', crawl ? 'text-fg' : 'text-fg')}
+      >
         <m.span
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1, transition: springs.snappy }}
@@ -123,13 +150,22 @@ function Result({
         </m.span>
         {crawl ? (
           <span>
-            No job board API here. We’ll crawl this page; uses ~<span className="font-mono">{creditsPerDay}</span>{' '}
+            No job board API here. We’ll crawl this page; uses ~
+            <span className="font-mono">{creditsPerDay}</span>{' '}
             {creditsPerDay === 1 ? 'credit' : 'credits'}/day.
           </span>
         ) : (
           <span className="font-mono text-mono-sm">
-            Detected: <KindIcon className="mb-0.5 inline size-3.5 text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />{' '}
-            {kindLabel} board {token ? <code className="rounded-xs bg-surface-sunken px-1 text-fg">{token}</code> : null}
+            Detected:{' '}
+            <KindIcon
+              className="mb-0.5 inline size-3.5 text-fg-secondary"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />{' '}
+            {kindLabel} board{' '}
+            {token ? (
+              <code className="rounded-xs bg-surface-sunken px-1 text-fg">{token}</code>
+            ) : null}
             {count ? <> · {count}</> : null}
           </span>
         )}
@@ -137,7 +173,8 @@ function Result({
       {redirectedTo ? (
         <p className="flex items-center gap-1.5 pl-6 text-caption text-fg-secondary">
           <CornerDownRight className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-          Redirects to <span className="font-mono">{displayUrl(redirectedTo)}</span>; Beacon will watch that page.
+          Redirects to <span className="font-mono">{displayUrl(redirectedTo)}</span>; Beacon will
+          watch that page.
         </p>
       ) : null}
       {crawl && creditsPaused ? (
@@ -151,11 +188,19 @@ function Result({
             <m.li
               key={title}
               initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0, transition: { ...springs.gentle, delay: 0.04 * (i + 1) } }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                transition: { ...springs.gentle, delay: 0.04 * (i + 1) },
+              }}
               exit={{ opacity: 0, transition: tweens.exit }}
               className="flex h-6 items-center gap-2 text-small text-fg-secondary"
             >
-              <CompanyLogo name={result.companyName ?? result.name ?? '?'} domain={result.companyDomain} size={20} />
+              <CompanyLogo
+                name={result.companyName ?? result.name ?? '?'}
+                domain={result.companyDomain}
+                size={20}
+              />
               <span className="truncate">{title}</span>
             </m.li>
           ))}

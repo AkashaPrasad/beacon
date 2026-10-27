@@ -48,20 +48,30 @@ describe('candidateUrl', () => {
   ])('accepts %s', (input, expected) => {
     expect(candidateUrl(input)).toBe(expected);
   });
-  it.each(['', 'str', 'stripe', 'http://', 'acme .dev', 'ftp://x.org', 'acme.d', 'a..com'])('rejects %j', (input) => {
-    expect(candidateUrl(input)).toBeNull();
-  });
+  it.each(['', 'str', 'stripe', 'http://', 'acme .dev', 'ftp://x.org', 'acme.d', 'a..com'])(
+    'rejects %j',
+    (input) => {
+      expect(candidateUrl(input)).toBeNull();
+    },
+  );
 });
 
 describe('typing', () => {
   it('goes idle → typing with a hint for non-URLs, and back to idle when cleared', () => {
     const typing = run([{ type: 'input', value: 'stripe' }]);
-    expect(typing).toMatchObject({ status: 'typing', url: null, hint: expect.stringContaining('full link') });
+    expect(typing).toMatchObject({
+      status: 'typing',
+      url: null,
+      hint: expect.stringContaining('full link'),
+    });
     expect(shouldDetect(typing)).toBe(false);
     expect(run([{ type: 'input', value: '' }], typing)).toEqual(initialDetectState);
   });
   it('a valid URL is ready to detect once the debounce settles', () => {
-    const typing = run([{ type: 'input', value: 'boards.greenhouse.io/stripe' }, { type: 'settled' }]);
+    const typing = run([
+      { type: 'input', value: 'boards.greenhouse.io/stripe' },
+      { type: 'settled' },
+    ]);
     expect(shouldDetect(typing)).toBe(true);
     expect(canSubmit(typing)).toBe(false);
   });
@@ -74,7 +84,11 @@ describe('detecting', () => {
   ]);
 
   it('enters detecting with the normalised url', () => {
-    expect(detecting).toMatchObject({ status: 'detecting', url: 'https://boards.greenhouse.io/stripe', requestId: 1 });
+    expect(detecting).toMatchObject({
+      status: 'detecting',
+      url: 'https://boards.greenhouse.io/stripe',
+      requestId: 1,
+    });
   });
 
   it('an ATS hit becomes detected', () => {
@@ -88,7 +102,12 @@ describe('detecting', () => {
     const s = detectReducer(detecting, {
       type: 'success',
       requestId: 1,
-      result: result({ kind: 'firecrawl', costsCredits: true, previewCount: null, boardToken: null }),
+      result: result({
+        kind: 'firecrawl',
+        costsCredits: true,
+        previewCount: null,
+        boardToken: null,
+      }),
     });
     expect(s.status).toBe('crawl');
     expect(canSubmit(s)).toBe(true);
@@ -111,7 +130,9 @@ describe('detecting', () => {
       requestId: 1,
       result: result({ finalUrl: 'https://job-boards.greenhouse.io/stripe' }),
     });
-    expect(s.status === 'detected' && s.redirectedTo).toBe('https://job-boards.greenhouse.io/stripe');
+    expect(s.status === 'detected' && s.redirectedTo).toBe(
+      'https://job-boards.greenhouse.io/stripe',
+    );
     const same = detectReducer(detecting, {
       type: 'success',
       requestId: 1,
@@ -121,7 +142,13 @@ describe('detecting', () => {
   });
 
   it('ignores stale responses from an older request', () => {
-    const second = run([{ type: 'input', value: 'jobs.lever.co/cred' }, { type: 'start', requestId: 2 }], detecting);
+    const second = run(
+      [
+        { type: 'input', value: 'jobs.lever.co/cred' },
+        { type: 'start', requestId: 2 },
+      ],
+      detecting,
+    );
     const stale = detectReducer(second, { type: 'success', requestId: 1, result: result() });
     expect(stale).toBe(second);
     const staleFail = detectReducer(second, {
@@ -145,13 +172,18 @@ describe('detecting', () => {
       error: { kind: 'unreachable', message: 'nope' },
     });
     expect(failed.status).toBe('error');
-    expect(detectReducer(failed, { type: 'retry', requestId: 3 })).toMatchObject({ status: 'detecting', requestId: 3 });
+    expect(detectReducer(failed, { type: 'retry', requestId: 3 })).toMatchObject({
+      status: 'detecting',
+      requestId: 3,
+    });
   });
 });
 
 describe('detectErrorFrom', () => {
   it('maps API statuses to friendly kinds', () => {
-    expect(detectErrorFrom(429, { error: { code: 'RATE_LIMITED', details: { retryAfterSeconds: 12 } } })).toMatchObject({
+    expect(
+      detectErrorFrom(429, { error: { code: 'RATE_LIMITED', details: { retryAfterSeconds: 12 } } }),
+    ).toMatchObject({
       kind: 'rate-limited',
       retryAfterSeconds: 12,
     });
@@ -162,13 +194,20 @@ describe('detectErrorFrom', () => {
       existingId: 'abc',
     });
     expect(detectErrorFrom(400, null).kind).toBe('invalid');
-    expect(detectErrorFrom(500, { error: { message: 'Boom' } })).toEqual({ kind: 'unknown', message: 'Boom' });
+    expect(detectErrorFrom(500, { error: { message: 'Boom' } })).toEqual({
+      kind: 'unknown',
+      message: 'Boom',
+    });
   });
 });
 
 describe('summaries', () => {
   it('formats the result line parts', () => {
-    expect(resultSummary(result())).toEqual({ kindLabel: 'Greenhouse', token: 'stripe', count: '142 jobs' });
+    expect(resultSummary(result())).toEqual({
+      kindLabel: 'Greenhouse',
+      token: 'stripe',
+      count: '142 jobs',
+    });
     expect(resultSummary(result({ previewCount: 1 })).count).toBe('1 job');
     expect(resultSummary(result({ previewCount: null })).count).toBeNull();
   });

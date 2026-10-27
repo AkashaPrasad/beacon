@@ -30,6 +30,7 @@ coverage/
 crash.log
 dist/
 info.txt
+infra-apply.log
 node_modules/
 npm-debug.log*
 opportunity-radar-build-kit.md

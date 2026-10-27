@@ -1,4 +1,9 @@
-import { OPPORTUNITY_TYPE_LABELS, OPPORTUNITY_TYPES, type OpportunityType, type RefreshInterval } from '@kestrel/shared';
+import {
+  OPPORTUNITY_TYPE_LABELS,
+  OPPORTUNITY_TYPES,
+  type OpportunityType,
+  type RefreshInterval,
+} from '@kestrel/shared';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -6,10 +11,23 @@ import { displayUrl, INTERVAL_OPTIONS, type SourceTableRow } from '../lib/rows';
 
 import { useUpdateSource } from '@/api/sources';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { errorMessage } from '@/lib/api';
 
 const ANY = 'any';
@@ -27,13 +45,28 @@ export function EditSourceDialog({
   return (
     <Dialog open={row !== null} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        {row ? <EditForm key={row.id} row={row} onClose={() => onOpenChange(false)} onReplaceUrl={onReplaceUrl} /> : null}
+        {row ? (
+          <EditForm
+            key={row.id}
+            row={row}
+            onClose={() => onOpenChange(false)}
+            onReplaceUrl={onReplaceUrl}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditForm({ row, onClose, onReplaceUrl }: { row: SourceTableRow; onClose: () => void; onReplaceUrl: (row: SourceTableRow) => void }) {
+function EditForm({
+  row,
+  onClose,
+  onReplaceUrl,
+}: {
+  row: SourceTableRow;
+  onClose: () => void;
+  onReplaceUrl: (row: SourceTableRow) => void;
+}) {
   const id = useId();
   const update = useUpdateSource();
   const [name, setName] = useState(row.name);
@@ -49,8 +82,18 @@ function EditForm({ row, onClose, onReplaceUrl }: { row: SourceTableRow; onClose
         e.preventDefault();
         if (invalid) return;
         update.mutate(
-          { id: row.id, patch: { name: trimmed, typeTag: typeTag === ANY ? null : (typeTag as OpportunityType), refreshInterval: interval } },
-          { onError: (error) => toast.error(`Couldn't save. ${errorMessage(error)}`, { duration: 8000 }) },
+          {
+            id: row.id,
+            patch: {
+              name: trimmed,
+              typeTag: typeTag === ANY ? null : (typeTag as OpportunityType),
+              refreshInterval: interval,
+            },
+          },
+          {
+            onError: (error) =>
+              toast.error(`Couldn't save. ${errorMessage(error)}`, { duration: 8000 }),
+          },
         );
         toast.success('Saved.');
         onClose();
@@ -58,7 +101,9 @@ function EditForm({ row, onClose, onReplaceUrl }: { row: SourceTableRow; onClose
     >
       <DialogHeader>
         <DialogTitle>Edit source</DialogTitle>
-        <DialogDescription className="font-mono text-mono-sm">{displayUrl(row.url)}</DialogDescription>
+        <DialogDescription className="font-mono text-mono-sm">
+          {displayUrl(row.url)}
+        </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${id}-name`}>Name</Label>
@@ -109,8 +154,13 @@ function EditForm({ row, onClose, onReplaceUrl }: { row: SourceTableRow; onClose
         </div>
       </div>
       <p className="text-small text-fg-secondary">
-        To watch a different address, replace the URL: Beacon adds the new page and you can delete this one.{' '}
-        <button type="button" className="text-accent-strong underline-offset-3 hover:underline focus-visible:focus-ring" onClick={() => onReplaceUrl(row)}>
+        To watch a different address, replace the URL: Beacon adds the new page and you can delete
+        this one.{' '}
+        <button
+          type="button"
+          className="text-accent-strong underline-offset-3 hover:underline focus-visible:focus-ring"
+          onClick={() => onReplaceUrl(row)}
+        >
           Replace URL
         </button>
       </p>

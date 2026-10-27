@@ -72,7 +72,7 @@ test.describe('resume upload edge cases', () => {
       'onboarding-continue',
     );
     resumeWithNoSkills(api.state);
-    await page.goto('/onboarding');
+    await page.goto('/onboarding/resume');
     await expect(byTestId(page, 'onboarding-page')).toHaveAttribute('data-step', 'resume');
     await byTestId(page, 'resume-file-input').setInputFiles(resumeFile());
     await expect(byTestId(page, 'resume-warning')).toContainText(/skills/i);
@@ -96,7 +96,7 @@ test.describe('resume upload edge cases', () => {
       'onboarding-continue',
     );
     resumeNonEnglish(api.state);
-    await page.goto('/onboarding');
+    await page.goto('/onboarding/resume');
     await byTestId(page, 'resume-file-input').setInputFiles(
       resumeFile('resume-hi.pdf', 'Vidyarthi'),
     );
@@ -115,7 +115,7 @@ test.describe('resume upload edge cases', () => {
   test('scanned PDF: explains why and offers the manual form', async ({ page, api }) => {
     needs('onboarding-page', 'resume-file-input', 'resume-error');
     resumeScanned(api.state);
-    await page.goto('/onboarding');
+    await page.goto('/onboarding/resume');
     await byTestId(page, 'resume-file-input').setInputFiles(resumeFile('scan.pdf'));
     await expect(byTestId(page, 'resume-error')).toContainText(/looks like an image/i);
     await expect(
@@ -128,7 +128,7 @@ test.describe('resume upload edge cases', () => {
     api,
   }) => {
     needs('onboarding-page', 'resume-file-input', 'resume-error');
-    await page.goto('/onboarding');
+    await page.goto('/onboarding/resume');
     await byTestId(page, 'resume-file-input').setInputFiles(bigPdf(20));
     await expect(byTestId(page, 'resume-error')).toContainText(/5 MB/);
     // The client rejects before uploading; if it did upload, the API's 413 must still be handled.
@@ -428,8 +428,8 @@ test.describe('settings edge cases', () => {
   }) => {
     needs('settings-page', 'settings-ai-key', 'settings-ai-key-remove', 'settings-ai-status');
     await loginAs(context, api, fixtureUsers.byok);
-    await open(page, 'settings');
-    await page.getByRole('tab', { name: /ai/i }).click();
+    await page.goto('/settings/ai');
+    await expect(byTestId(page, 'settings-page')).toHaveAttribute('data-tab', 'ai');
     await expect(byTestId(page, 'settings-ai-key')).toContainText('3f9a');
     await byTestId(page, 'settings-ai-key-remove').click();
     const confirm = page.getByRole('alertdialog').getByRole('button', { name: /remove/i });
@@ -475,8 +475,8 @@ test.describe('settings edge cases', () => {
     await expect(deadline).toContainText(/IST|GMT\+5:30|India/);
     const instant = await deadline.getAttribute('data-deadline-at');
 
-    await open(page, 'settings');
-    await page.getByRole('tab', { name: /notifications/i }).click();
+    await page.goto('/settings/notifications');
+    await expect(byTestId(page, 'settings-page')).toHaveAttribute('data-tab', 'notifications');
     await chooseOption(page, byTestId(page, 'settings-timezone'), /New York/);
     await expect.poll(() => api.state.settings.notifications.timezone).toBe('America/New_York');
 

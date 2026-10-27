@@ -1,4 +1,11 @@
-import { CircleCheck, CircleDashed, CirclePause, CircleX, LoaderCircle, type LucideIcon } from 'lucide-react';
+import {
+  CircleCheck,
+  CircleDashed,
+  CirclePause,
+  CircleX,
+  LoaderCircle,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { HEALTH_LABELS, type DisplayHealth } from '../lib/health';
 
@@ -14,7 +21,15 @@ const META: Record<DisplayHealth, { icon: LucideIcon; className: string }> = {
 };
 
 /** Source health: icon + word (never colour alone), reason in the tooltip (DESIGN §10.5). */
-export function HealthBadge({ status, reason, className }: { status: DisplayHealth; reason: string; className?: string }) {
+export function HealthBadge({
+  status,
+  reason,
+  className,
+}: {
+  status: DisplayHealth;
+  reason: string;
+  className?: string;
+}) {
   const { icon: Icon, className: tone } = META[status];
   return (
     <Tooltip>
@@ -29,11 +44,20 @@ export function HealthBadge({ status, reason, className }: { status: DisplayHeal
           )}
         >
           <Icon
-            className={cn('size-4 shrink-0', tone, status === 'pending' && 'motion-safe:animate-spin')}
+            className={cn(
+              'size-4 shrink-0',
+              tone,
+              status === 'pending' && 'motion-safe:animate-spin',
+            )}
             strokeWidth={1.5}
             aria-hidden="true"
           />
-          <span className={cn(status === 'error' && 'text-danger', status === 'paused' && 'text-warning')}>
+          <span
+            className={cn(
+              status === 'error' && 'text-danger',
+              status === 'paused' && 'text-warning',
+            )}
+          >
             {HEALTH_LABELS[status]}
           </span>
         </span>

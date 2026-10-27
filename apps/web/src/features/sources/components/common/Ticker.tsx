@@ -9,7 +9,15 @@ import { cn } from '@/lib/utils';
  * the old value leaves upward and the new one arrives from below when increasing (reversed when
  * decreasing), on `springs.snappy`. The first render never animates.
  */
-export function Ticker({ value, className, label }: { value: number; className?: string; label?: string }) {
+export function Ticker({
+  value,
+  className,
+  label,
+}: {
+  value: number;
+  className?: string;
+  label?: string;
+}) {
   // "Store information from previous renders" (react.dev): direction of the last change.
   const [last, setLast] = useState({ value, direction: 1 });
   if (last.value !== value) setLast({ value, direction: value > last.value ? 1 : -1 });

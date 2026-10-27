@@ -21,7 +21,10 @@ function toDate(value: Date | string | null | undefined): Date | null {
 }
 
 /** "just now", "12 min ago", "3 h ago", "2d ago", "5 wk ago", "in 3d". */
-export function formatRelative(value: Date | string | null | undefined, now: Date = new Date()): string {
+export function formatRelative(
+  value: Date | string | null | undefined,
+  now: Date = new Date(),
+): string {
   const date = toDate(value);
   if (!date) return '—';
   const diff = now.getTime() - date.getTime();
@@ -37,48 +40,82 @@ export function formatRelative(value: Date | string | null | undefined, now: Dat
 }
 
 /** Whole days since (floor, ≥ 0). */
-export function daysSince(value: Date | string | null | undefined, now: Date = new Date()): number | null {
+export function daysSince(
+  value: Date | string | null | undefined,
+  now: Date = new Date(),
+): number | null {
   const date = toDate(value);
   if (!date) return null;
   return Math.max(0, Math.floor((now.getTime() - date.getTime()) / DAY));
 }
 
 /** "Tue 28 Oct". */
-export function formatShortDate(value: Date | string | null | undefined, timeZone = 'Asia/Kolkata'): string {
+export function formatShortDate(
+  value: Date | string | null | undefined,
+  timeZone = 'Asia/Kolkata',
+): string {
   const date = toDate(value);
   if (!date) return '—';
-  const parts = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone }).formatToParts(
-    date,
-  );
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
   return `${get('weekday')} ${get('day')} ${get('month')}`;
 }
 
 /** "28 Oct" (no weekday) for prose like "I applied … on 14 Oct". */
-export function formatDayMonth(value: Date | string | null | undefined, timeZone = 'Asia/Kolkata'): string {
+export function formatDayMonth(
+  value: Date | string | null | undefined,
+  timeZone = 'Asia/Kolkata',
+): string {
   return formatShortDate(value, timeZone).replace(/^\S+\s/, '');
 }
 
-const ZONE_ABBR: Record<string, string> = { 'Asia/Kolkata': 'IST', 'Asia/Calcutta': 'IST', UTC: 'UTC' };
+const ZONE_ABBR: Record<string, string> = {
+  'Asia/Kolkata': 'IST',
+  'Asia/Calcutta': 'IST',
+  UTC: 'UTC',
+};
 
 /** "Tue 28 Oct, 23:59 IST". */
-export function formatAbsolute(value: Date | string | null | undefined, timeZone = 'Asia/Kolkata'): string {
+export function formatAbsolute(
+  value: Date | string | null | undefined,
+  timeZone = 'Asia/Kolkata',
+): string {
   const date = toDate(value);
   if (!date) return '—';
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(date);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(date);
   const zone =
     ZONE_ABBR[timeZone] ??
-    new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' }).formatToParts(date).find((p) => p.type === 'timeZoneName')
-      ?.value ??
+    new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' })
+      .formatToParts(date)
+      .find((p) => p.type === 'timeZoneName')?.value ??
     timeZone;
   return `${formatShortDate(date, timeZone)}, ${time} ${zone}`;
 }
 
 /** `yyyy-mm-dd` in a zone, for `<input type="date">`. */
-export function toDateInputValue(value: Date | string | null | undefined, timeZone = 'Asia/Kolkata'): string {
+export function toDateInputValue(
+  value: Date | string | null | undefined,
+  timeZone = 'Asia/Kolkata',
+): string {
   const date = toDate(value);
   if (!date) return '';
-  const parts = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(date);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone,
+  }).format(date);
   return parts;
 }
 

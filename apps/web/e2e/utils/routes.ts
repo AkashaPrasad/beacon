@@ -20,7 +20,7 @@ export const ROUTES: readonly AppRoute[] = [
   { name: 'login', path: '/login', pageId: 'login-page', auth: 'public' },
   {
     name: 'consent',
-    path: '/onboarding',
+    path: '/welcome',
     pageId: 'consent-page',
     auth: 'user',
     onboarding: 'consent',
@@ -38,8 +38,15 @@ export const ROUTES: readonly AppRoute[] = [
   { name: 'alerts', path: '/alerts', pageId: 'alerts-page', auth: 'user', onboarding: 'done' },
   { name: 'profile', path: '/profile', pageId: 'profile-page', auth: 'user', onboarding: 'done' },
   {
+    name: 'notifications',
+    path: '/notifications',
+    pageId: 'notifications-page',
+    auth: 'user',
+    onboarding: 'done',
+  },
+  {
     name: 'settings',
-    path: '/settings',
+    path: '/settings/appearance',
     pageId: 'settings-page',
     auth: 'user',
     onboarding: 'done',

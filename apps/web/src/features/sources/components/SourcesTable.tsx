@@ -10,14 +10,31 @@ import {
   type VisibilityState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Pencil, RefreshCw, SquareArrowOutUpRight, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Columns3,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  SquareArrowOutUpRight,
+  Trash2,
+} from 'lucide-react';
 import { m } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { formatAbsolute, formatRelative } from '../lib/format';
 import { HEALTH_ORDER } from '../lib/health';
 import { clearSourceJustAdded, isSourceJustAdded } from '../lib/just-added';
-import { displayUrl, INTERVAL_LABELS, INTERVAL_OPTIONS, KIND_LABELS, shortPackName, type SourceTableRow } from '../lib/rows';
+import {
+  displayUrl,
+  INTERVAL_LABELS,
+  INTERVAL_OPTIONS,
+  KIND_LABELS,
+  shortPackName,
+  type SourceTableRow,
+} from '../lib/rows';
 
 import { CountUp } from './common/CountUp';
 import { HealthBadge } from './HealthBadge';
@@ -33,7 +50,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBreakpoint } from '@/lib/use-media-query';
@@ -48,7 +71,17 @@ export interface SourcesTableActions {
   onManagePack: (packId: string) => void;
 }
 
-type ColumnId = 'health' | 'name' | 'kind' | 'scope' | 'types' | 'interval' | 'lastChecked' | 'listings' | 'enabled' | 'menu';
+type ColumnId =
+  | 'health'
+  | 'name'
+  | 'kind'
+  | 'scope'
+  | 'types'
+  | 'interval'
+  | 'lastChecked'
+  | 'listings'
+  | 'enabled'
+  | 'menu';
 
 interface ColumnMeta {
   width: string;
@@ -64,7 +97,13 @@ const helper = createColumnHelper<SourceTableRow>();
 
 function SortIcon({ dir }: { dir: false | 'asc' | 'desc' }) {
   const Icon = dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ArrowUpDown;
-  return <Icon className={cn('size-3.5', !dir && 'opacity-0 group-hover/sort:opacity-100')} strokeWidth={1.5} aria-hidden="true" />;
+  return (
+    <Icon
+      className={cn('size-3.5', !dir && 'opacity-0 group-hover/sort:opacity-100')}
+      strokeWidth={1.5}
+      aria-hidden="true"
+    />
+  );
 }
 
 /**
@@ -94,7 +133,9 @@ export function SourcesTable({
         id: 'health',
         header: 'Health',
         meta: { width: '112px', label: 'Health' } satisfies ColumnMeta,
-        cell: ({ row }) => <HealthBadge status={row.original.status} reason={row.original.reason} />,
+        cell: ({ row }) => (
+          <HealthBadge status={row.original.status} reason={row.original.reason} />
+        ),
       }),
       helper.accessor('name', {
         id: 'name',
@@ -162,7 +203,11 @@ export function SourcesTable({
               onValueChange={(v) => actions.onInterval(row.original, v as RefreshInterval)}
               disabled={row.original.optimistic}
             >
-              <SelectTrigger size="sm" aria-label={`Refresh interval for ${row.original.name}`} className="h-7 w-24 px-2">
+              <SelectTrigger
+                size="sm"
+                aria-label={`Refresh interval for ${row.original.name}`}
+                className="h-7 w-24 px-2"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -174,7 +219,10 @@ export function SourcesTable({
               </SelectContent>
             </Select>
           ) : (
-            <span className="pl-2 font-mono text-mono-sm text-fg-secondary" title="Shared sources refresh on the pack schedule">
+            <span
+              className="pl-2 font-mono text-mono-sm text-fg-secondary"
+              title="Shared sources refresh on the pack schedule"
+            >
               {INTERVAL_LABELS[row.original.refreshInterval]}
             </span>
           ),
@@ -186,9 +234,15 @@ export function SourcesTable({
         cell: ({ row }) => (
           <span
             className="font-mono text-mono-sm whitespace-nowrap text-fg-secondary"
-            title={row.original.lastCheckedAt ? formatAbsolute(row.original.lastCheckedAt) : undefined}
+            title={
+              row.original.lastCheckedAt ? formatAbsolute(row.original.lastCheckedAt) : undefined
+            }
           >
-            {row.original.lastCheckedAt ? formatRelative(row.original.lastCheckedAt, now) : row.original.status === 'pending' ? 'Checking…' : 'Never'}
+            {row.original.lastCheckedAt
+              ? formatRelative(row.original.lastCheckedAt, now)
+              : row.original.status === 'pending'
+                ? 'Checking…'
+                : 'Never'}
           </span>
         ),
       }),
@@ -219,11 +273,17 @@ export function SourcesTable({
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span tabIndex={0} className="inline-flex rounded-full focus-visible:focus-ring" aria-label={`${row.original.name} is on through its pack`}>
+                <span
+                  tabIndex={0}
+                  className="inline-flex rounded-full focus-visible:focus-ring"
+                  aria-label={`${row.original.name} is on through its pack`}
+                >
                   <Switch checked disabled aria-hidden="true" tabIndex={-1} />
                 </span>
               </TooltipTrigger>
-              <TooltipContent>Shared through {row.original.packName ?? 'a pack'}. Turn the pack off in Packs.</TooltipContent>
+              <TooltipContent>
+                Shared through {row.original.packName ?? 'a pack'}. Turn the pack off in Packs.
+              </TooltipContent>
             </Tooltip>
           ),
       }),
@@ -238,8 +298,17 @@ export function SourcesTable({
   );
 
   const effectiveVisibility = useMemo((): VisibilityState => {
-    if (phone) return { kind: false, scope: false, types: false, interval: false, lastChecked: false, health: false };
-    const narrow: VisibilityState = bp === 'md' || bp === 'lg' ? { scope: false, types: false } : {};
+    if (phone)
+      return {
+        kind: false,
+        scope: false,
+        types: false,
+        interval: false,
+        lastChecked: false,
+        health: false,
+      };
+    const narrow: VisibilityState =
+      bp === 'md' || bp === 'lg' ? { scope: false, types: false } : {};
     return { ...narrow, ...visibility };
   }, [phone, bp, visibility]);
 
@@ -266,7 +335,11 @@ export function SourcesTable({
     getScrollElement: () => scrollRef.current,
     estimateSize: (i) => {
       const r = tableRows[i]?.original;
-      return r && r.editable && (r.status === 'error' || r.status === 'paused') ? 76 : phone ? 64 : 44;
+      return r && r.editable && (r.status === 'error' || r.status === 'paused')
+        ? 76
+        : phone
+          ? 64
+          : 44;
     },
     getItemKey: (i) => tableRows[i]?.id ?? i,
     overscan: 12,
@@ -283,7 +356,12 @@ export function SourcesTable({
         className="relative min-h-60 overflow-auto overscroll-contain [scrollbar-width:thin]"
       >
         <div role="rowgroup" className="sticky top-0 z-sticky border-b border-border bg-surface">
-          <div role="row" aria-rowindex={1} className="grid items-center px-gutter" style={{ gridTemplateColumns: template }}>
+          <div
+            role="row"
+            aria-rowindex={1}
+            className="grid items-center px-gutter"
+            style={{ gridTemplateColumns: template }}
+          >
             {table.getHeaderGroups()[0]?.headers.map((header) => {
               const meta = header.column.columnDef.meta as ColumnMeta;
               const sorted = header.column.getIsSorted();
@@ -292,7 +370,15 @@ export function SourcesTable({
                 <div
                   key={header.id}
                   role="columnheader"
-                  aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined}
+                  aria-sort={
+                    sorted === 'asc'
+                      ? 'ascending'
+                      : sorted === 'desc'
+                        ? 'descending'
+                        : canSort
+                          ? 'none'
+                          : undefined
+                  }
                   className={cn(
                     'flex h-9 items-center px-cell text-label text-fg-tertiary uppercase',
                     meta.align === 'right' && 'justify-end',
@@ -387,11 +473,18 @@ export function SourcesTable({
                       );
                     })}
                     {showReason ? (
-                      <div role="cell" className="col-span-full -mt-1 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-[124px] max-md:pl-cell">
+                      <div
+                        role="cell"
+                        className="col-span-full -mt-1 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-[124px] max-md:pl-cell"
+                      >
                         <span className="text-small text-fg-secondary">└ {r.reason}</span>
                         {r.status === 'error' ? (
                           <span className="flex gap-1">
-                            <Button size="xs" variant="secondary" onClick={() => actions.onRefresh(r)}>
+                            <Button
+                              size="xs"
+                              variant="secondary"
+                              onClick={() => actions.onRefresh(r)}
+                            >
                               Retry now
                             </Button>
                             <Button size="xs" variant="ghost" onClick={() => actions.onEdit(r)}>
@@ -423,7 +516,9 @@ function PhoneNameCell({ row, now }: { row: SourceTableRow; now: Date }) {
         </div>
         <div className="flex flex-wrap items-center gap-x-2 text-caption text-fg-tertiary">
           <HealthBadge status={row.status} reason={row.reason} className="h-5 text-caption" />
-          <span className="font-mono">{row.lastCheckedAt ? formatRelative(row.lastCheckedAt, now) : 'Never'}</span>
+          <span className="font-mono">
+            {row.lastCheckedAt ? formatRelative(row.lastCheckedAt, now) : 'Never'}
+          </span>
           <span>{KIND_LABELS[row.kind]}</span>
         </div>
       </div>
@@ -435,7 +530,12 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.name}`} disabled={row.optimistic}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Actions for ${row.name}`}
+          disabled={row.optimistic}
+        >
           <MoreHorizontal strokeWidth={1.5} />
         </Button>
       </DropdownMenuTrigger>
@@ -473,7 +573,13 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
 }
 
 /** Columns menu (column visibility, persisted per device). */
-export function ColumnsMenu({ value, onChange }: { value: VisibilityState; onChange: (v: VisibilityState) => void }) {
+export function ColumnsMenu({
+  value,
+  onChange,
+}: {
+  value: VisibilityState;
+  onChange: (v: VisibilityState) => void;
+}) {
   const items: { id: ColumnId; label: string }[] = [
     { id: 'kind', label: 'Kind' },
     { id: 'scope', label: 'Scope' },

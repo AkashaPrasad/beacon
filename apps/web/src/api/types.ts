@@ -9,6 +9,7 @@ import type {
   DetectSourceResponse,
   FeedQuery,
   FitResult,
+  GhostReason,
   ListingPublic,
   Notification,
   OpportunityType,
@@ -194,7 +195,39 @@ export interface FeedSummary {
   saved: number;
   warmingUp: boolean;
 }
-// ListingDetail, Explanation and InteractionState live in ./listings (web-radar).
+export interface ListingDetail {
+  listing: ListingPublic;
+  /** Markdown → HTML, sanitised server-side (sanitize-html allowlist). */
+  descriptionHtml: string;
+  fit: FitResult | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  saved: boolean;
+  hidden: boolean;
+  trackerItemId: string | null;
+  source: { id: string; name: string; kind: SourceKind; scope: SourceScope } | null;
+  applyLinkHealth: {
+    status: 'ok' | 'dead' | 'redirect_home' | 'error' | 'unknown';
+    httpStatus: number | null;
+    checkedAt: Date | null;
+    reasons: GhostReason[];
+  };
+  similar: { listing: ListingPublic; score: number | null }[];
+}
+export interface InteractionResponse {
+  listingId: string;
+  saved: boolean;
+  hidden: boolean;
+}
+export interface Explanation {
+  listingId: string;
+  profileHash: string | null;
+  source: 'llm' | 'cache' | 'deterministic';
+  whyFit: string[];
+  gaps: string[];
+  tailoringTips: string[];
+  generatedAt: Date;
+}
 
 // ── Tracker (§7) ──────────────────────────────────────────────────────────────
 

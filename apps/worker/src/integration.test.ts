@@ -17,6 +17,11 @@ import { useMongo } from './test/mongo.js';
 import { sample } from './test/samples.js';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+/**
+ * Mocked responses close the connection: a kept-alive mock socket that times out after
+ * the test (undici keepAliveTimeout ≈ 4 s) crashes undici inside the interceptor.
+ */
+const CLOSE = { connection: 'close' };
 
 async function redisAvailable(): Promise<boolean> {
   const probe = new Redis(REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 0, connectTimeout: 1_000, retryStrategy: () => null });
@@ -57,7 +62,6 @@ describe.skipIf(!redisUp)('BullMQ integration (real Redis)', () => {
   beforeAll(() => {
     nock.disableNetConnect();
     nock.enableNetConnect(/(localhost|127\.0\.0\.1)/);
-    nock.emitter.on('no match', (req: { href?: string; host?: string; path?: string }) => process.stderr.write(`NOMATCH ${req.href ?? `${req.host}${req.path}`}\n`));
     connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
   });
 
@@ -88,7 +92,7 @@ describe.skipIf(!redisUp)('BullMQ integration (real Redis)', () => {
   it('retries with exponential backoff, then moves the job to the dead-letter queue with the reason', async () => {
     boot([QUEUE_NAMES.ingest]);
     const source = await SourceModel.create({ url: 'https://job-boards.greenhouse.io/flaky', name: 'Flaky', kind: 'greenhouse', config: { boardToken: 'flaky' } });
-    const scope = nock('https://boards-api.greenhouse.io').get('/v1/boards/flaky/jobs').query(true).times(3).reply(503);
+    const scope = nock('https://boards-api.greenhouse.io').get('/v1/boards/flaky/jobs').query(true).times(3).reply(503, '', CLOSE);
     const started = Date.now();
     await set.add(QUEUE_NAMES.ingest, { sourceId: String(source._id), reason: 'manual' }, { attempts: 3, backoff: { type: 'exponential', delay: 200 } });
     const dead = await waitFor(async () => (await set.dead.getJobs(['waiting']))[0]);
@@ -117,7 +121,7 @@ describe.skipIf(!redisUp)('BullMQ integration (real Redis)', () => {
     });
     await embedUser(testDeps(), String(userId));
     const source = await SourceModel.create({ url: 'https://job-boards.greenhouse.io/razorpaysoftwareprivatelimited', name: 'Razorpay', kind: 'greenhouse', config: { boardToken: 'razorpaysoftwareprivatelimited' } });
-    nock('https://boards-api.greenhouse.io').get('/v1/boards/razorpaysoftwareprivatelimited/jobs').query(true).reply(200, sample('ats-greenhouse'));
+    nock('https://boards-api.greenhouse.io').get('/v1/boards/razorpaysoftwareprivatelimited/jobs').query(true).reply(200, sample('ats-greenhouse'), CLOSE);
     await set.add(QUEUE_NAMES.ingest, { sourceId: String(source._id), reason: 'manual' });
 
     const matchQueue = set.queues.get(QUEUE_NAMES.match)!;

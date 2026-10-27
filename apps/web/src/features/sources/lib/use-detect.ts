@@ -24,7 +24,9 @@ export function toDetectError(error: unknown): DetectError {
         code: error.code,
         message: error.message,
         details: {
-          ...(typeof error.details === 'object' && error.details ? (error.details as Record<string, unknown>) : {}),
+          ...(typeof error.details === 'object' && error.details
+            ? (error.details as Record<string, unknown>)
+            : {}),
           ...(error.retryAfterSeconds ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
         },
       },
@@ -47,7 +49,8 @@ export function useSourceDetection(initialInput = '') {
       dispatch({ type, requestId: id });
       detectSource(qc, url).then(
         (result) => dispatch({ type: 'success', requestId: id, result }),
-        (error: unknown) => dispatch({ type: 'failure', requestId: id, error: toDetectError(error) }),
+        (error: unknown) =>
+          dispatch({ type: 'failure', requestId: id, error: toDetectError(error) }),
       );
     },
     [qc],
