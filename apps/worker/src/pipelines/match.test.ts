@@ -21,11 +21,16 @@ import { testDeps } from '../test/deps.js';
 import { useMongo } from '../test/mongo.js';
 import { TEST_NOW } from '../test/samples.js';
 
-
 useMongo();
 
 async function source(partial: Record<string, unknown> = {}) {
-  const doc = await SourceModel.create({ url: `https://src.test/${new Types.ObjectId().toHexString()}`, name: 'Src', kind: 'greenhouse', scope: 'community', ...partial });
+  const doc = await SourceModel.create({
+    url: `https://src.test/${new Types.ObjectId().toHexString()}`,
+    name: 'Src',
+    kind: 'greenhouse',
+    scope: 'community',
+    ...partial,
+  });
   return doc._id;
 }
 
@@ -63,8 +68,22 @@ async function user(partial: Record<string, unknown> = {}) {
   await ProfileModel.create({
     userId,
     headline: 'Frontend developer',
-    skills: [{ name: 'React', proficiency: 'advanced', years: 2 }, { name: 'TypeScript', proficiency: 'intermediate', years: 1 }],
-    education: [{ institution: 'IIT', degree: 'B.Tech', degreeLevel: 'bachelor', field: 'CS', startYear: 2023, gradYear: 2027, current: true, gpa: null }],
+    skills: [
+      { name: 'React', proficiency: 'advanced', years: 2 },
+      { name: 'TypeScript', proficiency: 'intermediate', years: 1 },
+    ],
+    education: [
+      {
+        institution: 'IIT',
+        degree: 'B.Tech',
+        degreeLevel: 'bachelor',
+        field: 'CS',
+        startYear: 2023,
+        gradYear: 2027,
+        current: true,
+        gpa: null,
+      },
+    ],
     experienceYears: 0,
     preferredRoles: ['frontend_engineer'],
     preferredLocations: ['Bengaluru'],
@@ -113,12 +132,24 @@ describe('match', () => {
   it('recomputes a user: vector candidates + tracked listings, matches stamped with profileHash', async () => {
     const deps = testDeps();
     const good = await listing();
-    const other = await listing({ title: 'Senior Accountant', skillsRequired: ['Accounting'], type: 'fulltime', descriptionMd: 'Ledgers and audits.' });
+    const other = await listing({
+      title: 'Senior Accountant',
+      skillsRequired: ['Accounting'],
+      type: 'fulltime',
+      descriptionMd: 'Ledgers and audits.',
+    });
     const tracked = await listing({ title: 'Archived tracked role', archived: true });
     for (const id of [good, other, tracked]) await embedListing(deps, id);
     const userId = await user();
     await embedUser(deps, userId);
-    await TrackerItemModel.create({ userId: new Types.ObjectId(userId), listingId: new Types.ObjectId(tracked), title: 't', company: 'c', stage: 'saved', lastActivityAt: TEST_NOW });
+    await TrackerItemModel.create({
+      userId: new Types.ObjectId(userId),
+      listingId: new Types.ObjectId(tracked),
+      title: 't',
+      company: 'c',
+      stage: 'saved',
+      lastActivityAt: TEST_NOW,
+    });
 
     const out = await matchUser(deps, userId);
     expect(out.semantic).toBe(true);
@@ -129,7 +160,9 @@ describe('match', () => {
     expect(best.score).toBeGreaterThan(worst.score);
     // FitResult fields at the top level (API.md §12), stamped with the API's profileHash.
     expect(best.semanticAvailable).toBe(true);
-    expect(best.details.skills.matchedRequired).toEqual(expect.arrayContaining(['React', 'TypeScript']));
+    expect(best.details.skills.matchedRequired).toEqual(
+      expect.arrayContaining(['React', 'TypeScript']),
+    );
     expect(best.components.semantic).toBeGreaterThan(0);
     expect(best.contributions.skills).toBeGreaterThan(0);
     expect(best.explain.whyFit.length).toBeGreaterThan(0);
@@ -137,7 +170,18 @@ describe('match', () => {
     expect(new Set(matches.map((m) => m.matchHash)).size).toBe(1);
 
     // Weights change → new matchHash, matches rewritten with the new weights.
-    await SettingsModel.create({ userId: new Types.ObjectId(userId), weights: { semantic: 0, skills: 1, role: 0, eligibility: 0, location: 0, freshness: 0, stipend: 0 } });
+    await SettingsModel.create({
+      userId: new Types.ObjectId(userId),
+      weights: {
+        semantic: 0,
+        skills: 1,
+        role: 0,
+        eligibility: 0,
+        location: 0,
+        freshness: 0,
+        stipend: 0,
+      },
+    });
     await matchUser(deps, userId);
     const after = await MatchModel.find({ userId: new Types.ObjectId(userId) }).lean();
     expect(after).toHaveLength(3);
@@ -145,8 +189,14 @@ describe('match', () => {
     expect(after.find((m) => String(m.listingId) === good)!.weights.skills).toBe(1);
   });
 
+  const brokenEmbedder = {
+    model: 'broken',
+    dim: 384,
+    embed: () => Promise.reject(new Error('model unavailable')),
+  };
+
   it('works without a profile embedding (rules only over fresh listings)', async () => {
-    const deps = testDeps();
+    const deps = testDeps({ embedder: brokenEmbedder });
     await listing();
     const userId = await user();
     const out = await matchUser(deps, userId);
@@ -156,7 +206,53 @@ describe('match', () => {
     expect(m.semanticAvailable).toBe(false);
   });
 
-  it('only matches listings from the user\'s sources; removing a source drops its matches', async () => {
+  it('builds a missing profile embedding itself instead of waiting for the embed queue', async () => {
+    const deps = testDeps();
+    const id = await listing();
+    await embedListing(deps, id);
+    const userId = await user();
+    const out = await matchUser(deps, userId);
+    expect(out).toMatchObject({ semantic: true, written: 1 });
+    const profile = (await ProfileModel.findOne({ userId: new Types.ObjectId(userId) }).lean())!;
+    expect(profile.embedding).toHaveLength(384);
+    expect(deps.enqueue.matches).toEqual([]);
+  });
+
+  it('rules-only fallback keeps a quota for every type, larger for the types the profile chose', async () => {
+    const deps = testDeps({ embedder: brokenEmbedder });
+    deps.env = { ...deps.env, MATCH_CANDIDATES_K: 10 };
+    const hackathons: string[] = [];
+    for (let i = 0; i < 6; i++)
+      hackathons.push(
+        await listing({
+          type: 'hackathon',
+          title: `Hack ${i}`,
+          skillsRequired: [],
+          lastSeenAt: new Date(TEST_NOW.getTime() - 86_400_000),
+        }),
+      );
+    const scholarship = await listing({
+      type: 'scholarship',
+      title: 'Grant',
+      skillsRequired: [],
+      lastSeenAt: new Date(TEST_NOW.getTime() - 86_400_000),
+    });
+    // 30 fresher full-time roles would fill a recency-only top 10 on their own.
+    for (let i = 0; i < 30; i++) await listing({ type: 'fulltime', title: `Engineer ${i}` });
+    const userId = await user({ opportunityTypes: ['hackathon'] });
+    const out = await matchUser(deps, userId);
+    expect(out.semantic).toBe(false);
+    const matched = new Set(
+      (await MatchModel.find({ userId: new Types.ObjectId(userId) }).lean()).map((m) =>
+        String(m.listingId),
+      ),
+    );
+    for (const h of hackathons) expect(matched.has(h)).toBe(true);
+    expect(matched.has(scholarship)).toBe(true);
+    expect(matched.size).toBeGreaterThan(10);
+  });
+
+  it("only matches listings from the user's sources; removing a source drops its matches", async () => {
     const deps = testDeps();
     const mine = await source({ scope: 'personal' });
     const subscribed = await source();
@@ -170,11 +266,16 @@ describe('match', () => {
     const userId = await user();
     const uid = new Types.ObjectId(userId);
     await SourceModel.updateOne({ _id: mine }, { $set: { ownerId: uid } });
-    await SubscriptionModel.create({ userId: uid, sourceId: subscribed, packId: 'top-indian-product' });
+    await SubscriptionModel.create({
+      userId: uid,
+      sourceId: subscribed,
+      packId: 'top-indian-product',
+    });
     await embedUser(deps, userId);
 
     await matchUser(deps, userId);
-    const ids = async () => (await MatchModel.find({ userId: uid }).lean()).map((m) => String(m.listingId)).sort();
+    const ids = async () =>
+      (await MatchModel.find({ userId: uid }).lean()).map((m) => String(m.listingId)).sort();
     expect(await ids()).toEqual([a, b, d].sort());
 
     // Pack disabled → the API deletes the subscription and enqueues match {userId}.
@@ -195,14 +296,24 @@ describe('match', () => {
     const uid = new Types.ObjectId(userId);
     // The user has a personal source, so the community listing below is not visible…
     await source({ scope: 'personal', ownerId: uid });
-    const saved = await listing({ title: 'Payroll Clerk', skillsRequired: ['Accounting'], type: 'fulltime' });
+    const saved = await listing({
+      title: 'Payroll Clerk',
+      skillsRequired: ['Accounting'],
+      type: 'fulltime',
+    });
     await embedListing(deps, saved);
     await embedUser(deps, userId);
     expect((await matchUser(deps, userId)).written).toBe(0);
     // …until it is saved from a shared link: then it is always scored.
-    await InteractionModel.create({ userId: uid, listingId: new Types.ObjectId(saved), saved: true });
+    await InteractionModel.create({
+      userId: uid,
+      listingId: new Types.ObjectId(saved),
+      saved: true,
+    });
     expect((await matchUser(deps, userId)).written).toBe(1);
-    expect(await MatchModel.exists({ userId: uid, listingId: new Types.ObjectId(saved) })).toBeTruthy();
+    expect(
+      await MatchModel.exists({ userId: uid, listingId: new Types.ObjectId(saved) }),
+    ).toBeTruthy();
   });
 
   it('stage-1 floors: incremental keeps only listings that would have made the candidate set', () => {
@@ -220,14 +331,25 @@ describe('match', () => {
   it('incremental: scores new listings for every embedded user and fires instant rules', async () => {
     const deps = testDeps();
     const a = await user();
-    const b = await user({ skills: [{ name: 'Accounting', proficiency: 'expert', years: 5 }], preferredRoles: ['accountant'], headline: 'Accountant' });
+    const b = await user({
+      skills: [{ name: 'Accounting', proficiency: 'expert', years: 5 }],
+      preferredRoles: ['accountant'],
+      headline: 'Accountant',
+    });
     await embedUser(deps, a);
     await embedUser(deps, b);
     await AlertRuleModel.create({
       userId: new Types.ObjectId(a),
       name: 'Strong internships',
       enabled: true,
-      conditions: { minFit: 50, types: ['internship'], maxDeadlineDays: null, locations: [], remote: 'any', keywords: ['react'] },
+      conditions: {
+        minFit: 50,
+        types: ['internship'],
+        maxDeadlineDays: null,
+        locations: [],
+        remote: 'any',
+        keywords: ['react'],
+      },
       channels: ['inapp', 'push'],
       cadence: 'instant',
       digestTime: '09:00',
@@ -240,7 +362,9 @@ describe('match', () => {
     const out = await matchListings(deps, [fresh]);
     expect(out).toMatchObject({ users: 2, written: 2, alerts: 1, continued: false });
     expect(await MatchModel.countDocuments({ listingId: new Types.ObjectId(fresh) })).toBe(2);
-    expect(deps.enqueue.notifies).toEqual([{ kind: 'instant', userId: a, ruleId: expect.any(String), listingIds: [fresh] }]);
+    expect(deps.enqueue.notifies).toEqual([
+      { kind: 'instant', userId: a, ruleId: expect.any(String), listingIds: [fresh] },
+    ]);
   });
 
   it('chunks users and enqueues a continuation', async () => {
