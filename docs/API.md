@@ -1,0 +1,456 @@
+# Beacon HTTP API (`apps/api`)
+
+Status: **stable contract, additive changes only.** Owner: api agent. The web app builds against
+this file and the worker shares the data contract (§12–§14). Machine-readable spec:
+`GET /openapi.json` (generated from the zod schemas), UI at `GET /docs`.
+
+- Base URL: `API_URL` (prod `https://api.beacon.spacesdrive.cc`, dev `http://localhost:4000`).
+- Everything is mounted under **`/v1`** except `/healthz`, `/readyz`, `/docs`, `/openapi.json`.
+- Request and response bodies are JSON (`application/json`) except the resume upload
+  (`multipart/form-data`) and the export (JSON file download). Dates are ISO-8601 strings.
+- Ids are 24-hex Mongo ObjectIds. A malformed id is a `404 NOT_FOUND`, the same as a missing one.
+- Schema names like `profileInputSchema` refer to `@kestrel/shared` unless marked **(api)**; those
+  are defined in `apps/api/src/schemas/*.ts` and listed in `docs/SHARED-REQUESTS.md`.
+
+---
+
+## 1. Conventions
+
+### 1.1 Authentication
+
+| Item | Value |
+|---|---|
+| Session | JWT (HS256, `JWT_SECRET`, 7 days), claims `{ sub: userId, sv: sessionVersion }` |
+| Cookie | **`beacon_session`**, `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`, plus `Secure` in production |
+| Alternative | `Authorization: Bearer <jwt>` (tests and tools). The cookie wins when both are sent. |
+| Browser fetch | `fetch(url, { credentials: 'include' })`. The web and API hosts are same-site (`*.spacesdrive.cc`), so the Lax cookie is sent. |
+| 401 reasons | `error.details.reason` is `missing`, `expired`, `invalid` (forged or bad signature) or `revoked` (user deleted or logged out everywhere) |
+
+Auth column below: **public** = no session needed, **user** = valid session required.
+
+### 1.2 CSRF
+
+Every mutating request (`POST`, `PUT`, `PATCH`, `DELETE`) under `/v1` must send
+**`X-Requested-With: beacon`** (the legacy value `kestrel` is also accepted). Missing or wrong
+header → `403 CSRF`. Requests authenticated with `Authorization: Bearer` are exempt, since a
+browser cannot attach that header cross-site. Combined with `SameSite=Lax` this blocks
+cross-site form posts.
+
+### 1.3 CORS
+
+Allowed origins: `WEB_URL` and `http://localhost:5173`, with `credentials: true`. Allowed request
+headers: `Content-Type`, `X-Requested-With`, `Authorization`. Exposed headers: `RateLimit`,
+`RateLimit-Policy`, `Retry-After`, `X-Request-Id`, `Content-Disposition`.
+
+### 1.4 Error envelope
+
+```jsonc
+{ "error": { "code": "NOT_FOUND", "message": "Source not found", "details": { /* optional */ } } }
+```
+
+Validation errors (zod) also carry `issues` at the top of `error`:
+
+```jsonc
+{ "error": { "code": "VALIDATION", "message": "Invalid request",
+             "issues": [{ "path": ["limit"], "code": "too_big", "message": "Too big: expected number to be <=100" }],
+             "details": { "location": "query" } } }   // body | query | params
+```
+
+| HTTP | `code` | When |
+|---|---|---|
+| 400 | `VALIDATION` | zod failure on body/query/params |
+| 400 | `BAD_CURSOR` | cursor that does not decode or does not match the sort |
+| 400 | `BAD_REQUEST` | malformed JSON, missing multipart file, other client errors |
+| 401 | `UNAUTHENTICATED` | no/expired/forged/revoked session (`details.reason`) |
+| 401 | `INVALID_GOOGLE_TOKEN` | Google ID token or code failed verification |
+| 403 | `CSRF` | missing `X-Requested-With: beacon` on a mutating request |
+| 403 | `FORBIDDEN` | e.g. trying to modify a community source |
+| 404 | `NOT_FOUND` | unknown route, or object missing or **owned by another user** (never 403, so ids don't leak) |
+| 409 | `CONFLICT` | duplicate (source URL already added, listing already tracked); `details.existingId` |
+| 413 | `PAYLOAD_TOO_LARGE` | resume > 10 MB, JSON body > 1 MB |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | resume not PDF/DOCX |
+| 422 | `RESUME_NO_TEXT` | scanned or image-only PDF (< 200 chars of text) |
+| 422 | `RESUME_UNREADABLE` | corrupt or encrypted PDF/DOCX |
+| 422 | `AI_NOT_CONFIGURED` | `/settings/ai/test` with nothing to test |
+| 429 | `RATE_LIMITED` | see §1.5; `Retry-After` header set, `details.retryAfterSeconds` |
+| 502 | `UPSTREAM_ERROR` | detection target unreachable and nothing could be inferred |
+| 503 | `SERVICE_UNAVAILABLE` | Mongo/Redis down |
+| 500 | `INTERNAL` | anything else (logged with the request id) |
+
+Every response carries `X-Request-Id` (echoes an incoming `X-Request-Id`, else a UUID).
+
+### 1.5 Rate limits (Redis-backed, `rate-limit-redis`, key prefix `rl:`)
+
+| Name | Limit | Key | Applies to |
+|---|---|---|---|
+| global | 300 / 15 min | client IP | every route except `/healthz`, `/readyz` |
+| auth | 10 / min | client IP | `POST /v1/auth/google` |
+| detect | 20 / min | user id | `POST /v1/sources/detect` |
+| resume | 5 / min | user id | `POST /v1/profile/resume` |
+| explain | 30 / hour | user id | `POST /v1/listings/:id/explain` |
+| aitest | 10 / hour | user id | `POST /v1/settings/ai/test` |
+
+Headers: IETF draft-8 `RateLimit` and `RateLimit-Policy`, plus `Retry-After` on 429.
+`trust proxy = 1` (Caddy sends one `X-Forwarded-For` hop).
+
+### 1.6 Cursor pagination
+
+`?cursor=<opaque>&limit=<1..100, default 20>`. The response is `{ items, nextCursor }`, where
+`nextCursor: null` means the last page. Cursors are base64url JSON produced by
+`encodeCursor` (shared), e.g. `{ "k": "fit", "s": 87, "id": "<listingId>" }`. Treat them as
+opaque. A cursor from a different `sort` → `400 BAD_CURSOR`. An empty result is
+`{ items: [], nextCursor: null }`, not 404.
+
+---
+
+## 2. Platform
+
+| Method | Path | Auth | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/healthz` | public | – | `200 { ok: true }` (process up) | – |
+| GET | `/readyz` | public | – | `200 { ok: true, mongo: 'up', redis: 'up' }` or `503 { ok: false, mongo: 'up'\|'down', redis: 'up'\|'down' }` | – |
+| GET | `/openapi.json` | public | – | OpenAPI 3.1 document | – |
+| GET | `/docs` | public | – | HTML (Scalar API reference) | – |
+| GET | `/v1/meta` | public | – | `{ name: 'beacon', version, opportunityTypes: {id,label}[], sourceKinds: {id,label}[], trackerStages: {id,label}[], packs: {id,name}[] }` | – |
+
+---
+
+## 3. Auth & me
+
+| Method | Path | Auth | Request | Response | Errors | Rate |
+|---|---|---|---|---|---|---|
+| GET | `/v1/auth/google/url` | public | query `state?` (≤ 512 chars, echoed back by Google), `redirectUri?` (default `${WEB_URL}/auth/callback`; must be in the allowlist) | `200 { url: string, redirectUri: string }`, the Google authorization URL (`response_type=code`, `scope=openid email profile`, `prompt=select_account`, `access_type=online`) | 400 (redirectUri not allowed), 503 (Google not configured) | global |
+| POST | `/v1/auth/google` | public | **(api)** `googleAuthSchema`: `{ credential: string }` (GIS ID token) **or** `{ code: string, redirectUri: url }` (redirect auth-code flow; the API calls `OAuth2Client.getToken({code, redirect_uri})` with `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`, then verifies the returned `id_token` exactly like `credential`) | `200 { user: PublicUser, isNew: boolean }` + `Set-Cookie: beacon_session=…` | 400 (validation, or redirectUri not allowed), 401 `INVALID_GOOGLE_TOKEN`, 403 `CSRF`, 429 | auth |
+| POST | `/v1/auth/logout` | public | – | `204`, clears the cookie (`Max-Age=0`) | 403 `CSRF` | global |
+| GET | `/v1/me` | user | – | `MeResponse` (below) | 401 | global |
+| PATCH | `/v1/me` | user | **(api)** `mePatchSchema`: `{ name?, onboardingStep?: 'consent'\|'resume'\|'preferences'\|'sources'\|'done', onboardingCompleted?: boolean, consent?: { version: string, aiMode: 'beacon'\|'byok'\|'off', resumeToAi: boolean } }` | `MeResponse` | 400, 401 | global |
+
+Google verification: `OAuth2Client.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })`;
+requires `email_verified`. Upsert key is `googleSub`; email, name and picture are refreshed on
+each login.
+
+**Redirect flow (what the web app uses):** `GET /v1/auth/google/url?state=<nonce+returnTo>` →
+navigate to `url` → Google redirects to `/auth/callback?code=…&state=…` → the web page checks
+`state` and calls `POST /v1/auth/google { code, redirectUri }`, with `redirectUri` identical to
+the one used for the URL. `redirectUri` allowlist: `${WEB_URL}/auth/callback`,
+`http://localhost:5173/auth/callback` and `http://localhost:4173/auth/callback` (e2e). Each one
+must also be an authorised redirect URI on the Google OAuth client.
+
+`consent` on `PATCH /v1/me` stores `user.consent = { version, aiMode, resumeToAi, at }` and syncs
+settings: `ai.enabled = aiMode !== 'off'`, `ai.consentGivenAt = at` when `aiMode === 'beacon'`
+and `resumeToAi` is true (else null), `privacy.sendResumeToAi = resumeToAi`.
+
+```ts
+MeResponse = {
+  user: PublicUser & { lastSeenFeedAt: Date | null },
+  onboarding: {
+    step: 'consent' | 'resume' | 'preferences' | 'sources' | 'done',
+    completedAt: Date | null,
+    consent: { version: string, aiMode: 'beacon'|'byok'|'off', resumeToAi: boolean, at: Date } | null,
+    hasProfile: boolean, hasResume: boolean,
+    personalSources: number, enabledPacks: string[],
+  },
+  settings: {             // summary; the full object is GET /v1/settings
+    theme, density, accent, fontSize, reducedMotion,
+    aiEnabled: boolean, aiProvider: AiProvider, hasKey: boolean, consentGivenAt: Date | null,
+    pushEnabled: boolean, timezone: string,
+  },
+  unreadNotifications: number,
+}
+```
+
+---
+
+## 4. Profile & resume
+
+| Method | Path | Auth | Request | Response | Errors | Rate |
+|---|---|---|---|---|---|---|
+| GET | `/v1/profile` | user | – | `ProfileResponse` | 401 | global |
+| PUT | `/v1/profile` | user | `profileInputSchema` (full replace; defaults fill omitted fields) | `ProfileResponse` | 400, 401 | global |
+| PATCH | `/v1/profile` | user | `profilePatchSchema` (omitted = unchanged) | `ProfileResponse` | 400, 401 | global |
+| POST | `/v1/profile/resume` | user | `multipart/form-data`, field **`file`**, ≤ 10 MB, `.pdf` or `.docx`. Query `?save=true` also merges the result into the stored profile (default: draft only). | `ResumeUploadResponse` | 400 (no file), 401, 413, 415, 422 `RESUME_NO_TEXT` / `RESUME_UNREADABLE`, 429 | resume |
+
+```ts
+ProfileResponse = { profile: Profile, exists: boolean, profileHash: string | null,
+                    resume: { fileName, mimeType, size, textChars, uploadedAt, parsedFrom } | null }
+ResumeUploadResponse = {
+  profile: ProfileInput,                 // editable draft (complete, defaults applied)
+  parsedFrom: 'deterministic' | 'llm',   // 'llm' = deterministic result enriched by the LLM
+  warnings: string[],                    // e.g. "No skills section found", "AI enrichment skipped: daily limit reached"
+  sections: string[],                    // detected: education | experience | projects | skills | links | summary | ...
+  skills: { canonical, matchedAlias, count }[],
+  emails: string[], phones: string[],
+  textChars: number,
+  saved: boolean,                        // true when ?save=true merged and stored it
+}
+```
+
+- When `GET /v1/profile` has no stored profile, it returns the defaults with `exists: false`.
+- Detection: magic bytes plus MIME type. PDF via `unpdf`, DOCX via `mammoth`. Anything else,
+  including `.doc` and `.exe`, → 415.
+- LLM enrichment runs only when settings `ai.enabled`, `privacy.sendResumeToAi` and a configured
+  provider (server default or BYOK) all hold, and the user is under the daily cap. Any failure
+  falls back to the deterministic result plus a warning.
+- **Side effects:** when a save changes `profileHash`, the API enqueues `embed {kind:'profile',userId}`
+  and `match {userId, reason:'profile'}` (see §13).
+
+---
+
+## 5. Sources
+
+| Method | Path | Auth | Request | Response | Errors | Rate |
+|---|---|---|---|---|---|---|
+| GET | `/v1/sources` | user | – | `{ items: SourceDTO[] }` (the user's personal sources, newest first) | 401 | global |
+| POST | `/v1/sources` | user | **(api)** `sourceCreateBodySchema` = `sourceCreateSchema` + optional `{ kind, boardToken, feedUrl }` (from a previous detect; skips re-detection) | `201 { source: SourceDTO, detection: DetectResult \| null }` | 400, 401, 409 `CONFLICT` (same normalised URL), 429 | global |
+| GET | `/v1/sources/:id` | user | – | `{ source: SourceDTO }` (own personal source, or any community source) | 401, 404 | global |
+| PATCH | `/v1/sources/:id` | user | `sourceUpdateSchema` | `{ source: SourceDTO }` | 400, 401, 403 (community), 404 | global |
+| DELETE | `/v1/sources/:id` | user | – | `204` | 401, 403 (community), 404 | global |
+| GET | `/v1/sources/community` | user | query **(api)** `communitySourcesQuerySchema`: `pack?`, `kind?`, `q?`, `cursor?`, `limit?` (1..200, default 100) | `{ items: (SourceDTO & { subscribed: boolean })[], nextCursor }` | 400, 401 | global |
+| GET | `/v1/sources/packs` | user | – | `{ items: PackDTO[] }` | 401 | global |
+| POST | `/v1/sources/packs/:packId/enable` | user | – | `{ pack: PackDTO, subscribed: number, ingestQueued: number }` | 401, 404 | global |
+| POST | `/v1/sources/packs/:packId/disable` | user | – | `{ pack: PackDTO, unsubscribed: number }` | 401, 404 | global |
+| POST | `/v1/sources/detect` | user | `detectSourceRequestSchema` `{ url }` (scheme optional) | `DetectResult` | 400, 401, 429, 502 | detect |
+| GET | `/v1/sources/credits` | user | – | `CreditsResponse` | 401 | global |
+
+```ts
+SourceDTO = Source /* shared shape, ids as strings */ & { companyDomain: string | null }
+PackDTO = { id: string, name: string, sourceCount: number, kinds: Partial<Record<SourceKind, number>>,
+            optional: boolean, enabled: boolean }
+DetectResult = DetectSourceResponse /* shared: url, kind, confidence, boardToken, company, name,
+                                       previewCount, sampleTitles, costsCredits, message */ & {
+  valid: boolean,               // false: ATS pattern matched but board is empty/missing (e.g. Greenhouse 404)
+  apiUrl: string | null,        // JSON/feed endpoint the worker will poll
+  companyName: string | null,   // same as `company`
+  companyDomain: string | null,
+  finalUrl: string | null,      // after ≤ 3 redirects (null when no fetch was needed)
+  config: { boardToken: string|null, feedUrl: string|null, provider: string|null },
+}
+CreditsResponse = { date: 'YYYY-MM-DD' /* UTC */, cloudUsedToday: number, cap: number,
+                    selfHostedUsedToday: number, backend: 'cloud' | 'selfhosted', userUsedToday: number }
+```
+
+- Pack ids: `top-indian-product`, `faang-plus-india`, `yc-startups-interns`, `hackathons-india`,
+  `scholarships-engineering`, `remote-friendly-startups`, `opensource-programs`. Seed-file aliases
+  (`india-product`, `faang-india`, `yc-startups`, `hackathons`, `scholarships`,
+  `remote-friendly`) are accepted in `:packId` and `?pack=`.
+- Detection order: URL pattern (`boards.greenhouse.io/<t>`, `job-boards.greenhouse.io/<t>`,
+  `jobs.lever.co/<c>`, `jobs.ashbyhq.com/<b>`, `careers.smartrecruiters.com/<C>`,
+  `apply.workable.com/<s>`, `<tenant>.<wdN>.myworkdayjobs.com/[<locale>/]<site>`, known public-API
+  hosts) → otherwise fetch the page (10 s timeout, 2 MB cap, ≤ 3 redirects, private and loopback
+  addresses refused) → RSS/Atom body, or ATS links/embeds in the HTML, or
+  `<link rel="alternate" type="application/(rss|atom)+xml">` → otherwise `firecrawl`
+  (`previewCount: null`, `costsCredits: true`). For ATS kinds the JSON endpoint is called to
+  count postings: Greenhouse 404 → `valid:false`; SmartRecruiters `totalFound`; Workday POST
+  `{appliedFacets:{},limit:20,offset:0,searchText:""}` → `total`.
+- **Side effects:** create, or PATCH to `enabled:true` → `ingest {sourceId}`. Pack enable →
+  `ingest {sourceId}` for each pack source not checked within its refresh interval, plus
+  `match {userId, reason:'sources'}`. Pack disable and source delete → `match {userId, reason:'sources'}`.
+
+---
+
+## 6. Feed & listings
+
+| Method | Path | Auth | Request | Response | Errors | Rate |
+|---|---|---|---|---|---|---|
+| GET | `/v1/feed` | user | query **(api)** `feedQueryApiSchema` (below) | `FeedResponse` | 400 `VALIDATION` / `BAD_CURSOR`, 401 | global |
+| GET | `/v1/feed/summary` | user | – | `FeedSummary` | 401 | global |
+| POST | `/v1/feed/seen` | user | – | `204` (sets `user.lastSeenFeedAt = now`) | 401 | global |
+| GET | `/v1/listings/:id` | user | – | `ListingDetail` | 401, 404 | global |
+| POST | `/v1/listings/:id/save` | user | – | `{ listingId, saved, hidden }` | 401, 404 | global |
+| POST | `/v1/listings/:id/unsave` | user | – | same | 401, 404 | global |
+| POST | `/v1/listings/:id/hide` | user | – | same | 401, 404 | global |
+| POST | `/v1/listings/:id/unhide` | user | – | same | 401, 404 | global |
+| POST | `/v1/listings/:id/explain` | user | – | `Explanation` | 401, 404, 429 | explain |
+
+**Feed query** = shared `feedQuerySchema` (`q, types, remote, locations, deadlineWithinDays,
+postedWithinDays, minStipend, stipendCurrency, gradYear, company, sourceId, minFit,
+includeExpired, includeHidden, sort, cursor, limit`) **plus** `companies` (csv), `sourceIds`
+(csv), `savedOnly` (bool), `hideHidden` (bool, default true; `includeHidden=true` or
+`hideHidden=false` shows hidden listings). Arrays accept `a,b` or repeated params. `sort` is
+`fit` (default; score desc), `deadline` (soonest first, no-deadline last) or `posted` (newest first).
+
+```ts
+FeedResponse = {
+  items: FeedItemDTO[], nextCursor: string | null,
+  warmingUp: boolean,     // true = no match docs yet; items come from the cold-start path
+  total?: number,         // only on the first page
+}
+FeedItemDTO = {
+  listing: ListingPublic,         // descriptionMd truncated to 500 chars in the feed
+  fit: FitResult | null,          // null while warming up
+  score: number | null,           // = fit.score
+  saved: boolean, hidden: boolean, trackerItemId: string | null,
+}
+FeedSummary = { total: number, byType: Record<OpportunityType, number>, deadlinesThisWeek: number,
+                newSinceLastVisit: number, lastSeenFeedAt: Date | null, saved: number, warmingUp: boolean }
+ListingDetail = {
+  listing: ListingPublic, descriptionHtml: string /* markdown → HTML, sanitize-html allowlist */,
+  fit: FitResult | null, matchedSkills: string[], missingSkills: string[],
+  saved: boolean, hidden: boolean, trackerItemId: string | null,
+  source: { id, name, kind, scope } | null,
+  applyLinkHealth: { status: 'ok'|'dead'|'redirect_home'|'error'|'unknown', httpStatus: number|null,
+                     checkedAt: Date|null, reasons: GhostReason[] },
+  similar: { listing: ListingPublic /* descriptionMd '' */, score: number | null }[],   // ≤ 6
+}
+Explanation = { listingId, profileHash: string | null, source: 'llm' | 'cache' | 'deterministic',
+                whyFit: string[] /* ≤3 */, gaps: string[] /* ≤2 */, tailoringTips: string[] /* ≤3 */,
+                generatedAt: Date }
+```
+
+- Without match docs (cold start), the feed returns visible listings by `postedAt` desc, or by
+  vector similarity when the profile already has an embedding, with `fit: null` and
+  `warmingUp: true`. `minFit` and `sort=fit` are ignored on that path.
+- Visible listings are those from the user's personal sources, plus subscribed community
+  sources, plus any listing that has a match doc for the user. If the user has no sources at
+  all, all community listings are visible. Anything else is a 404 on `/v1/listings/:id`.
+- Archived listings are excluded. Past-deadline listings are excluded unless `includeExpired=true`.
+- `explain` is cached per `(userId, listingId, profileHash)` in `explanations`. With AI off, no
+  consent or over the cap, it returns the deterministic `fit.explain` plus tips from missing
+  skills (`source: 'deterministic'`).
+
+---
+
+## 7. Tracker
+
+| Method | Path | Auth | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/v1/tracker` | user | query `stage?` | `{ items: TrackerItemDTO[] }` (stage order, then position) | 401 |
+| POST | `/v1/tracker` | user | **(api)** `trackerCreateBodySchema` = shared `trackerCreateSchema` **or** `{ manual: { title, company, url?, type?, deadlineAt? }, stage?, notes? }` | `201 { item }` | 400, 401, 404 (listing), 409 (listing already tracked, `details.existingId`) |
+| GET | `/v1/tracker/analytics` | user | – | `TrackerAnalytics` | 401 |
+| GET | `/v1/tracker/:id` | user | – | `{ item }` | 401, 404 |
+| PATCH | `/v1/tracker/:id` | user | **(api)** `trackerPatchSchema` = shared `trackerUpdateSchema` + `{ stage?, title?, company?, applyUrl? }` | `{ item }` | 400, 401, 404 |
+| POST | `/v1/tracker/:id/move` | user | `trackerMoveSchema` `{ stage, position }` | `{ item, column: { id, position }[] }` | 400, 401, 404 |
+| DELETE | `/v1/tracker/:id` | user | – | `204` | 401, 404 |
+
+- `TrackerItemDTO` = shared `TrackerItem` + `history: { stage, at }[]`.
+- `move`: `position` is the **0-based target index** in the destination column. The server
+  re-indexes that column (and the source column) to `0..n-1` and returns the destination
+  column's order. Moving to `applied` sets `appliedAt` if empty. Any stage change appends to
+  `history`, bumps `lastActivityAt` and clears pending nudges.
+- New items go to the top of their column (position 0).
+
+```ts
+TrackerAnalytics = {
+  total: number, applied: number /* items ever applied */, responded: number,
+  responseRate: number /* 0..1 */, medianResponseDays: number | null,
+  stageCounts: Record<TrackerStage, number>,
+  bestSources: { sourceId: string, name: string, applied: number, responded: number, responseRate: number }[],
+  followUp: { id, title, company, appliedAt, daysSinceActivity }[],   // applied ≥ 10 d, no response
+  moveOn:   { id, title, company, appliedAt, daysSinceActivity }[],   // applied ≥ 30 d, no response
+}
+```
+
+A response is the first move from `applied` into `oa`, `interview`, `offer` or `rejected`.
+
+---
+
+## 8. Alerts & push
+
+| Method | Path | Auth | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/v1/alerts` | user | – | `{ items: AlertRule[] }` | 401 |
+| POST | `/v1/alerts` | user | `alertRuleInputSchema` (channels `push`/`inapp` only) | `201 { rule }` | 400, 401 |
+| GET | `/v1/alerts/:id` | user | – | `{ rule }` | 401, 404 |
+| PATCH | `/v1/alerts/:id` | user | `alertRulePatchSchema` | `{ rule }` | 400, 401, 404 |
+| DELETE | `/v1/alerts/:id` | user | – | `204` | 401, 404 |
+| POST | `/v1/alerts/:id/test` | user | – | `202 { queued: true, jobId }` (enqueues `notify {userId, alertRuleId, test:true}`) | 401, 404 |
+| GET | `/v1/push/vapid-public-key` | public | – | `{ publicKey: string }` (`VAPID_PUBLIC_KEY`, base64url) | – |
+| GET | `/v1/push/subscriptions` | user | – | `{ items: { id, endpoint, userAgent, createdAt }[] }` | 401 |
+| POST | `/v1/push/subscriptions` | user | **(api)** `pushSubscriptionSchema` `{ endpoint: https-url, keys: { p256dh, auth }, expirationTime?: number\|null, userAgent?: string }` (the browser's `PushSubscription.toJSON()`) | `201 { subscription: { id, endpoint, userAgent, createdAt } }` (upsert by endpoint) | 400, 401 |
+| DELETE | `/v1/push/subscriptions` | user | `{ endpoint }` | `204` | 400, 401 |
+| DELETE | `/v1/push/subscriptions/:id` | user | – | `204` | 401, 404 |
+
+## 9. Notifications
+
+| Method | Path | Auth | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/v1/notifications` | user | query `cursor?`, `limit?`, `unreadOnly?` | `{ items: Notification[], nextCursor, unreadCount }` (newest first) | 400, 401 |
+| POST | `/v1/notifications/read` | user | **(api)** `notificationsReadSchema`: `{ ids: string[] (1..200) }` or `{ all: true }` | `{ updated: number, unreadCount: number }` | 400, 401 |
+
+## 10. Settings & account
+
+| Method | Path | Auth | Request | Response | Errors | Rate |
+|---|---|---|---|---|---|---|
+| GET | `/v1/settings` | user | – | `Settings` (shared; `ai.hasKey`/`ai.keyLast4`, never the key) | 401 | global |
+| PATCH | `/v1/settings` | user | `settingsPatchSchema` | `Settings` | 400, 401 | global |
+| PUT | `/v1/settings/ai` | user | **(api)** `aiSettingsPutSchema` `{ provider: AiProvider, baseUrl?: url\|null, model?: string\|null, apiKey?: string (8..512), enabled: boolean }` | `{ ai: AiSettings }` | 400, 401 | global |
+| POST | `/v1/settings/ai/test` | user | optional **(api)** `aiTestSchema` `{ provider?, baseUrl?, model?, apiKey? }` (tests these values, else the saved config) | `200 { ok: true, latencyMs, model, provider } \| { ok: false, error: string, latencyMs }` | 400, 401, 422 `AI_NOT_CONFIGURED`, 429 | aitest |
+| DELETE | `/v1/settings/ai/key` | user | – | `{ ai: AiSettings }` | 401 | global |
+| PUT | `/v1/settings/weights` | user | `weightsInputSchema` (7 sliders, any scale) | `{ weights: WeightsInput, normalised: Weights }` | 400, 401 | global |
+| GET | `/v1/settings/export` | user | – | streamed `application/json`, `Content-Disposition: attachment; filename="beacon-export-<date>.json"` | 401 | global |
+| DELETE | `/v1/account` | user | – | `204` + clears cookie | 401 | global |
+
+- PATCH `weights` or `PUT /settings/weights` → `match {userId, reason:'weights'}`. `provider:'default'`
+  uses the server LLM (`LLM_*` env). A BYOK key is AES-256-GCM encrypted (§14) and only
+  `keyLast4` and `hasKey` are ever returned.
+- Export contains `{ exportedAt, user, profile, settings (no ciphertext), sources (personal),
+  subscriptions, interactions, matches, tracker, alerts, notifications, pushSubscriptions
+  (endpoint only), explanations }`.
+- Account delete cascade: profile, settings, personal sources, subscriptions, interactions,
+  matches, explanations, tracker, alerts, notifications, push subscriptions, then the user.
+  Listings ingested from deleted personal sources are left for the worker's cleanup.
+
+---
+
+## 11. OpenAPI
+
+`/openapi.json` is generated at boot from the same zod schemas the routes validate with
+(zod 4 `z.toJSONSchema`, OpenAPI 3.1). `/docs` serves the Scalar reference (script from
+cdn.jsdelivr.net; this route alone relaxes helmet's CSP).
+
+---
+
+## 12. Data contract (MongoDB, database `MONGODB_DB`)
+
+The api and worker share these collections. Field names are camelCase and `_id` is an ObjectId.
+**Bold** marks who writes the document; the other side only reads it, except where noted.
+
+| Collection | Writer | Shape (beyond `_id`, `createdAt`, `updatedAt`) | Indexes |
+|---|---|---|---|
+| `users` | **api** | `email, name, avatarUrl, googleSub, role, onboardingStep, onboardingCompletedAt, lastLoginAt, lastSeenFeedAt, consent{version,aiMode,resumeToAi,at}, sessionVersion` | `googleSub` unique, `email` |
+| `profiles` | **api** (worker writes `embedding`, `embeddingHash`, `embeddedAt` only) | shared `Profile` fields + `userId, profileHash, resume{fileName,mimeType,size,textChars,uploadedAt,parsedFrom}, resumeText (≤ 50k chars), embedding: number[384], embeddingHash, embeddedAt` | `userId` unique |
+| `settings` | **api** | shared `Settings` + `ai.keyCiphertext` (string, never returned) | `userId` unique |
+| `sources` | **api** creates and edits; **worker** writes `health, lastCheckedAt, listingsFound, errorReason, etag, lastModified` | shared `Source` + `packIds: string[]` (every pack containing it; `packId` is the first), `companyDomain, country, tags, seedKey` (community only: normalised URL), `config.apiUrl, config.method ('GET'\|'POST'), config.body, config.headers, config.tenant, config.site, config.wdHost` | `ownerId`, `{scope, packIds}`, `{ownerId, url}` unique (partial: personal), `seedKey` unique (partial: string) |
+| `subscriptions` | **api** | `userId, sourceId, packId` (user ↔ community source) | `{userId, sourceId}` unique, `sourceId` |
+| `listings` | **worker** | shared `Listing` + `applyCheck{status:'ok'\|'dead'\|'redirect_home'\|'error', httpStatus, finalUrl, checkedAt}` | `canonicalKey` unique, `sourceId`, `{archived, type, deadlineAt}`, `{postedAt:-1}`, `company`, Atlas vector index (see `apps/api/src/models/indexes.md`) |
+| `matches` | **worker** | `userId, listingId, score, rawScore, components, contributions, weights, caps, ghostPenalty, hardFails, semanticAvailable, details, explain, computedAt, profileHash` (every `FitResult` field at top level) | `{userId, score:-1}`, `{userId, listingId}` unique |
+| `interactions` | **api** | `userId, listingId, saved, savedAt, hidden, hiddenAt` | `{userId, listingId}` unique, `{userId, saved}` |
+| `explanations` | **api** | `userId, listingId, profileHash, whyFit[], gaps[], tailoringTips[], model, source` | `{userId, listingId, profileHash}` unique |
+| `tracker_items` | **api** (worker writes `nudges[].sentAt`) | shared `TrackerItem` + `history[{stage,at}]` | `{userId, stage, position}`, `{userId, listingId}` |
+| `alert_rules` | **api** (worker writes `lastTriggeredAt`) | shared `AlertRule` | `userId` |
+| `notifications` | **worker** (api writes `readAt`) | shared `Notification` | `{userId, createdAt:-1}`, `{userId, readAt}` |
+| `push_subscriptions` | **api** (worker deletes on 404/410 from the push service) | `userId, endpoint, keys{p256dh,auth}, expirationTime, userAgent` | `endpoint` unique, `userId` |
+
+Community sources are upserted on API boot from `seed/source-packs.json`, vendored as
+`apps/api/src/seed/data/source-packs.json`, keyed by `seedKey`. Existing documents are never
+overwritten, so worker-written health is kept.
+
+## 13. Queues (BullMQ, `REDIS_URL`; names = `apps/worker/src/queues.ts` `QUEUE_NAMES`)
+
+The API only produces jobs. Job name = queue name. Default options come from the worker's
+`DEFAULT_JOB_OPTIONS` (3 attempts, exponential backoff).
+
+| Queue | Payload | Producer trigger | Dedup |
+|---|---|---|---|
+| `ingest` | `{ sourceId: string, reason: 'created'\|'enabled'\|'pack' }` | source create / enable / pack enable | `deduplication.id = ingest:<sourceId>` (ttl 60 s) |
+| `embed` | `{ kind: 'profile', userId: string }` | profile hash changed | `embed:profile:<userId>` (ttl 10 s) |
+| `match` | `{ userId: string, reason: 'profile'\|'weights'\|'sources'\|'manual' }` | profile/weights/source changes | `match:<userId>` (ttl 10 s) |
+| `notify` | `{ userId: string, alertRuleId: string, test: true }` | `POST /v1/alerts/:id/test` | none |
+
+## 14. Redis keys and crypto (shared with the worker)
+
+| Key | Type | Writer | Meaning |
+|---|---|---|---|
+| `crawler:credits:<YYYY-MM-DD>` | string int | worker (`INCRBY`) | Firecrawl **cloud** credits used that UTC day (global). TTL ≥ 48 h. |
+| `crawler:selfhosted:<YYYY-MM-DD>` | string int | worker | Calls served by the self-hosted standby that UTC day |
+| `crawler:backend` | string | worker | `'selfhosted'` while switched over (6 h TTL); absent or `'cloud'` = cloud |
+| `crawler:user:<userId>:<YYYY-MM-DD>` | string int | worker | Crawl calls attributed to that user's personal sources that day (both backends) |
+| `llm:calls:<userId>:<YYYY-MM-DD>` | string int | api + worker | LLM calls for the user that day; cap `LLM_DAILY_USER_CAP` (default 50) |
+| `llm:tokens:<userId>:<YYYY-MM-DD>` | hash | api + worker | `prompt`, `completion`, `total` token counters |
+| `rl:<limiter>:<key>` | – | api | rate-limit counters |
+
+`cap` in `/v1/sources/credits` = `FIRECRAWL_DAILY_CREDIT_CAP` (default 500).
+
+**BYOK key encryption** (`apps/api/src/lib/crypto.ts`; the worker decrypts the same format):
+AES-256-GCM with the key `Buffer.from(ENCRYPTION_KEY, 'hex')` (32 bytes), a random 12-byte IV,
+and stored value `base64(iv ‖ authTag(16) ‖ ciphertext)`. AAD = `beacon:ai-key:<userId>`.
