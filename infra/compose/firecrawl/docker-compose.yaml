@@ -1,0 +1,152 @@
+# Beacon — self-hosted Firecrawl on the cold-standby EC2 box (t4g.large, 2 vCPU / 8 GB).
+#
+# Derived from upstream https://github.com/firecrawl/firecrawl/blob/v2.11.162/docker-compose.yaml
+# (the release the official self-host guide verifies). Installed as
+# /opt/firecrawl/docker-compose.yaml; the source is cloned to /opt/firecrawl/src.
+#
+# Deviations from upstream, all deliberate:
+#   • api uses the published multi-arch image ghcr.io/firecrawl/firecrawl:<tag> instead of
+#     building apps/api (that build needs Rust + Go + pnpm and would take most of an hour here).
+#   • playwright-service and nuq-postgres are still built from the pinned source, so the
+#     NuQ schema (nuq.sql) and the scraper match the API release exactly.
+#   • FoundationDB services are removed (optional queue backend; NUQ_BACKEND stays unset).
+#   • cpus/mem limits sized for 2 vCPU / 8 GB (upstream asks for cpus: 4.0, which Docker
+#     rejects on a 2-vCPU host), lower default concurrency, restart: unless-stopped.
+#   • Only the API is published (3002); the SG admits it from beacon-app only.
+#     The API is unauthenticated (USE_DB_AUTHENTICATION=false) and must never be public.
+name: firecrawl
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+    compress: 'true'
+
+x-common-env: &common-env
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  REDIS_RATE_LIMIT_URL: ${REDIS_RATE_LIMIT_URL:-redis://redis:6379}
+  PLAYWRIGHT_MICROSERVICE_URL: ${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000/scrape}
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in /opt/firecrawl/.env}
+  POSTGRES_DB: ${POSTGRES_DB:-postgres}
+  POSTGRES_HOST: ${POSTGRES_HOST:-nuq-postgres}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  USE_DB_AUTHENTICATION: ${USE_DB_AUTHENTICATION:-false}
+  NUM_WORKERS_PER_QUEUE: ${NUM_WORKERS_PER_QUEUE:-2}
+  CRAWL_CONCURRENT_REQUESTS: ${CRAWL_CONCURRENT_REQUESTS:-4}
+  MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-3}
+  BROWSER_POOL_SIZE: ${BROWSER_POOL_SIZE:-3}
+  LOGGING_LEVEL: ${LOGGING_LEVEL:-INFO}
+  # Optional: only needed for Firecrawl's LLM formats (json/extract). Beacon asks the
+  # standby for markdown/html and does extraction itself, so these stay empty.
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+  MODEL_NAME: ${MODEL_NAME:-}
+  PROXY_SERVER: ${PROXY_SERVER:-}
+  PROXY_USERNAME: ${PROXY_USERNAME:-}
+  PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+
+services:
+  playwright-service:
+    build: ./src/apps/playwright-service-ts
+    image: beacon-local/firecrawl-playwright-service:${FIRECRAWL_IMAGE_TAG:-2.11.162}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      ALLOW_LOCAL_WEBHOOKS: ${ALLOW_LOCAL_WEBHOOKS:-}
+      BLOCK_MEDIA: ${BLOCK_MEDIA:-true}
+      MAX_CONCURRENT_PAGES: ${CRAWL_CONCURRENT_REQUESTS:-4}
+    networks: [backend]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cpus: 2.0
+    mem_limit: 2560m
+    memswap_limit: 3g
+    tmpfs:
+      - /tmp/.cache:noexec,nosuid,size=1g
+    logging: *logging
+
+  api:
+    image: ghcr.io/firecrawl/firecrawl:${FIRECRAWL_IMAGE_TAG:-2.11.162}
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${INTERNAL_PORT:-3002}
+      EXTRACT_WORKER_PORT: ${EXTRACT_WORKER_PORT:-3004}
+      WORKER_PORT: ${WORKER_PORT:-3005}
+      NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+      HARNESS_STARTUP_TIMEOUT_MS: ${HARNESS_STARTUP_TIMEOUT_MS:-120000}
+      ENV: local
+    command: node dist/src/harness.js --start-docker
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      redis:
+        condition: service_started
+      playwright-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      nuq-postgres:
+        condition: service_healthy
+    ports:
+      - '${PORT:-3002}:${INTERNAL_PORT:-3002}'
+    networks: [backend]
+    cpus: 2.0
+    mem_limit: 3g
+    memswap_limit: 4g
+    logging: *logging
+
+  redis:
+    image: redis:alpine # same floating tag as upstream v2.11.162
+    restart: unless-stopped
+    command: redis-server --bind 0.0.0.0
+    networks: [backend]
+    mem_limit: 256m
+    logging: *logging
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    command: rabbitmq-server
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_running']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [backend]
+    mem_limit: 512m
+    logging: *logging
+
+  nuq-postgres:
+    build: ./src/apps/nuq-postgres
+    image: beacon-local/firecrawl-nuq-postgres:${FIRECRAWL_IMAGE_TAG:-2.11.162}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in /opt/firecrawl/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [backend]
+    mem_limit: 512m
+    logging: *logging
+
+networks:
+  backend:
+    driver: bridge

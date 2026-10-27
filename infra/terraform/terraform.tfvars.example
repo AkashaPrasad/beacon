@@ -1,0 +1,18 @@
+# Do not hand-edit terraform.tfvars: scripts/infra-tfvars.sh generates it from
+# secrets.env and your current public IP. This file only documents the inputs.
+aws_profile             = "claude-dev"
+aws_region              = "ap-south-1"
+github_repo             = "AkashaPrasad/beacon"
+app_instance_type       = "t4g.small"
+firecrawl_instance_type = "t4g.large"
+ssh_public_key          = "ssh-ed25519 AAAA... you@laptop"
+ssh_private_key_path    = "~/.ssh/id_ed25519"
+admin_cidr              = "203.0.113.10/32"
+
+# Optional overrides (defaults shown)
+# availability_zone           = "ap-south-1a"
+# cpu_credits                 = "unlimited"
+# firecrawl_git_ref           = "v2.11.162"
+# firecrawl_image_tag         = "2.11.162"
+# enable_github_deploy_role   = true
+# create_github_oidc_provider = true

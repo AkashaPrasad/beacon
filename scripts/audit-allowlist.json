@@ -1,0 +1,4 @@
+{
+  "$comment": "Allowlisted high/critical advisories for scripts/security-check.sh. Each entry needs an id (GHSA id, advisory id) or a module name, a reason, and an expiry date (YYYY-MM-DD) after which it fails again.",
+  "allow": []
+}

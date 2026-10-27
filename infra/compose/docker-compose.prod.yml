@@ -1,0 +1,133 @@
+# Beacon production stack on the app box (t4g.small, 2 vCPU / 2 GB + 1 GB swap).
+# Lives at /opt/beacon/docker-compose.prod.yml; run it through `kc` (see
+# infra/terraform/files/kc), i.e.
+#   docker compose --env-file /opt/beacon/compose.env -f /opt/beacon/docker-compose.prod.yml …
+# compose.env holds only BEACON_TAG (and optional overrides). Runtime secrets
+# are in /opt/beacon/.env and reach the containers through env_file only.
+#
+# Memory budget: caddy 64m + api 512m + worker 900m + redis 160m = 1636m.
+name: beacon
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+x-logging-small: &logging-small
+  driver: json-file
+  options:
+    max-size: '5m'
+    max-file: '3'
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_started
+    networks: [beacon]
+    mem_limit: 64m
+    logging: *logging
+
+  api:
+    image: ghcr.io/akashaprasad/beacon-api:${BEACON_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ${BEACON_ENV_FILE:-/opt/beacon/.env}
+    environment:
+      # Heap cap below the cgroup limit, leaving room for native memory.
+      NODE_OPTIONS: --max-old-space-size=384
+    expose: ['4000']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [beacon]
+    mem_limit: 512m
+    logging: *logging
+
+  worker:
+    image: ghcr.io/akashaprasad/beacon-worker:${BEACON_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ${BEACON_ENV_FILE:-/opt/beacon/.env}
+    environment:
+      # The embedding model (onnxruntime) lives outside the V8 heap; keep headroom.
+      NODE_OPTIONS: --max-old-space-size=640
+    expose: ['4001']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [beacon]
+    mem_limit: 900m
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Policy: noeviction by default. BullMQ requires it (allkeys-lru, as written in
+    # SPEC, can silently evict job/lock keys), and docker-compose.dev.yml, which the
+    # app is tested against, uses it too. To follow SPEC literally, set
+    # REDIS_MAXMEMORY_POLICY=allkeys-lru in /opt/beacon/compose.env. See docs/INFRA.md.
+    command:
+      - redis-server
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - ${REDIS_MAXMEMORY_POLICY:-noeviction}
+      - --save
+      - '60'
+      - '1'
+      - --appendonly
+      - 'no'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks: [beacon]
+    mem_limit: 160m
+    logging: *logging-small
+
+networks:
+  beacon:
+    name: beacon
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:

@@ -1,0 +1,20 @@
+[Unit]
+Description=Self-hosted Firecrawl (Beacon cold standby) via docker compose
+Documentation=https://docs.firecrawl.dev/contributing/self-host
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/firecrawl
+# Runs on every boot, so each StartInstances from the worker brings Firecrawl up
+# without anyone logging in. Images are already present after first boot.
+ExecStart=/usr/bin/docker compose -f /opt/firecrawl/docker-compose.yaml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f /opt/firecrawl/docker-compose.yaml stop --timeout 20
+TimeoutStartSec=1800
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

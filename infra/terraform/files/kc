@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# kc: docker compose for the Beacon stack on the app box.
+#   kc ps | kc logs -f api | kc restart worker | kc exec redis redis-cli info memory
+# Uses /opt/beacon/compose.env (image tag) for interpolation, so the secrets in
+# /opt/beacon/.env are only ever read as the containers' env_file.
+set -euo pipefail
+cd /opt/beacon
+[ -f compose.env ] || printf 'BEACON_TAG=latest\n' >compose.env
+exec docker compose --env-file /opt/beacon/compose.env -f /opt/beacon/docker-compose.prod.yml "$@"

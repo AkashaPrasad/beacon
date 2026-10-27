@@ -1,0 +1,46 @@
+#cloud-config
+# Beacon self-hosted Firecrawl cold standby. Rendered by Terraform
+# (templatefile) and gzipped. Compose file, env template and systemd unit come
+# from infra/compose/firecrawl/; bootstrap logic from infra/terraform/files/.
+hostname: ${hostname}
+preserve_hostname: false
+package_update: false   # done by the bootstrap with lock timeouts + retries
+package_upgrade: false
+
+write_files:
+  - path: /usr/local/lib/beacon/common.sh
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ${indent(6, common_sh)}
+  - path: /usr/local/sbin/beacon-bootstrap.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      ${indent(6, bootstrap_sh)}
+  - path: /etc/beacon/firecrawl/docker-compose.yaml
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ${indent(6, compose)}
+  - path: /etc/beacon/firecrawl/firecrawl.env.template
+    permissions: "0600"
+    owner: root:root
+    content: |
+      ${indent(6, env_template)}
+  - path: /etc/beacon/firecrawl/firecrawl.service
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ${indent(6, unit)}
+  - path: /etc/beacon/bootstrap.env
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ROLE=firecrawl
+      SWAP_MB=${swap_mb}
+      FIRECRAWL_GIT_REF=${firecrawl_git_ref}
+      FIRECRAWL_IMAGE_TAG=${firecrawl_image_tag}
+
+runcmd:
+  - [bash, -c, "set -o pipefail; /usr/local/sbin/beacon-bootstrap.sh 2>&1 | tee -a /var/log/beacon-bootstrap.log"]
