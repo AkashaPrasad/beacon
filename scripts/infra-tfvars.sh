@@ -28,6 +28,7 @@ umask 077
   printf 'aws_profile             = %s\n' "$(hcl "$AWS_PROFILE")"
   printf 'aws_region              = %s\n' "$(hcl "$AWS_REGION")"
   printf 'github_repo             = %s\n' "$(hcl "$GITHUB_REPO")"
+  [ -n "${GITHUB_OIDC_SUBJECT_PREFIX:-}" ] && printf 'github_oidc_subject_prefix = %s\n' "$(hcl "$GITHUB_OIDC_SUBJECT_PREFIX")"
   printf 'app_instance_type       = %s\n' "$(hcl "${AWS_INSTANCE_TYPE:-t4g.small}")"
   printf 'firecrawl_instance_type = %s\n' "$(hcl "${FIRECRAWL_INSTANCE_TYPE:-t4g.large}")"
   printf 'ssh_public_key          = %s\n' "$(hcl "$SSH_PUBLIC_KEY")"

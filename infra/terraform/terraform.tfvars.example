@@ -16,3 +16,6 @@ admin_cidr              = "203.0.113.10/32"
 # firecrawl_image_tag         = "2.11.162"
 # enable_github_deploy_role   = true
 # create_github_oidc_provider = true
+
+# From gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+github_oidc_subject_prefix = "repo:AkashaPrasad@224858455/beacon@1435708492"

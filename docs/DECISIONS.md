@@ -195,3 +195,13 @@ Use `api-beacon.spacesdrive.cc`. The legacy nested API hostname is two levels be
 TLS handshake fails. A first-level hostname uses the existing certificate without adding a
 paid service. Caddy, GitHub health checks, frontend API configuration, CSP and operational
 documentation use the new hostname. The existing DNS record is left intact for reference.
+
+## Immutable GitHub OIDC subjects (2026-10-27 release)
+
+The GitHub repository uses an immutable subject containing owner and repository IDs. The old
+AWS trust policy accepted name-only subjects, so the deploy job could build images but could
+not assume its AWS role. Trust now matches the exact prefix returned by GitHub's repository
+OIDC settings plus `:ref:refs/heads/main`; the audience remains `sts.amazonaws.com`.
+Terraform records the prefix through `github_oidc_subject_prefix`, populated from the private
+configuration's `GITHUB_OIDC_SUBJECT_PREFIX` by `scripts/infra-tfvars.sh`.
+See [GitHub's immutable subject reference](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims).

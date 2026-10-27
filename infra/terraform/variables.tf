@@ -22,6 +22,12 @@ variable "github_repo" {
   default     = "AkashaPrasad/beacon"
 }
 
+variable "github_oidc_subject_prefix" {
+  description = "Exact GitHub OIDC sub_claim_prefix (includes immutable owner/repository IDs on newer repositories); empty uses the legacy name-only format."
+  type        = string
+  default     = ""
+}
+
 variable "availability_zone" {
   description = "AZ whose default subnet hosts both instances. t4g.small and t4g.large are offered in a, b and c."
   type        = string

@@ -88,10 +88,12 @@ data "aws_iam_policy_document" "gha_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      # IAM string matching is case-sensitive; accept the repo name as written and lower-cased.
-      values = distinct([
-        "repo:${var.github_repo}:ref:refs/heads/main",
-        "repo:${lower(var.github_repo)}:ref:refs/heads/main",
+      # New repositories use immutable IDs in the subject. Keep main as an exact condition.
+      values = var.github_oidc_subject_prefix != "" ? [
+        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        ] : distinct([
+          "repo:${var.github_repo}:ref:refs/heads/main",
+          "repo:${lower(var.github_repo)}:ref:refs/heads/main",
       ])
     }
   }
