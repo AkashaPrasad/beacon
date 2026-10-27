@@ -1,0 +1,21 @@
+# gitleaks configuration: the default ruleset plus a narrow, path-based allowlist.
+# Used by the husky pre-commit hook (`gitleaks git --pre-commit --staged`) and by
+# scripts/security-check.sh (`gitleaks dir` over the committable tree, `gitleaks git` for history).
+# Allowlisting is by path only: a real secret in any other file still fails.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Files that contain variable names, fixtures or fake data only."
+paths = [
+  # Example env files list variable names with empty values.
+  '''(^|/)\.env\.example$''',
+  # Seed data: public careers URLs, ATS board tokens and pack metadata (no credentials).
+  '''(^|/)seed/''',
+  '''(^|/)apps/api/src/seed/data/''',
+  # Recorded fixtures and test-only fake data.
+  '''(^|/)__fixtures__/''',
+  '''(^|/)apps/web/e2e/utils/mock-(api|data)\.ts$''',
+  # Lockfile integrity hashes look like keys.
+  '''pnpm-lock\.yaml$''',
+]

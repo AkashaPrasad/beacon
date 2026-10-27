@@ -1,0 +1,24 @@
+# Generated / vendored
+pnpm-lock.yaml
+**/dist/
+**/coverage/
+**/.turbo/
+**/playwright-report/
+**/test-results/
+**/node_modules/
+
+# Source documents kept verbatim
+docs/SPEC.md
+opportunity-radar-build-kit.md
+
+# Secrets and local files (never formatted, never committed)
+info.txt
+secrets.env
+.env
+.env.*
+!.env.example
+
+# Terraform state / lock files
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform/
