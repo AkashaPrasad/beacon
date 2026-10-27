@@ -1,0 +1,41 @@
+# Secrets and private notes (never commit)
+info.txt
+secrets.env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+.vite/
+
+# Tests and coverage
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Logs and OS / editor noise
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

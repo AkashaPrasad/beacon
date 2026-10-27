@@ -1,0 +1,24 @@
+# 1. Format + lint staged files.
+pnpm exec lint-staged
+
+# 2. Secret scan of the staged diff (gitleaks).
+#    Order: local gitleaks binary -> official Docker image -> warn (never fail on a missing tool).
+#    The npm package named "gitleaks" is NOT the official scanner, so npx is deliberately not used.
+#    See docs/DECISIONS.md.
+blocked() {
+  echo "gitleaks: potential secret detected in staged changes; commit blocked." >&2
+  exit 1
+}
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if gitleaks help git >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --redact --no-banner . || blocked
+  else
+    gitleaks protect --staged --redact --no-banner || blocked
+  fi
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  docker run --rm -v "$(pwd):/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 \
+    git --pre-commit --staged --redact --no-banner /repo || blocked
+else
+  echo "warning: gitleaks not found (brew install gitleaks); secret scan skipped for this commit." >&2
+fi

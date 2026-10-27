@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"],
+      "project": ["scripts/**/*.mjs", "*.config.js"]
+    },
+    "apps/web": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/api": {
+      "project": ["src/**/*.ts"]
+    },
+    "apps/worker": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/config": {
+      "project": ["*.js"]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+# Keep the build context small and secret-free. Build context is the repo root.
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/playwright-report
+**/test-results
+**/*.tsbuildinfo
+.git
+.github
+.husky
+.claude
+infra
+brand
+docs
+seed
+*.md
+!apps/*/README.md
+
+# Secrets: never enter an image
+info.txt
+secrets.env
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key

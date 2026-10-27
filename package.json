@@ -1,0 +1,37 @@
+{
+  "name": "beacon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Beacon: a student opportunity radar that ranks internships, jobs, hackathons, scholarships and research programs by an explainable fit score.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:e2e": "node scripts/test-e2e.mjs",
+    "lint": "turbo run lint && eslint --no-warn-ignored scripts *.js *.mjs",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@kestrel/config": "workspace:*",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "autocannon": "8.0.0",
+    "eslint": "10.13.0",
+    "husky": "9.1.7",
+    "knip": "6.43.0",
+    "lint-staged": "17.6.0",
+    "prettier": "3.9.10",
+    "turbo": "2.11.10",
+    "typescript": "6.0.3"
+  }
+}

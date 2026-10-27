@@ -1,0 +1,47 @@
+# Local development services.
+#   docker compose -f docker-compose.dev.yml up -d                       # redis only
+#   docker compose -f docker-compose.dev.yml --profile local-mongo up -d # redis + local mongo
+# Default MONGODB_URI points at Atlas; use mongodb://localhost:27017 with the local-mongo profile.
+name: beacon-dev
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command:
+      [
+        'redis-server',
+        '--maxmemory',
+        '128mb',
+        '--maxmemory-policy',
+        'noeviction',
+        '--appendonly',
+        'yes',
+      ]
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8.0
+    profiles: ['local-mongo']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  mongo-data:
