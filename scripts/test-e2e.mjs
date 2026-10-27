@@ -16,6 +16,13 @@ if (!hasConfig) {
   process.exit(0);
 }
 
+// A clean CI checkout has no shared dist; build it before Vite loads API schemas or fixtures.
+const shared = spawnSync('pnpm', ['--filter', '@kestrel/shared', 'run', 'build'], {
+  cwd: root,
+  stdio: 'inherit',
+});
+if (shared.status !== 0) process.exit(shared.status ?? 1);
+
 const result = spawnSync(
   'pnpm',
   [

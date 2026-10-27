@@ -39,7 +39,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Build apps/web (and the workspace packages it depends on)
-        run: pnpm --filter "./apps/web..." run build
+        run: pnpm exec turbo run build --filter=@kestrel/web
         env:
           NODE_ENV: production
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
