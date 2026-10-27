@@ -1,0 +1,59 @@
+import { model, models, Schema, type Model, type Types } from 'mongoose';
+
+export const ONBOARDING_STEPS = ['consent', 'resume', 'preferences', 'sources', 'done'] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+export const AI_MODES = ['beacon', 'byok', 'off'] as const;
+export type AiMode = (typeof AI_MODES)[number];
+
+export interface UserConsent {
+  version: string;
+  aiMode: AiMode;
+  resumeToAi: boolean;
+  at: Date;
+}
+
+export interface UserDoc {
+  _id: Types.ObjectId;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  googleSub: string;
+  role: 'user' | 'admin';
+  onboardingStep: OnboardingStep;
+  onboardingCompletedAt: Date | null;
+  lastLoginAt: Date | null;
+  lastSeenFeedAt: Date | null;
+  consent: UserConsent | null;
+  sessionVersion: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const consentSchema = new Schema(
+  {
+    version: { type: String, required: true },
+    aiMode: { type: String, enum: AI_MODES, required: true },
+    resumeToAi: { type: Boolean, required: true },
+    at: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+const userSchema = new Schema(
+  {
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
+    name: { type: String, required: true, trim: true },
+    avatarUrl: { type: String, default: null },
+    googleSub: { type: String, required: true, unique: true },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    onboardingStep: { type: String, enum: ONBOARDING_STEPS, default: 'consent' },
+    onboardingCompletedAt: { type: Date, default: null },
+    lastLoginAt: { type: Date, default: null },
+    lastSeenFeedAt: { type: Date, default: null },
+    consent: { type: consentSchema, default: null },
+    sessionVersion: { type: Number, default: 0 },
+  },
+  { timestamps: true, collection: 'users' },
+);
+
+export const User: Model<UserDoc> = (models['User'] as Model<UserDoc> | undefined) ?? model<UserDoc>('User', userSchema as unknown as Schema<UserDoc>);
