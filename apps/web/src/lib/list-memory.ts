@@ -18,6 +18,10 @@ import { useNavigationType } from 'react-router';
 interface Memory {
   id: string;
   scroll: Record<string, { top: number; left: number }>;
+  /** Window offset at open time. The router restores it too, but only once, and a browser clamps
+   *  that restore when the list is still a short skeleton (WebKit does): re-applied once the data
+   *  is ready so Back lands where the reader left off. */
+  window?: { top: number; left: number };
   at: number;
 }
 
@@ -57,7 +61,12 @@ export function rememberOpened(
   try {
     sessionStorage.setItem(
       key(list),
-      JSON.stringify({ id, scroll, at: Date.now() } satisfies Memory),
+      JSON.stringify({
+        id,
+        scroll,
+        window: { top: window.scrollY, left: window.scrollX },
+        at: Date.now(),
+      } satisfies Memory),
     );
   } catch {
     /* storage blocked: Back still works, it just starts at the top */
@@ -100,6 +109,12 @@ export function useListMemory(
     const memory = read(list);
     if (!memory) return undefined;
     clear(list);
+    const restoreWindow = () => {
+      if (memory.window) {
+        window.scrollTo({ top: memory.window.top, left: memory.window.left, behavior: 'instant' });
+      }
+    };
+    restoreWindow();
     for (const [name, pos] of Object.entries(memory.scroll)) {
       const el = scrollersRef.current[name]?.current;
       if (el) el.scrollTo({ top: pos.top, left: pos.left, behavior: 'instant' });
@@ -107,6 +122,7 @@ export function useListMemory(
     // Virtualised rows render a frame after the scroll position is set. Not cancelled on cleanup:
     // the memory is consumed once, and a StrictMode re-run must not lose the focus.
     requestAnimationFrame(() => {
+      restoreWindow();
       const selector = focusRef.current?.(memory.id);
       const target = selector ? document.querySelector<HTMLElement>(selector) : null;
       if (!target) return;
