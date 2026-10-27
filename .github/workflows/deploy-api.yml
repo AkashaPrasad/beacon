@@ -1,0 +1,161 @@
+name: deploy-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/api/**
+      - apps/worker/**
+      - packages/**
+      - infra/compose/**
+      - pnpm-lock.yaml
+      - package.json
+      - .github/workflows/deploy-api.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/akashaprasad/beacon
+  TAG: sha-${{ github.sha }}
+  API_HEALTH_URL: https://api.beacon.spacesdrive.cc/healthz
+
+jobs:
+  build:
+    name: build ${{ matrix.app }} (arm64)
+    # Native arm64 runner (free for public repos): no QEMU emulation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [api, worker]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.app }}
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # No `environment:` here on purpose: it would change the OIDC subject to
+    # repo:<repo>:environment:<name>, and the AWS role trusts ref:refs/heads/main only.
+    permissions:
+      contents: read
+      packages: read # the job token can pull the (possibly still private) images
+      id-token: write # OIDC -> AWS role that opens port 22 for this runner only
+    env:
+      AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+      APP_SG_ID: ${{ secrets.APP_SG_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials (OIDC)
+        if: env.AWS_DEPLOY_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: beacon-deploy-${{ github.run_id }}
+
+      - name: Open SSH for this runner
+        id: sshwindow
+        if: env.AWS_DEPLOY_ROLE_ARN != ''
+        run: |
+          ip=$(curl -fsS -4 https://checkip.amazonaws.com | tr -d '[:space:]')
+          echo "cidr=$ip/32" >> "$GITHUB_OUTPUT"
+          aws ec2 authorize-security-group-ingress --group-id "$APP_SG_ID" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$ip/32,Description=gha-run-${{ github.run_id }}}]" \
+            >/dev/null 2>err.txt || grep -q InvalidPermission.Duplicate err.txt
+          echo "port 22 open for $ip/32"
+
+      - name: Prepare deploy bundle
+        env:
+          PROD_ENV: ${{ secrets.PROD_ENV }}
+        run: |
+          test -n "$PROD_ENV" || { echo "PROD_ENV secret is empty (scripts/gh-secrets.sh)"; exit 1; }
+          mkdir -p bundle && chmod 700 bundle
+          cp infra/compose/docker-compose.prod.yml infra/compose/Caddyfile infra/compose/deploy.sh bundle/
+          (umask 077 && printf '%s\n' "$PROD_ENV" > bundle/env)
+
+      - name: Upload bundle
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.APP_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: bundle/docker-compose.prod.yml,bundle/Caddyfile,bundle/deploy.sh,bundle/env
+          target: /opt/beacon/incoming
+          strip_components: 1
+          overwrite: true
+
+      - name: Pull + roll + smoke on the box
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          GHCR_USER: ${{ github.actor }}
+          # Public packages need no login; this covers the window before they are made
+          # public (job token, read-only, expires with the job) or a PAT if provided.
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN || github.token }}
+          DEPLOY_TAG: ${{ env.TAG }}
+        with:
+          host: ${{ secrets.APP_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_USER,GHCR_TOKEN,DEPLOY_TAG
+          command_timeout: 15m
+          script: bash /opt/beacon/incoming/deploy.sh "$DEPLOY_TAG"
+
+      - name: Close SSH window
+        if: always() && steps.sshwindow.outputs.cidr != ''
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id "$APP_SG_ID" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${{ steps.sshwindow.outputs.cidr }}}]" \
+            >/dev/null && echo "port 22 closed for ${{ steps.sshwindow.outputs.cidr }}"
+
+      - name: Public smoke test
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS -m 10 "$API_HEALTH_URL"; then echo; exit 0; fi
+            sleep 6
+          done
+          echo "healthz failed: $API_HEALTH_URL"; exit 1
+
+      - name: Remove bundle
+        if: always()
+        run: rm -rf bundle err.txt
