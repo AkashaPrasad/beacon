@@ -36,7 +36,7 @@ bash scripts/smoke-prod.sh
 The mock server is started with `VITE_MOCK_API=1 VITE_API_URL=http://localhost:4999 pnpm
 --filter @kestrel/web exec vite --host 127.0.0.1 --port 4180`.
 
-The optional worker ONNX model test requires its model on disk and reports a skip when absent.
+The optional worker ONNX model test is enabled with `RUN_MODEL_TESTS=1`; it downloads the public model on first use.
 Mock browser journeys do not establish real Google OAuth success or third-party crawl success;
 production HTTP checks and deployment status are recorded separately.
 
@@ -50,9 +50,9 @@ fallback reviewer instructions. Review screenshots and axe results are local und
 
 - Lint: passes (three non-blocking React/TanStack advisory warnings).
 - Type checking: passes across all workspace packages.
-- Unit/integration: 1,351 passed; one optional worker ONNX-model test skipped because its model is absent.
+- Unit/integration: 1,351 passed in the standard suite; the opt-in real embedding-model test also passed (1,352 distinct tests verified).
 - Build: API, worker, shared package and prerendered web production builds pass.
-- Interaction smoke: 58/58 passed across Chromium desktop and iPhone WebKit, with no skips.
+- Interaction smoke: 87/87 passed across Chromium desktop, Safari desktop and iPhone WebKit, with no skips.
 - Dependency audit: zero vulnerabilities. Secret scans: zero findings in the committable tree,
   Git history, and built assets checked against local secret values.
 - Dashboard accessibility: 68/68 passed across Chromium/iPhone WebKit and light/dark themes,
@@ -75,3 +75,18 @@ headers and SPA routing are shipped in Cloudflare Pages `_headers` and `_redirec
 The design detector reported only the chosen self-hosted font family and a marketing timeline
 marker; the marker was reduced to a hairline. The font follows the recorded product direction.
 The inline finish review substitutes for the unavailable subagent reviewer.
+
+## Production results
+
+- Frontend: `https://beacon.spacesdrive.cc` — Cloudflare Pages deployment succeeded; HTTP 200,
+  SPA routing, service worker, manifest, CORS, TLS and security-header smoke checks pass.
+- API: `https://api-beacon.spacesdrive.cc` — readiness reports MongoDB and Redis up.
+- API and worker: latest application images are healthy on the existing AWS instance;
+  GitHub's backend deployment and public smoke check succeed with the corrected OIDC policy.
+- Real browser journey: a temporary account registered, selected AI-off consent, completed
+  onboarding and reached Radar. Ten dashboard/settings routes loaded without redirects,
+  runtime errors or API server errors. The temporary account was deleted (HTTP 204).
+- Real local embedding model: the opt-in test passed with normalised 384-dimensional vectors,
+  batched inference and semantic ranking assertions; the test completed in 21.61 seconds.
+
+Private env files, credentials and personal browser artefacts remain excluded from commits.

@@ -30,7 +30,7 @@ recorded under [Before the re-scope](#before-the-re-scope) because it is filed w
   missing from `apps/web/src`. All 70 contract ids are present now (`docs/TESTIDS.md`, regenerate
   with `node apps/web/e2e/utils/testids.ts`), so `needs()` skips nothing.
 - Known unit-suite skip, owned by worker: `apps/worker/src/lib/embeddings.model.test.ts` (1 test)
-  runs only when the ONNX model is on disk.
+  runs when `RUN_MODEL_TESTS=1` is set (downloads the public model on first use).
 
 ## How to run
 
