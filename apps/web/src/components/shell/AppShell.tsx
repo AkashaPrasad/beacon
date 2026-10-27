@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 
 import { FullMotionFeatures } from '@/app/motion-provider';
 import { PaletteHost } from '@/components/command-palette/PaletteHost';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useShortcut } from '@/lib/shortcuts';
 import { cn } from '@/lib/utils';
 
@@ -24,9 +25,11 @@ import { TopBar } from './TopBar';
 export function Component() {
   return (
     <ShellSlotsProvider>
-      <FullMotionFeatures>
-        <Layout />
-      </FullMotionFeatures>
+      <TooltipProvider>
+        <FullMotionFeatures>
+          <Layout />
+        </FullMotionFeatures>
+      </TooltipProvider>
     </ShellSlotsProvider>
   );
 }
@@ -36,7 +39,11 @@ function Layout() {
   const hasRail = (slots?.filled.rail ?? 0) > 0;
   const hasDrawer = (slots?.filled.drawer ?? 0) > 0;
   const railCollapsed = useRailCollapsed();
-  useShortcut('[', toggleRail, { description: 'Toggle filter rail', group: 'General', enabled: hasRail });
+  useShortcut('[', toggleRail, {
+    description: 'Toggle filter rail',
+    group: 'General',
+    enabled: hasRail,
+  });
 
   return (
     <div data-testid="app-shell" className="flex min-h-dvh flex-col bg-bg">

@@ -1,5 +1,6 @@
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
+
 import type { ProfileInput } from '@kestrel/shared';
-import { model, models, Schema, type Model, type Types } from 'mongoose';
 
 export interface ResumeMeta {
   fileName: string;
@@ -65,4 +66,4 @@ const profileSchema = new Schema(
 );
 
 export const Profile: Model<ProfileDoc> =
-  (models['Profile'] as Model<ProfileDoc> | undefined) ?? model<ProfileDoc>('Profile', profileSchema as unknown as Schema<ProfileDoc>);
+  (mongoose.models['Profile'] as Model<ProfileDoc> | undefined) ?? model<ProfileDoc>('Profile', profileSchema as unknown as Schema<ProfileDoc>);

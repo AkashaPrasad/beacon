@@ -1,21 +1,30 @@
 import { Navigate, type RouteObject } from 'react-router';
 
 import { LoginScreen } from '@/features/auth/LoginScreen';
-import { LandingScreen } from '@/features/landing/LandingScreen';
+import { publicRoutes } from '@/routes/public';
 
-import { OnboardingIndex, PublicOnly, RequireAuth, RequireConsent, RequireOnboarded } from './guards';
+import {
+  OnboardingIndex,
+  PublicOnly,
+  RequireAuth,
+  RequireConsent,
+  RequireOnboarded,
+} from './guards';
 import { RootLayout } from './RootLayout';
 import { RouteError } from './RouteError';
 
 /**
  * Route table (React Router 7, data mode). Every signed-in screen is a lazy chunk whose module
- * exports `Component`. Landing and login are eager: they are prerendered into static HTML at build time
- * (scripts/prerender.mjs) and hydrated, which is what keeps Lighthouse ≥ 95 on them.
+ * exports `Component` (+ `handle.title` here). `/` and `/login` are eager: they are prerendered into
+ * static HTML at build time (scripts/prerender.mjs) and hydrated. Matching lazy routes are resolved
+ * before the router starts (src/app/lazy-routes.ts), so prerendered lazy pages hydrate too.
  *
- * To add a screen: create `src/features/<feature>/<Name>Screen.tsx` exporting `Component`, then add a
- * route below with `lazy: () => import(...)` and a `handle.title`.
+ * - Marketing/public pages: add them in `src/routes/public.tsx` (spread below), not here.
+ * - A new app screen: `src/features/<feature>/<Name>Screen.tsx` exporting `Component`, then a route in
+ *   the shell branch below with `lazy: () => import(...)` and a `handle.title`.
  */
 const errorElement = <RouteError />;
+const shell = () => import('@/components/shell/AppShell');
 
 export const routes: RouteObject[] = [
   {
@@ -23,12 +32,10 @@ export const routes: RouteObject[] = [
     element: <RootLayout />,
     errorElement,
     children: [
+      ...publicRoutes,
       {
         element: <PublicOnly />,
-        children: [
-          { index: true, element: <LandingScreen />, handle: { title: null } },
-          { path: 'login', element: <LoginScreen />, handle: { title: 'Sign in' } },
-        ],
+        children: [{ path: 'login', element: <LoginScreen />, handle: { title: 'Sign in' } }],
       },
       {
         path: 'auth/callback',
@@ -40,7 +47,12 @@ export const routes: RouteObject[] = [
         element: <RequireAuth />,
         errorElement,
         children: [
-          { path: 'welcome', lazy: () => import('@/features/auth/WelcomeScreen'), handle: { title: 'Before we start' }, errorElement },
+          {
+            path: 'welcome',
+            lazy: () => import('@/features/auth/WelcomeScreen'),
+            handle: { title: 'Before we start' },
+            errorElement,
+          },
           { path: 'onboarding', element: <OnboardingIndex /> },
           {
             element: <RequireConsent />,
@@ -53,17 +65,38 @@ export const routes: RouteObject[] = [
               },
             ],
           },
+          // Ops dashboard: any signed-in account reaches the route; the screen checks `role`
+          // (non-admins get the 404 state). Admins needn't finish onboarding to use it.
+          {
+            lazy: shell,
+            errorElement,
+            children: [
+              {
+                path: 'admin',
+                lazy: () => import('@/features/admin/AdminScreen'),
+                handle: { title: 'Admin' },
+                errorElement,
+              },
+            ],
+          },
           {
             element: <RequireOnboarded />,
             children: [
               {
-                lazy: () => import('@/components/shell/AppShell'),
+                lazy: shell,
                 errorElement,
                 children: [
                   {
-                    path: 'radar/:listingId?',
+                    path: 'radar',
                     lazy: () => import('@/features/radar/RadarScreen'),
                     handle: { title: 'Radar' },
+                    errorElement,
+                  },
+                  // Detail views are full pages with Back (page-based navigation, docs/WEB.md §4).
+                  {
+                    path: 'radar/:listingId',
+                    lazy: () => import('@/features/radar/ListingPage'),
+                    handle: { title: 'Listing' },
                     errorElement,
                   },
                   {
@@ -79,15 +112,52 @@ export const routes: RouteObject[] = [
                     errorElement,
                   },
                   {
+                    path: 'tracker/:id',
+                    lazy: () => import('@/features/tracker/TrackerItemPage'),
+                    handle: { title: 'Tracker' },
+                    errorElement,
+                  },
+                  {
                     path: 'sources',
                     lazy: () => import('@/features/sources/SourcesScreen'),
                     handle: { title: 'Sources' },
+                    errorElement,
+                  },
+                  // The Packs tab of the list (no id).
+                  {
+                    path: 'sources/packs',
+                    lazy: () => import('@/features/sources/SourcesScreen'),
+                    handle: { title: 'Sources' },
+                    errorElement,
+                  },
+                  {
+                    path: 'sources/packs/:id',
+                    lazy: () => import('@/features/sources/PackPage'),
+                    handle: { title: 'Source pack' },
+                    errorElement,
+                  },
+                  {
+                    path: 'sources/:id',
+                    lazy: () => import('@/features/sources/SourcePage'),
+                    handle: { title: 'Source' },
                     errorElement,
                   },
                   {
                     path: 'alerts',
                     lazy: () => import('@/features/alerts/AlertsScreen'),
                     handle: { title: 'Alerts' },
+                    errorElement,
+                  },
+                  {
+                    path: 'alerts/new',
+                    lazy: () => import('@/features/alerts/AlertEditorPage'),
+                    handle: { title: 'New alert rule' },
+                    errorElement,
+                  },
+                  {
+                    path: 'alerts/:id',
+                    lazy: () => import('@/features/alerts/AlertEditorPage'),
+                    handle: { title: 'Alert rule' },
                     errorElement,
                   },
                   {
@@ -115,7 +185,11 @@ export const routes: RouteObject[] = [
           },
         ],
       },
-      { path: '*', lazy: () => import('@/features/not-found/NotFoundScreen'), handle: { title: 'Not found' } },
+      {
+        path: '*',
+        lazy: () => import('@/features/not-found/NotFoundScreen'),
+        handle: { title: 'Not found' },
+      },
     ],
   },
 ];

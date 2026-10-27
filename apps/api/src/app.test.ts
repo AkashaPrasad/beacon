@@ -75,7 +75,7 @@ describe('platform routes', () => {
       .set('Origin', 'http://localhost:5173')
       .set('Access-Control-Request-Method', 'PUT');
     expect(preflight.status).toBe(204);
-    expect(allowedOrigins('https://beacon.test/')).toEqual(['https://beacon.test', 'http://localhost:5173']);
+    expect(allowedOrigins('https://beacon.test/')).toEqual(['https://beacon.test', 'http://localhost:5173', 'http://localhost:4173']);
   });
 
   it('rejects malformed JSON and oversized bodies with the envelope', async () => {

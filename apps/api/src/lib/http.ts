@@ -23,6 +23,11 @@ export interface SafeFetchOptions {
   fetchImpl?: FetchLike;
   /** Resolve DNS and refuse private addresses (default true). Literal IPs are always checked. */
   resolveDns?: boolean;
+  /**
+   * Called with each redirect target; returning true stops there without fetching it (the
+   * 3xx response is returned with `finalUrl` = the target). Used to recognise ATS boards.
+   */
+  stopAtRedirect?: (target: URL) => boolean;
 }
 
 export interface SafeResponse {
@@ -106,7 +111,7 @@ async function readCapped(
   maxBytes: number,
 ): Promise<{ text: string; truncated: boolean }> {
   if (!res.body) return { text: '', truncated: false };
-  const reader = res.body.getReader();
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   let truncated = false;
@@ -115,7 +120,6 @@ async function readCapped(
     if (done) break;
     if (size + value.byteLength > maxBytes) {
       chunks.push(value.subarray(0, maxBytes - size));
-      size = maxBytes;
       truncated = true;
       await reader.cancel().catch(() => undefined);
       break;
@@ -140,6 +144,7 @@ export async function safeFetch(input: string | URL, options: SafeFetchOptions =
     maxRedirects = 3,
     fetchImpl = fetch,
     resolveDns = true,
+    stopAtRedirect,
   } = options;
 
   let url: URL;
@@ -179,6 +184,19 @@ export async function safeFetch(input: string | URL, options: SafeFetchOptions =
         throw new SafeFetchError('too_many_redirects', `More than ${maxRedirects} redirects`);
       }
       url = new URL(location, url);
+      if (stopAtRedirect?.(url)) {
+        return {
+          status: res.status,
+          ok: false,
+          url: startUrl,
+          finalUrl: url.toString(),
+          redirects: hop + 1,
+          headers: res.headers,
+          contentType: (res.headers.get('content-type') ?? '').toLowerCase(),
+          text: '',
+          truncated: false,
+        };
+      }
       if (res.status === 303 || ((res.status === 301 || res.status === 302) && currentMethod === 'POST')) {
         currentMethod = 'GET';
         currentBody = undefined;

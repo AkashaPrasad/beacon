@@ -1,9 +1,9 @@
-import { Skeleton } from '@kestrel/ui';
 import { CloudOff } from 'lucide-react';
 
 import { BeaconMark } from '@/components/brand/BeaconMark';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
+import { Skeleton } from '@kestrel/ui';
 
 /** Shown while `/v1/me` resolves on a cold start: the shell's geometry, so nothing jumps. */
 export function ShellSkeleton() {

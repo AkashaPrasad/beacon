@@ -1,8 +1,8 @@
 import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
-import { useMediaQuery } from '@/lib/use-media-query';
 import { useTheme } from '@/lib/theme/context';
+import { useMediaQuery } from '@/lib/use-media-query';
 
 /**
  * Toasts (DESIGN §6.1): `overlay`, `border`, `shadow-md`, `rounded-lg`, `body` text, a semantic status

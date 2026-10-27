@@ -160,7 +160,10 @@ export function nudgeCopy(nudge: Nudge, company: string): { title: string; body:
     case 'interview_check':
       return { title: `Any news from ${company}?`, body: `Your last interview was ${nudge.days} days ago.` };
     case 'oa_due':
-      return { title: 'Your test is due tomorrow.', body: `${company} assessment deadline is close.` };
+      return {
+        title: nudge.days <= 1 ? 'Your test is due within a day.' : `Your test is due in ${nudge.days} days.`,
+        body: `The ${company} assessment closes soon.`,
+      };
     case 'offer_due':
       return {
         title: `Offer deadline in ${nudge.days} ${nudge.days === 1 ? 'day' : 'days'}.`,

@@ -40,6 +40,15 @@ export function requireAuth(ctx: AppContext): RequestHandler {
   };
 }
 
+/** Mount after `requireAuth`. A signed-in user without the role gets 403 FORBIDDEN. */
+export function requireRole(role: UserDoc['role']): RequestHandler {
+  return (req, _res, next) => {
+    const user = currentUser(req);
+    if (user.doc.role !== role) throw new HttpError(403, 'FORBIDDEN', 'This area is for administrators');
+    next();
+  };
+}
+
 export function currentUser(req: Request): AuthUser {
   if (!req.user) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to continue', { reason: 'missing' });
   return req.user;
@@ -57,12 +66,14 @@ export function setSessionCookie(ctx: AppContext, res: Response, user: Pick<User
   return token;
 }
 
+/** Expire the session cookie with the same attributes it was set with (plus `Max-Age=0`). */
 export function clearSessionCookie(ctx: AppContext, res: Response): void {
-  res.clearCookie(SESSION_COOKIE, {
+  res.cookie(SESSION_COOKIE, '', {
     httpOnly: true,
     secure: ctx.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    maxAge: 0,
   });
 }
 

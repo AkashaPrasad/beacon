@@ -1,13 +1,14 @@
-import type { FitResult } from '@kestrel/shared';
 import type { Types } from 'mongoose';
 import { z } from 'zod';
 
+import type { FitResult } from '@kestrel/shared';
+
 import type { AppContext } from '../context.js';
+import { generateStructured, llmForUser } from './llm.js';
 import { Explanation, type ExplanationDoc } from '../models/activity.js';
 import type { ListingDoc } from '../models/listing.js';
 import type { ProfileDoc } from '../models/profile.js';
 
-import { generateStructured, llmForUser } from './llm.js';
 
 export const explanationLlmSchema = z.object({
   whyFit: z.array(z.string().min(1).max(300)).max(5),

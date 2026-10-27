@@ -1,3 +1,5 @@
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
+
 import type {
   DeadlineKind,
   Eligibility,
@@ -6,7 +8,6 @@ import type {
   PayPeriod,
   RemoteMode,
 } from '@kestrel/shared';
-import { model, models, Schema, type Model, type Types } from 'mongoose';
 
 export interface ApplyCheck {
   status: 'ok' | 'dead' | 'redirect_home' | 'error';
@@ -36,7 +37,10 @@ export interface ListingDoc {
   skillsNice: string[];
   descriptionMd: string;
   applyUrl: string;
+  /** Last source that wrote the content. */
   sourceId: Types.ObjectId;
+  /** Every source the listing was seen in (worker-maintained); visibility checks use both. */
+  sourceIds?: Types.ObjectId[];
   canonicalKey: string;
   contentHash: string;
   firstSeenAt: Date;
@@ -76,6 +80,7 @@ const listingSchema = new Schema(
     descriptionMd: { type: String, default: '' },
     applyUrl: { type: String, required: true },
     sourceId: { type: Schema.Types.ObjectId, required: true, ref: 'Source', index: true },
+    sourceIds: { type: [Schema.Types.ObjectId], default: undefined },
     canonicalKey: { type: String, required: true, unique: true },
     contentHash: { type: String, required: true },
     firstSeenAt: { type: Date, required: true },
@@ -96,4 +101,4 @@ listingSchema.index({ postedAt: -1 });
 listingSchema.index({ company: 1 });
 
 export const Listing: Model<ListingDoc> =
-  (models['Listing'] as Model<ListingDoc> | undefined) ?? model<ListingDoc>('Listing', listingSchema as unknown as Schema<ListingDoc>);
+  (mongoose.models['Listing'] as Model<ListingDoc> | undefined) ?? model<ListingDoc>('Listing', listingSchema as unknown as Schema<ListingDoc>);

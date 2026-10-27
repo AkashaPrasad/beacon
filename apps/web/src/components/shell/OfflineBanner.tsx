@@ -1,8 +1,8 @@
-import { variants } from '@kestrel/ui';
 import { WifiOff } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 
 import { useIsOffline } from '@/lib/connectivity';
+import { variants } from '@kestrel/ui';
 
 /** Top strip with copy #22 while offline (navigator.onLine or a failed /healthz probe). */
 export function OfflineBanner() {

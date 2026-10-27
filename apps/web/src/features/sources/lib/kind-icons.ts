@@ -1,5 +1,6 @@
-import type { SourceKind } from '@kestrel/shared';
 import { Braces, Globe, Network, Plug, Rss, Search, type LucideIcon } from 'lucide-react';
+
+import type { SourceKind } from '@kestrel/shared';
 
 /** ATS (free API) · public API · feed · crawler (credits). lucide only (DESIGN §7). */
 export const KIND_ICONS: Record<SourceKind, LucideIcon> = {

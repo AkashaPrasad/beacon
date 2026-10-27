@@ -4,7 +4,9 @@ import { useShortcut } from '@/lib/shortcuts';
 
 import { openPalette, togglePalette, usePaletteOpen } from './registry';
 
-const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.Component })));
+const CommandPalette = lazy(() =>
+  import('./CommandPalette').then((m) => ({ default: m.Component })),
+);
 
 /** Mounts the palette chunk on first open, keeps it mounted afterwards (instant re-open). */
 export function PaletteHost() {

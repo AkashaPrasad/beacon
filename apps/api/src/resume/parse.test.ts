@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { SAMPLE_RESUME_TEXT } from '../test/resume-fixtures.js';
-
 import {
   classifyLink,
   extractEmails,
@@ -14,6 +12,8 @@ import {
   parseResumeText,
   splitSections,
 } from './parse.js';
+import { SAMPLE_RESUME_TEXT } from '../test/resume-fixtures.js';
+
 
 describe('parseResumeText (deterministic)', () => {
   const result = parseResumeText(SAMPLE_RESUME_TEXT);

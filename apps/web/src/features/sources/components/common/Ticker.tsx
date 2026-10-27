@@ -1,8 +1,8 @@
-import { MOTION_LIMITS, springs, tweens } from '@kestrel/ui';
 import { AnimatePresence, m } from 'motion/react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
+import { MOTION_LIMITS, springs, tweens } from '@kestrel/ui';
 
 /**
  * Live count that rolls when it changes (MOTION §5.8 digit roll, simplified to the whole number):

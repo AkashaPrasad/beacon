@@ -2,6 +2,7 @@
  * Sources table view model (pure): personal sources + subscribed community sources → one row list
  * with display health, pack names and capabilities (community rows are shared: read-only here).
  */
+import type { CommunityRow, PackDTO, SourceRow } from '@/api/sources';
 import type { OpportunityType, RefreshInterval, SourceHealth, SourceKind } from '@kestrel/shared';
 
 import {
@@ -12,7 +13,6 @@ import {
   type DisplayHealth,
 } from './health';
 
-import type { CommunityRow, PackDTO, SourceRow } from '@/api/sources';
 
 export interface SourceTableRow {
   id: string;
@@ -130,6 +130,18 @@ function toRow(
     editable: scope === 'personal',
     optimistic: Boolean((s as SourceRow).optimistic),
   };
+}
+
+/** One source as a display row (the source page), personal or from a pack. */
+export function sourceRowFrom(
+  s: SourceRow | CommunityRow,
+  packs: readonly PackDTO[],
+  mode: CreditMode | null,
+): SourceTableRow {
+  if (s.scope === 'personal') return toRow(s, 'personal', null, mode);
+  const pack = packs.find((p) => p.id === s.packId);
+  const subscribed = 'subscribed' in s ? s.subscribed : (pack?.enabled ?? false);
+  return toRow({ ...s, subscribed } as CommunityRow, 'pack', pack?.name ?? s.packId, mode);
 }
 
 export function buildRows(

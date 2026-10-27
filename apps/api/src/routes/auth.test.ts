@@ -141,8 +141,8 @@ describe('POST /v1/auth/google', () => {
       expect(opts.redirect_uri).toBe('https://beacon.test/auth/callback');
       return Promise.resolve({ tokens: { id_token: 'id-from-code' } });
     }) as never);
-    vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockImplementation((() =>
-      Promise.resolve({ getPayload: () => ({ sub: 'g-2', email: 'c@example.com', email_verified: true }) })) as never);
+    const ticket = { getPayload: () => ({ sub: 'g-2', email: 'c@example.com', email_verified: true }) };
+    vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue(ticket as never);
     const verifier = createGoogleVerifier('client-123', 'secret');
     await expect(verifier.exchangeCode('good-code', 'https://beacon.test/auth/callback')).resolves.toMatchObject({
       sub: 'g-2',
@@ -227,7 +227,13 @@ describe('session handling (requireAuth)', () => {
     const { app } = buildTestApp();
     const res = await request(app).post('/v1/auth/logout').set(csrf);
     expect(res.status).toBe(204);
-    expect(sessionCookie(res)).toMatch(/Expires=Thu, 01 Jan 1970/);
+    const cleared = sessionCookie(res)!;
+    // Same attributes as when it was set, so browsers and scripts/security-check.sh accept it.
+    expect(cleared).toMatch(/^beacon_session=;/);
+    expect(cleared).toMatch(/Max-Age=0/);
+    expect(cleared).toMatch(/HttpOnly/i);
+    expect(cleared).toMatch(/SameSite=Lax/i);
+    expect(cleared).toMatch(/Path=\//);
   });
 });
 

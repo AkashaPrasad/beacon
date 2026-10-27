@@ -2,9 +2,9 @@
  * Source health and crawl-credit display rules (DESIGN §6.1 credit meter, §10.5 sources table,
  * BRIEF #3 cloud → self-hosted standby).
  */
+import type { CreditsResponse } from '@/api/types';
 import type { SourceHealth, SourceKind } from '@kestrel/shared';
 
-import type { CreditsResponse } from '@/api/types';
 
 /** API §5 CreditsResponse. */
 export type Credits = CreditsResponse;

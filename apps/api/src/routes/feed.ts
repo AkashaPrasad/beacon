@@ -1,8 +1,9 @@
-import { computeFit, normaliseWeights, type FitResult, type GhostReason } from '@kestrel/shared';
 import { Router } from 'express';
 import { marked } from 'marked';
 import type { Types } from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
+
+import { computeFit, normaliseWeights, type FitResult, type GhostReason } from '@kestrel/shared';
 
 import { explainListing } from '../ai/explain.js';
 import type { AppContext } from '../context.js';
@@ -21,7 +22,7 @@ import { getFeed, getFeedSummary } from '../services/feed.js';
 import { pickProfileFields } from '../services/profile.js';
 import { toFitResult, toListingPublic } from '../services/serialize.js';
 import { getSettings } from '../services/settings.js';
-import { canSeeListing } from '../services/visibility.js';
+import { canSeeListing, getVisibility, visibleSourceFilter } from '../services/visibility.js';
 
 const SANITIZE: sanitizeHtml.IOptions = {
   allowedTags: [
@@ -73,18 +74,24 @@ async function fitFor(userId: Types.ObjectId, listing: ListingDoc, profile: Prof
 }
 
 async function similarListings(userId: Types.ObjectId, listing: ListingDoc) {
+  const { sourceIds } = await getVisibility(userId);
   const ids: Types.ObjectId[] = [];
   if (listing.embedding?.length) {
-    const near = await candidatesForUser(listing.embedding, { excludeIds: [listing._id] }, 6);
+    const near = await candidatesForUser(listing.embedding, { excludeIds: [listing._id], sourceIds }, 6);
     ids.push(...near.map((c) => objectIdParam(c.listingId)));
   }
   const related = await Listing.find(
     {
       _id: { $ne: listing._id, $nin: ids },
       archived: { $ne: true },
-      $or: [
-        { company: { $regex: `^${escapeRegex(listing.company)}$`, $options: 'i' } },
-        ...(listing.roleFamily ? [{ roleFamily: listing.roleFamily }] : []),
+      $and: [
+        visibleSourceFilter(sourceIds),
+        {
+          $or: [
+            { company: { $regex: `^${escapeRegex(listing.company)}$`, $options: 'i' } },
+            ...(listing.roleFamily ? [{ roleFamily: listing.roleFamily }] : []),
+          ],
+        },
       ],
     },
     { _id: 1 },

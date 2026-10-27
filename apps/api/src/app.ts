@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express, { Router, type Express } from 'express';
+import helmet from 'helmet';
+import { pinoHttp } from 'pino-http';
+
 import {
   OPPORTUNITY_TYPE_LABELS,
   OPPORTUNITY_TYPES,
@@ -8,17 +14,14 @@ import {
   TRACKER_STAGE_LABELS,
   TRACKER_STAGES,
 } from '@kestrel/shared';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
-import express, { Router, type Express } from 'express';
-import helmet from 'helmet';
-import { pinoHttp } from 'pino-http';
 
 import { createContext, type AppContext, type ContextInput } from './context.js';
-import { csrfGuard, requireAuth } from './middleware/auth.js';
+import { verifySession } from './lib/jwt.js';
+import { csrfGuard, requireAuth, sessionToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { DOCS_HTML, openApiDocument } from './openapi.js';
+import { createAdminRouter } from './routes/admin.js';
 import { createAlertsRouter, createPublicPushRouter } from './routes/alerts.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createFeedRouter } from './routes/feed.js';
@@ -30,10 +33,30 @@ import { loadPacks } from './seed/packs.js';
 
 export const API_VERSION = '1.0.0';
 
+/** `WEB_URL` plus the Vite dev server (5173) and the preview server used by e2e (4173). */
 export function allowedOrigins(webUrl: string): string[] {
-  const origins = new Set([new URL(webUrl).origin, 'http://localhost:5173']);
+  const origins = new Set([new URL(webUrl).origin, 'http://localhost:5173', 'http://localhost:4173']);
   return [...origins];
 }
+
+/**
+ * Path prefixes (under /v1) that need a session. Everything else under /v1 is public or a
+ * 404, so an unknown route answers 404 instead of 401.
+ */
+export const AUTHED_PREFIXES = [
+  '/profile',
+  '/sources',
+  '/feed',
+  '/listings',
+  '/tracker',
+  '/alerts',
+  '/push/subscriptions',
+  '/push/test',
+  '/notifications',
+  '/settings',
+  '/account',
+  '/admin',
+];
 
 export function createApp(input: ContextInput | AppContext): Express {
   const ctx = createContext(input);
@@ -85,7 +108,13 @@ export function createApp(input: ContextInput | AppContext): Express {
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
-  app.get('/healthz', (_req, res) => {
+  app.get('/healthz', (req, res) => {
+    if (req.query['mem'] === '1' || req.query['mem'] === 'true') {
+      // Soak-test sampling (scripts/load-test.mjs --soak); process memory only, nothing else.
+      const { rss, heapUsed, heapTotal, external } = process.memoryUsage();
+      res.json({ ok: true, mem: { rss, heapUsed, heapTotal, external } });
+      return;
+    }
     res.json({ ok: true });
   });
   app.get('/readyz', async (_req, res) => {
@@ -94,7 +123,13 @@ export function createApp(input: ContextInput | AppContext): Express {
     res.status(ok ? 200 : 503).json({ ok, mongo: mongo ? 'up' : 'down', redis: redis ? 'up' : 'down' });
   });
 
-  app.use(createRateLimiter('global', ctx.rateLimits.global, ctx.redis, 'ip'));
+  app.use(
+    createRateLimiter('global', ctx.rateLimits.global, ctx.redis, 'session', (req) => {
+      const token = sessionToken(req);
+      const result = token ? verifySession(token, ctx.jwtSecret) : null;
+      return result?.ok ? result.claims.sub : null;
+    }),
+  );
 
   app.get('/openapi.json', (_req, res) => {
     res.json(openApiDocument(ctx.env.API_URL));
@@ -118,15 +153,14 @@ export function createApp(input: ContextInput | AppContext): Express {
   v1.use(createAuthRouter(ctx));
   v1.use(createPublicPushRouter(ctx));
 
-  const authed = Router();
-  authed.use(requireAuth(ctx));
-  authed.use(createProfileRouter(ctx));
-  authed.use(createSourcesRouter(ctx));
-  authed.use(createFeedRouter(ctx));
-  authed.use(createTrackerRouter(ctx));
-  authed.use(createAlertsRouter(ctx));
-  authed.use(createSettingsRouter(ctx));
-  v1.use(authed);
+  v1.use(AUTHED_PREFIXES, requireAuth(ctx));
+  v1.use(createProfileRouter(ctx));
+  v1.use(createSourcesRouter(ctx));
+  v1.use(createFeedRouter(ctx));
+  v1.use(createTrackerRouter(ctx));
+  v1.use(createAlertsRouter(ctx));
+  v1.use(createSettingsRouter(ctx));
+  v1.use(createAdminRouter(ctx));
 
   app.use('/v1', v1);
   app.use(notFoundHandler);

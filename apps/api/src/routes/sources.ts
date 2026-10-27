@@ -1,3 +1,6 @@
+import { Router } from 'express';
+import type { Types } from 'mongoose';
+
 import {
   decodeCursor,
   detectSourceRequestSchema,
@@ -6,11 +9,9 @@ import {
   sourceUpdateSchema,
   tryNormaliseUrl,
 } from '@kestrel/shared';
-import { Router } from 'express';
-import type { Types } from 'mongoose';
 
 import type { AppContext } from '../context.js';
-import { badCursor, badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
+import { badCursor, badRequest, conflict, forbidden, HttpError, notFound } from '../lib/errors.js';
 import { redisKeys, utcDay, withTimeout } from '../lib/redis.js';
 import { escapeRegex, objectIdParam, parse } from '../lib/validate.js';
 import { currentUser } from '../middleware/auth.js';
@@ -37,7 +38,10 @@ async function packDTO(userId: Types.ObjectId, pack: PackInfo) {
   };
 }
 
-function enqueueIngest(ctx: AppContext, sourceId: string, reason: 'created' | 'enabled' | 'pack') {
+/** Community sources are shared: a manual refresh is refused while the last check is this fresh. */
+export const COMMUNITY_REFRESH_MIN_AGE_MS = 15 * 60_000;
+
+function enqueueIngest(ctx: AppContext, sourceId: string, reason: 'created' | 'enabled' | 'pack' | 'manual') {
   return ctx.queue.add('ingest', { sourceId, reason }, { dedupId: `ingest:${sourceId}`, dedupTtlMs: 60_000 });
 }
 
@@ -48,6 +52,7 @@ function enqueueMatch(ctx: AppContext, userId: string) {
 export function createSourcesRouter(ctx: AppContext): Router {
   const router = Router();
   const detectLimiter = createRateLimiter('detect', ctx.rateLimits.detect, ctx.redis, 'user');
+  const refreshLimiter = createRateLimiter('refresh', ctx.rateLimits.refresh, ctx.redis, 'user');
   const detectDeps = () => ({
     fetchImpl: ctx.fetch,
     resolveDns: ctx.resolveDns,
@@ -67,7 +72,7 @@ export function createSourcesRouter(ctx: AppContext): Router {
   router.get('/sources/credits', async (req, res) => {
     const { id } = currentUser(req);
     const day = utcDay(ctx.now());
-    let values: (string | null)[] = [null, null, null, null];
+    let values: (string | null)[] = [null, null, null, null, null, null];
     try {
       values = await withTimeout(
         ctx.redis.mget(
@@ -75,6 +80,8 @@ export function createSourcesRouter(ctx: AppContext): Router {
           redisKeys.crawlerSelfHosted(day),
           redisKeys.crawlerUser(id, day),
           redisKeys.crawlerBackend,
+          redisKeys.crawlerBackendReason,
+          redisKeys.crawlerCloudRemaining,
         ),
         1_500,
         'credits',
@@ -90,6 +97,9 @@ export function createSourcesRouter(ctx: AppContext): Router {
       selfHostedUsedToday: num(values[1]),
       backend: values[3] === 'selfhosted' ? 'selfhosted' : 'cloud',
       userUsedToday: num(values[2]),
+      // Worker extras (docs/WORKER.md §7): why it switched, and the last cloud balance check.
+      backendReason: values[4] ?? null,
+      cloudRemaining: values[5] !== null && values[5] !== undefined && Number.isFinite(Number(values[5])) ? Number(values[5]) : null,
     });
   });
 
@@ -238,6 +248,27 @@ export function createSourcesRouter(ctx: AppContext): Router {
     if (!updated) throw notFound('Source');
     if (patch.enabled === true && !before.enabled) await enqueueIngest(ctx, updated._id.toString(), 'enabled');
     res.json({ source: toSourceDTO(updated) });
+  });
+
+  router.post('/sources/:id/refresh', refreshLimiter, async (req, res) => {
+    const { _id } = currentUser(req);
+    const doc = await loadOwned(_id, req.params['id'], true);
+    if (doc.scope === 'community' && !(await Subscription.exists({ userId: _id, sourceId: doc._id }))) {
+      throw notFound('Source');
+    }
+    if (!doc.enabled) throw conflict('Enable this source to refresh it', { reason: 'disabled' });
+    const last = doc.lastCheckedAt ? new Date(doc.lastCheckedAt).getTime() : 0;
+    const age = ctx.now().getTime() - last;
+    if (doc.scope === 'community' && age < COMMUNITY_REFRESH_MIN_AGE_MS) {
+      throw conflict('This shared source was checked moments ago', {
+        reason: 'recently_checked',
+        lastCheckedAt: doc.lastCheckedAt,
+        retryAfterSeconds: Math.ceil((COMMUNITY_REFRESH_MIN_AGE_MS - age) / 1000),
+      });
+    }
+    const jobId = await enqueueIngest(ctx, doc._id.toString(), 'manual');
+    if (!jobId) throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'The ingest queue is unavailable; try again shortly');
+    res.status(202).json({ queued: true, jobId, source: toSourceDTO(doc) });
   });
 
   router.delete('/sources/:id', async (req, res) => {

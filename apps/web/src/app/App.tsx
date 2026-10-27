@@ -3,7 +3,6 @@ import { PersistQueryClientProvider, type Persister } from '@tanstack/react-quer
 import { useEffect, type ReactNode } from 'react';
 import { RouterProvider, type createBrowserRouter } from 'react-router';
 
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { persistOptions } from '@/lib/query-client';
 import { installShortcutListener } from '@/lib/shortcuts';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
@@ -12,7 +11,15 @@ import { MotionProvider } from './motion-provider';
 
 type Router = ReturnType<typeof createBrowserRouter>;
 
-function QueryProvider({ client, persister, children }: { client: QueryClient; persister?: Persister; children: ReactNode }) {
+function QueryProvider({
+  client,
+  persister,
+  children,
+}: {
+  client: QueryClient;
+  persister?: Persister;
+  children: ReactNode;
+}) {
   useEffect(() => {
     if (!persister) return undefined;
     // Signing out wipes the persisted cache too (privacy: shared computers).
@@ -22,7 +29,12 @@ function QueryProvider({ client, persister, children }: { client: QueryClient; p
   }, [persister]);
   if (!persister) return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   return (
-    <PersistQueryClientProvider client={client} persistOptions={persistOptions(persister)}>
+    <PersistQueryClientProvider
+      client={client}
+      persistOptions={persistOptions(persister)}
+      // Writes queued while offline in a previous session resume once the cache is restored.
+      onSuccess={() => void client.resumePausedMutations()}
+    >
       {children}
     </PersistQueryClientProvider>
   );
@@ -42,9 +54,8 @@ export function App({ router, queryClient, persister }: AppProps) {
     <ThemeProvider>
       <MotionProvider>
         <QueryProvider client={queryClient} persister={persister}>
-          <TooltipProvider>
-            <RouterProvider router={router} />
-          </TooltipProvider>
+          {/* Tooltips live in the app shell (TooltipProvider there): public pages ship without Radix. */}
+          <RouterProvider router={router} />
         </QueryProvider>
       </MotionProvider>
     </ThemeProvider>

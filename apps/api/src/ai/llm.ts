@@ -6,10 +6,11 @@
  * to the deterministic path.
  */
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { AiProvider } from '@kestrel/shared';
 import { generateObject, generateText, type LanguageModelUsage } from 'ai';
 import type { Types } from 'mongoose';
 import type { z } from 'zod';
+
+import type { AiProvider } from '@kestrel/shared';
 
 import type { AppContext } from '../context.js';
 import { aiKeyAad, decryptSecret } from '../lib/crypto.js';

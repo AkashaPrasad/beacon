@@ -55,7 +55,6 @@ export interface DetectDeps {
   timeoutMs?: number;
 }
 
-const TOKEN = '([A-Za-z0-9][A-Za-z0-9_.%-]*)';
 const RESERVED_TOKENS = new Set(['embed', 'v1', 'v0', 'api', 'j', 'jobs', 'job', 'apply', 'en', 'static', 'assets', 'js']);
 
 const okToken = (t: string | undefined): t is string => Boolean(t) && !RESERVED_TOKENS.has(t!.toLowerCase());
@@ -137,7 +136,8 @@ export function findAtsInHtml(html: string): AtsMatch | null {
     [/(?:careers|jobs)\.smartrecruiters\.com\/([A-Za-z0-9_-]+)/gi, (m) => (okToken(m[1]) ? { kind: 'smartrecruiters', token: m[1] } : null)],
     [/apply\.workable\.com\/([A-Za-z0-9_-]+)/gi, (m) => (okToken(m[1]) ? { kind: 'workable', token: m[1] } : null)],
     [
-      /([a-z0-9-]+)\.(wd\d+)\.myworkdayjobs\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?([A-Za-z0-9_-]+)/g,
+      // Lookbehind + bounded tenant: an unanchored `[a-z0-9-]+` is quadratic on long runs of letters.
+      /(?<![a-z0-9-])([a-z0-9-]{1,63})\.(wd\d{1,3})\.myworkdayjobs\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?([A-Za-z0-9_-]{1,200})/g,
       (m) => (m[1] && m[2] && okToken(m[3]) ? { kind: 'workday', token: m[1], wdHost: m[2], site: m[3] } : null),
     ],
   ];
@@ -275,7 +275,7 @@ export function atsApiUrl(match: AtsMatch): { apiUrl: string; method: 'GET' | 'P
       return { apiUrl: `https://www.workable.com/api/accounts/${t}?details=true`, method: 'GET' };
     case 'workday':
       return {
-        apiUrl: `https://${match.token}.${match.wdHost}.myworkdayjobs.com/wday/cxs/${match.token}/${match.site}/jobs`,
+        apiUrl: `https://${match.token}.${match.wdHost ?? 'wd1'}.myworkdayjobs.com/wday/cxs/${match.token}/${match.site ?? ''}/jobs`,
         method: 'POST',
         body: WORKDAY_BODY,
       };
@@ -378,9 +378,9 @@ async function atsResult(
   const valid = preview.ok && !empty;
   let message: string;
   if (valid) {
-    message = `Detected: ${label} board \`${match.token}\` → ${preview.count ?? 'some'} ${preview.count === 1 ? 'job' : 'jobs'}`;
+    message = `Detected: ${label} board \`${match.token}\` → ${preview.count === null ? 'some' : String(preview.count)} ${preview.count === 1 ? 'job' : 'jobs'}`;
   } else if (notFound) {
-    message = `${label} board "${match.token}" was not found (HTTP ${preview.status}). Check the board token.`;
+    message = `${label} board "${match.token}" was not found (HTTP ${String(preview.status)}). Check the board token.`;
   } else if (empty) {
     message =
       match.kind === 'smartrecruiters'
@@ -527,7 +527,12 @@ export async function detectSource(input: string, deps: DetectDeps = {}): Promis
   const companyDomain = companyDomainOf(target);
   let page: SafeResponse;
   try {
-    page = await safeFetch(target, { ...fetchOpts, headers: { accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' } });
+    page = await safeFetch(target, {
+      ...fetchOpts,
+      headers: { accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+      // A careers URL that redirects to an ATS board needs no second fetch of the board page.
+      stopAtRedirect: (next) => matchAtsUrl(next) !== null,
+    });
   } catch (err) {
     if (err instanceof SafeFetchError && (err.reason === 'blocked_host' || err.reason === 'bad_url')) {
       throw badRequest(err.message);

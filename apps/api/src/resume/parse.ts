@@ -3,6 +3,8 @@
  * Works for the common single-column student resume; anything it cannot find is left empty
  * and reported in `warnings` so the user can fill it in.
  */
+import type { z } from 'zod';
+
 import {
   classifyRole,
   educationSchema,
@@ -15,7 +17,6 @@ import {
   type DegreeLevel,
   type ExtractedSkill,
 } from '@kestrel/shared';
-import type { z } from 'zod';
 
 import { cleanText } from './extract.js';
 
@@ -581,7 +582,7 @@ export function parseProjects(lines: string[]): ParsedProfile['projects'] {
 function parseLanguages(lines: string[]): ParsedProfile['languages'] {
   const out: ParsedProfile['languages'] = [];
   for (const part of lines.join(',').split(/[,|•;/]+/)) {
-    const m = /^\s*([A-Za-zÀ-ɏऀ-ॿ ]{2,40}?)\s*(?:\(([^)]+)\))?\s*$/.exec(part);
+    const m = /^\s*([A-Za-z\u00C0-\u024F\p{Script=Devanagari} ]{2,40}?)\s*(?:\(([^)]+)\))?\s*$/u.exec(part);
     if (!m?.[1]) continue;
     const level = (m[2] ?? '').toLowerCase();
     const proficiency = /native|mother/.test(level)

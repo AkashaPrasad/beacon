@@ -1,6 +1,7 @@
-import { Bell, Keyboard, LogOut, Moon, Plus, Settings, User } from 'lucide-react';
+import { Activity, Bell, Keyboard, LogOut, Moon, Plus, Settings, User } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
+import { isAdmin, useMe } from '@/api/me';
 import { useCommandItems } from '@/components/command-palette/registry';
 import { useShortcut } from '@/lib/shortcuts';
 import { useTheme } from '@/lib/theme/context';
@@ -18,6 +19,8 @@ export function GlobalCommands() {
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
   const signOut = useSignOut();
+  const { data: me } = useMe();
+  const admin = isAdmin(me);
   const go = (to: string) => void navigate(to, { viewTransition: true });
 
   useShortcut('g r', () => go('/radar'), { description: 'Go to Radar', group: 'Go to' });
@@ -26,12 +29,22 @@ export function GlobalCommands() {
   useShortcut('g s', () => go('/sources'), { description: 'Go to Sources', group: 'Go to' });
   useShortcut('g a', () => go('/alerts'), { description: 'Go to Alerts', group: 'Go to' });
   useShortcut('g p', () => go('/profile'), { description: 'Go to Profile', group: 'Go to' });
-  useShortcut('g ,', () => go('/settings/appearance'), { description: 'Go to Settings', group: 'Go to' });
-  useShortcut('?', () => openSheet('shortcuts'), { description: 'Keyboard shortcuts', group: 'General' });
+  useShortcut('g ,', () => go('/settings/appearance'), {
+    description: 'Go to Settings',
+    group: 'Go to',
+  });
+  useShortcut('?', () => openSheet('shortcuts'), {
+    description: 'Keyboard shortcuts',
+    group: 'General',
+  });
   useShortcut('u', () => undoLast(), { description: 'Undo last action', group: 'General' });
-  useShortcut('mod+z', (e) => {
-    if (!undoLast()) e.preventDefault();
-  }, { group: 'General' });
+  useShortcut(
+    'mod+z',
+    (e) => {
+      if (!undoLast()) e.preventDefault();
+    },
+    { group: 'General' },
+  );
 
   useCommandItems(
     () => [
@@ -43,8 +56,34 @@ export function GlobalCommands() {
         shortcut: item.chord,
         perform: () => go(item.to),
       })),
-      { id: 'go.profile', group: 'Go to', label: 'Profile', icon: User, shortcut: 'g p', perform: () => go('/profile') },
-      { id: 'go.notifications', group: 'Go to', label: 'Notifications', icon: Bell, perform: () => go('/notifications') },
+      {
+        id: 'go.profile',
+        group: 'Go to',
+        label: 'Profile',
+        icon: User,
+        shortcut: 'g p',
+        perform: () => go('/profile'),
+      },
+      {
+        id: 'go.notifications',
+        group: 'Go to',
+        label: 'Notifications',
+        icon: Bell,
+        perform: () => go('/notifications'),
+      },
+      ...(admin
+        ? [
+            {
+              id: 'go.admin',
+              group: 'Go to',
+              label: 'Admin',
+              hint: 'Ops overview',
+              keywords: ['ops', 'queues', 'crawler', 'health'],
+              icon: Activity,
+              perform: () => go('/admin'),
+            },
+          ]
+        : []),
       {
         id: 'action.add-source',
         group: 'Actions',
@@ -53,19 +92,44 @@ export function GlobalCommands() {
         icon: Plus,
         perform: () => go('/sources?add=1'),
       },
-      { id: 'action.theme', group: 'Actions', label: 'Toggle theme', keywords: ['dark', 'light'], icon: Moon, perform: toggleTheme },
-      { id: 'action.shortcuts', group: 'Actions', label: 'Keyboard shortcuts', icon: Keyboard, shortcut: '?', perform: () => openSheet('shortcuts') },
-      { id: 'action.sign-out', group: 'Actions', label: 'Sign out', icon: LogOut, perform: signOut },
+      {
+        id: 'action.theme',
+        group: 'Actions',
+        label: 'Toggle theme',
+        keywords: ['dark', 'light'],
+        icon: Moon,
+        perform: toggleTheme,
+      },
+      {
+        id: 'action.shortcuts',
+        group: 'Actions',
+        label: 'Keyboard shortcuts',
+        icon: Keyboard,
+        shortcut: '?',
+        perform: () => openSheet('shortcuts'),
+      },
+      {
+        id: 'action.sign-out',
+        group: 'Actions',
+        label: 'Sign out',
+        icon: LogOut,
+        perform: signOut,
+      },
       ...(['appearance', 'ai', 'notifications', 'privacy'] as const).map((tab) => ({
         id: `settings.${tab}`,
         group: 'Settings',
-        label: { appearance: 'Appearance', ai: 'AI & keys', notifications: 'Notifications', privacy: 'Privacy & data' }[tab],
+        label: {
+          appearance: 'Appearance',
+          ai: 'AI & keys',
+          notifications: 'Notifications',
+          privacy: 'Privacy & data',
+        }[tab],
         icon: Settings,
         perform: () => go(`/settings/${tab}`),
       })),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [toggleTheme],
+
+    [toggleTheme, admin],
   );
   return null;
 }

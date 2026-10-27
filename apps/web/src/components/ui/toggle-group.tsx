@@ -3,8 +3,8 @@ import { m } from 'motion/react';
 import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
 import * as React from 'react';
 
-import { springs } from '@kestrel/ui';
 import { cn } from '@/lib/utils';
+import { springs } from '@kestrel/ui';
 
 import { toggleVariants } from './toggle-variants';
 
@@ -40,15 +40,13 @@ function ToggleGroup({
   ...props
 }: ToggleGroupProps) {
   const layoutId = React.useId();
-  const [internal, setInternal] = React.useState<string | string[] | undefined>(
-    props.defaultValue as string | string[] | undefined,
-  );
-  const active = (props.value as string | string[] | undefined) ?? internal;
+  const [internal, setInternal] = React.useState<string | string[] | undefined>(props.defaultValue);
+  const active = props.value ?? internal;
   const rootProps = {
     ...props,
     onValueChange: (next: string & string[]) => {
       setInternal(next);
-      (props.onValueChange as ((v: string & string[]) => void) | undefined)?.(next);
+      props.onValueChange?.(next);
     },
   } as React.ComponentProps<typeof ToggleGroupPrimitive.Root>;
 

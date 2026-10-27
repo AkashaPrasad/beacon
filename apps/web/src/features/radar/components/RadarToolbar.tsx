@@ -7,13 +7,10 @@
  * - View switch List / Timeline / Board (keys 1 2 3) with a sliding indicator (MOTION §5.13).
  * - Sort: Best fit / Deadline / Newest.
  */
-import { fitBandOf, layoutIds, springs } from '@kestrel/ui';
-import { ArrowDownWideNarrow, CalendarRange, LayoutGrid, List, Search, X } from 'lucide-react';
+import { ArrowDownWideNarrow, CalendarRange, ChevronDown, LayoutGrid, List, Search, X } from 'lucide-react';
 import { LayoutGroup, m } from 'motion/react';
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { clampMinFit, FIT_STEP, type RadarSort, type RadarView } from '../lib/filters';
-import { formatCount } from '../lib/format';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -23,9 +20,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { fitBandOf, layoutIds, springs } from '@kestrel/ui';
+
+import { clampMinFit, FIT_STEP, type RadarSort, type RadarView } from '../lib/filters';
+import { formatCount } from '../lib/format';
 
 // ── Search ───────────────────────────────────────────────────────────────────
 
@@ -121,14 +123,32 @@ const BAND_THUMB: Record<string, string> = {
 export interface FitThresholdProps {
   value: number;
   onChange: (value: number) => void;
+  /** Every intermediate value while dragging (drives the live count). */
+  onDraft?: (value: number) => void;
   /** Listings at or above the current threshold (null while unknown). */
   count: number | null;
   pending: boolean;
+  /** "fit" / "fits" by default; the deadlines page counts "deadline(s)". */
+  noun?: [singular: string, plural: string];
+  testId?: string;
+  countTestId?: string;
+  sliderClassName?: string;
   className?: string;
 }
 
 /** Slider commits on release / keyboard step (debounced while dragging), so the feed refetches once. */
-export function FitThreshold({ value, onChange, count, pending, className }: FitThresholdProps) {
+export function FitThreshold({
+  value,
+  onChange,
+  onDraft,
+  count,
+  pending,
+  noun = ['fit', 'fits'],
+  testId = 'radar-fit-threshold',
+  countTestId = 'radar-total',
+  sliderClassName,
+  className,
+}: FitThresholdProps) {
   const [draft, setDraft] = useState(value);
   const [synced, setSynced] = useState(value);
   if (value !== synced) {
@@ -145,8 +165,8 @@ export function FitThreshold({ value, onChange, count, pending, className }: Fit
     onChange(next);
   };
   return (
-    <div data-testid="radar-fit-threshold" className={cn('flex shrink-0 items-center gap-2', className)}>
-      <span className="text-small whitespace-nowrap text-fg-secondary" id="radar-fit-label">
+    <div data-testid={testId} className={cn('flex shrink-0 items-center gap-2', className)}>
+      <span className="text-small whitespace-nowrap text-fg-secondary" aria-hidden="true">
         Fit
       </span>
       <Slider
@@ -154,11 +174,11 @@ export function FitThreshold({ value, onChange, count, pending, className }: Fit
         min={0}
         max={100}
         step={FIT_STEP}
-        aria-labelledby="radar-fit-label"
         thumbLabels={[`Minimum fit, ${draft}, ${band.label.toLowerCase()} and above`]}
         onValueChange={([next = draft]) => {
           const snapped = clampMinFit(next);
           setDraft(snapped);
+          onDraft?.(snapped);
           if (timer.current) clearTimeout(timer.current);
           timer.current = setTimeout(() => commit(snapped), 250);
         }}
@@ -173,20 +193,20 @@ export function FitThreshold({ value, onChange, count, pending, className }: Fit
           band.key === 'low' && 'bg-fit-low',
         )}
         thumbClassName={BAND_THUMB[band.key]}
-        className="w-28"
+        className={cn('w-28', sliderClassName)}
       />
       <span className="w-9 font-mono text-mono-sm text-fg tabular-nums" aria-hidden="true">
         ≥ {draft}
       </span>
       <span
-        data-testid="radar-total"
+        data-testid={countTestId}
         aria-live="polite"
         className={cn(
           'min-w-14 font-mono text-mono-sm whitespace-nowrap text-fg-tertiary tabular-nums transition-opacity duration-fade',
           pending && 'opacity-60',
         )}
       >
-        {count == null ? '' : `${formatCount(count)} ${count === 1 ? 'fit' : 'fits'}`}
+        {count == null ? '' : `${formatCount(count)} ${count === 1 ? noun[0] : noun[1]}`}
       </span>
     </div>
   );
@@ -326,5 +346,59 @@ export function ActiveChips({
       )}
       {trailing}
     </div>
+  );
+}
+
+// ── Phone chips (DESIGN §10.2 mobile: [Fit ≥ 60 ▾] [Internship ▾] [3] →) ─────────────────────
+
+const CHIP = cn(
+  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 text-small text-fg',
+  'press active:bg-surface-active focus-visible:focus-ring',
+);
+
+/** The fit threshold as a chip that opens the slider in a popover; the live count stays on the chip. */
+export function FitChip(props: FitThresholdProps) {
+  const { value, count, pending } = props;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" data-testid="radar-fit-threshold" className={CHIP} aria-label={`Minimum fit ${value}. Change`}>
+          <span className="font-mono text-mono-sm">≥ {value}</span>
+          <span
+            data-testid="radar-total"
+            className={cn('font-mono text-mono-sm text-fg-tertiary transition-opacity duration-fade', pending && 'opacity-60')}
+          >
+            {count == null ? '' : `${formatCount(count)} ${count === 1 ? 'fit' : 'fits'}`}
+          </span>
+          <ChevronDown className="size-3.5 text-fg-tertiary" strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-3">
+        <FitThreshold
+          {...props}
+          testId="radar-fit-threshold-popover"
+          countTestId="radar-total-popover"
+          sliderClassName="flex-1"
+          className="w-full"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function ChipButton({
+  children,
+  active = false,
+  className,
+  ...props
+}: React.ComponentProps<'button'> & { active?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={cn(CHIP, active && 'border-transparent bg-accent-subtle text-accent-subtle-fg', className)}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }

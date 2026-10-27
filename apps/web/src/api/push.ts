@@ -16,7 +16,10 @@ export type PushSupport =
   | 'denied';
 
 function isIos(): boolean {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
 }
 
 function isStandalone(): boolean {
@@ -45,14 +48,17 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 
 async function vapidKey(): Promise<string> {
   if (env.vapidPublicKey) return env.vapidPublicKey;
-  const { publicKey } = await api.get<{ publicKey: string }>('/v1/push/vapid-public-key', { auth: 'optional' });
+  const { publicKey } = await api.get<{ publicKey: string }>('/v1/push/vapid-public-key', {
+    auth: 'optional',
+  });
   return publicKey;
 }
 
 export function usePushSubscriptions(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.push.subscriptions,
-    queryFn: ({ signal }) => api.get<{ items: PushSubscriptionDTO[] }>('/v1/push/subscriptions', { signal }),
+    queryFn: ({ signal }) =>
+      api.get<{ items: PushSubscriptionDTO[] }>('/v1/push/subscriptions', { signal }),
     select: (d) => d.items,
     enabled: options.enabled ?? true,
     meta: { persist: false },
@@ -66,13 +72,12 @@ export function usePushSubscriptions(options: { enabled?: boolean } = {}) {
  */
 export function usePushSubscription() {
   const qc = useQueryClient();
-  const [support, setSupport] = useState<PushSupport>('unsupported');
+  // Read once on mount (never prompts). Only rendered client-side, inside the signed-in shell.
+  const [support, setSupport] = useState<PushSupport>(getPushSupport);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
 
   useEffect(() => {
-    const current = getPushSupport();
-    setSupport(current);
-    if (current !== 'granted') return;
+    if (getPushSupport() !== 'granted') return;
     let cancelled = false;
     void navigator.serviceWorker.getRegistration().then(async (reg) => {
       const sub = (await reg?.pushManager.getSubscription()) ?? null;

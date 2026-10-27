@@ -14,7 +14,13 @@ export { Kbd, KbdGroup, Shortcut } from './Kbd';
 export { keyLabel } from './keys';
 export { Skeleton, ListSkeleton, CardSkeleton, TableSkeleton } from './Skeleton';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
-export { PageHeader, type PageHeaderProps } from './PageHeader';
+export {
+  PageHeader,
+  type PageHeaderProps,
+  type PageHeaderBack,
+  type PageHeaderCrumb,
+  type PageHeaderPager,
+} from './PageHeader';
 export { TypeBadge, type TypeBadgeProps } from './TypeBadge';
 export { TYPE_META, type OpportunityTypeKey } from './types';
 export { GhostRiskBadge, type GhostRiskBadgeProps } from './GhostRiskBadge';

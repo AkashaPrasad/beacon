@@ -4,15 +4,16 @@
  * - `useAlerts()`        GET    /v1/alerts
  * - `useCreateAlert()`   POST   /v1/alerts           optimistic card at the top
  * - `useUpdateAlert()`   PATCH  /v1/alerts/:id       optimistic (enable switch, edits)
- * - `useDeleteAlert()`   DELETE /v1/alerts/:id       (screens defer it for Undo: removeAlertFromCache)
+ * - `useDeleteAlert()`   DELETE /v1/alerts/:id       (screens defer it for Undo: removeAlertFromCache,
+ *                                                   then deleteAlertRequest or reinsertAlertInCache)
  * - `useTestAlert()`     POST   /v1/alerts/:id/test  → 202 queued; the in-app notification arrives via the bell
  * - `useAlertPreview()`  POST   /v1/alerts/preview   "Would have matched N listings in the last 7 days"
  *                                                   (requested in SHARED-REQUESTS; hidden when the route 404s)
  */
-import type { AlertRule, AlertRuleInput, AlertRulePatch } from '@kestrel/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { api, isApiError } from '@/lib/api';
+import type { AlertRule, AlertRuleInput, AlertRulePatch } from '@kestrel/shared';
 
 import { queryKeys } from './keys';
 
@@ -33,6 +34,20 @@ function setRules(qc: QueryClient, update: (rules: AlertRuleDTO[]) => AlertRuleD
 }
 
 let tempIds = 0;
+
+/**
+ * Server id → the optimistic id the card was first rendered with, so a list keyed by
+ * `alertListKey(rule.id)` keeps the same element when the real rule replaces the optimistic one.
+ */
+const clientKeys = new Map<string, string>();
+export function alertListKey(id: string): string {
+  return clientKeys.get(id) ?? id;
+}
+
+/** The id the next optimistic create will use (lets a screen mark "the card I just saved"). */
+export function nextAlertTempKey(): string {
+  return `optimistic-${tempIds + 1}`;
+}
 
 export function useCreateAlert() {
   const qc = useQueryClient();
@@ -75,7 +90,10 @@ export function useCreateAlert() {
     onError: (_e, _v, context) => {
       if (context?.previous) qc.setQueryData(queryKeys.alerts, context.previous);
     },
-    onSuccess: ({ rule }, _v, context) => setRules(qc, (rules) => rules.map((r) => (r.id === context.tempId ? rule : r))),
+    onSuccess: ({ rule }, _v, context) => {
+      clientKeys.set(rule.id, context.tempId);
+      setRules(qc, (rules) => rules.map((r) => (r.id === context.tempId ? rule : r)));
+    },
     onSettled: () => void qc.invalidateQueries({ queryKey: queryKeys.alerts }),
   });
 }
@@ -92,7 +110,7 @@ export function useUpdateAlert() {
       setRules(qc, (rules) =>
         rules.map((r) =>
           r.id === id
-            ? ({ ...r, ...patch, conditions: { ...r.conditions, ...patch.conditions } } as AlertRuleDTO)
+            ? ({ ...r, ...patch, conditions: { ...r.conditions, ...patch.conditions } })
             : r,
         ),
       );
@@ -123,6 +141,16 @@ export function removeAlertFromCache(qc: QueryClient, id: string): AlertList | u
 
 export function restoreAlertsCache(qc: QueryClient, previous: AlertList | undefined) {
   if (previous) qc.setQueryData(queryKeys.alerts, previous);
+}
+
+/** Undo of a deferred delete: put the same rule back at its old index (keeps edits made meanwhile). */
+export function reinsertAlertInCache(qc: QueryClient, rule: AlertRuleDTO, index: number) {
+  setRules(qc, (rules) => {
+    if (rules.some((r) => r.id === rule.id)) return rules;
+    const next = [...rules];
+    next.splice(Math.max(0, Math.min(index, next.length)), 0, rule);
+    return next;
+  });
 }
 
 export async function deleteAlertRequest(qc: QueryClient, id: string): Promise<void> {

@@ -1,16 +1,14 @@
-import { CardSkeleton, PageHeader } from '@kestrel/ui';
+import { TrackerView } from './components/TrackerView';
 
 /**
- * Tracker: /tracker (Kanban + table, DESIGN §10.4).
- *
- * TODO(wave-3): web-workspace replaces this placeholder. Keep this file path, the `Component` export and the
- * `data-testid="tracker-page"` root; everything else is yours. See docs/WEB.md "How screens plug in".
+ * Tracker: /tracker (Kanban + table + analytics + nudges, DESIGN §10.4, USERFLOW §4).
+ * `?item=<id>` opens the detail panel. dnd-kit and TanStack Table load with this route only
+ * (the table view is a further lazy chunk).
  */
 export function Component() {
   return (
-    <div data-testid="tracker-page" className="flex flex-col">
-      <PageHeader title="Tracker" />
-      <CardSkeleton delayMs={0} />
+    <div data-testid="tracker-page" className="flex min-h-0 flex-col">
+      <TrackerView />
     </div>
   );
 }

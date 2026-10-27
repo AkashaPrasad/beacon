@@ -149,7 +149,12 @@ const SOURCES = [
   { id: 'src_personal_acme', name: 'Acme careers', kind: 'firecrawl', scope: 'personal' },
 ] as const;
 
-export type MockSource = (typeof SOURCES)[number];
+export interface MockSource {
+  id: string;
+  name: string;
+  kind: (typeof SOURCES)[number]['kind'];
+  scope: 'community' | 'personal';
+}
 
 function sourceFor(type: OpportunityType, seed: string): MockSource {
   if (type === 'hackathon') return SOURCES[2];
@@ -358,7 +363,7 @@ function entryOf(listing: ListingPublic, now: number): MockEntry {
     trackerItemId: null,
     source:
       SOURCES.find((s) => s.id === listing.sourceId) ??
-      ({ id: listing.sourceId, name: 'Community source', kind: 'greenhouse', scope: 'community' } as const as MockSource),
+      ({ id: listing.sourceId, name: 'Community source', kind: 'greenhouse', scope: 'community' } satisfies MockSource),
   };
 }
 

@@ -1,13 +1,6 @@
-import {
-  OPPORTUNITY_TYPE_LABELS,
-  OPPORTUNITY_TYPES,
-  type OpportunityType,
-  type RefreshInterval,
-} from '@kestrel/shared';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
-import { displayUrl, INTERVAL_OPTIONS, type SourceTableRow } from '../lib/rows';
 
 import { useUpdateSource } from '@/api/sources';
 import { Button } from '@/components/ui/button';
@@ -29,6 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { errorMessage } from '@/lib/api';
+import {
+  OPPORTUNITY_TYPE_LABELS,
+  OPPORTUNITY_TYPES,
+  type OpportunityType,
+  type RefreshInterval,
+} from '@kestrel/shared';
+
+import { displayUrl, INTERVAL_OPTIONS, type SourceTableRow } from '../lib/rows';
 
 const ANY = 'any';
 
@@ -81,20 +82,19 @@ function EditForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (invalid) return;
-        update.mutate(
-          {
+        // mutateAsync: the dialog closes (unmounts) right away, and per-call callbacks would be dropped.
+        update
+          .mutateAsync({
             id: row.id,
             patch: {
               name: trimmed,
               typeTag: typeTag === ANY ? null : (typeTag as OpportunityType),
               refreshInterval: interval,
             },
-          },
-          {
-            onError: (error) =>
-              toast.error(`Couldn't save. ${errorMessage(error)}`, { duration: 8000 }),
-          },
-        );
+          })
+          .catch((error: unknown) =>
+            toast.error(`Couldn't save. ${errorMessage(error)}`, { duration: 8000 }),
+          );
         toast.success('Saved.');
         onClose();
       }}

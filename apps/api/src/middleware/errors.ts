@@ -30,6 +30,7 @@ function normalise(err: unknown): HttpError {
   }
   const mongo = err as { code?: number; name?: string };
   if (mongo?.code === 11000) return new HttpError(409, 'CONFLICT', 'Duplicate resource');
+  if (mongo?.code === 50) return new HttpError(503, 'SERVICE_UNAVAILABLE', 'The database is busy; try again shortly');
   return new HttpError(500, 'INTERNAL', 'Internal server error');
 }
 

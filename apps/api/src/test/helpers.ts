@@ -131,7 +131,7 @@ export async function resetDb(): Promise<void> {
 export async function createUser(overrides: Partial<UserDoc> = {}): Promise<UserDoc> {
   const sub = randomBytes(6).toString('hex');
   const doc = await User.create({ email: `${sub}@example.com`, name: 'Student', googleSub: sub, ...overrides });
-  return doc.toObject() as UserDoc;
+  return doc.toObject();
 }
 
 export function tokenFor(user: Pick<UserDoc, '_id' | 'sessionVersion'>, secret = TEST_JWT_SECRET, ttl?: number): string {
@@ -167,7 +167,7 @@ export async function createSource(overrides: Partial<SourceDoc> = {}): Promise<
     ownerId: null,
     ...overrides,
   });
-  return doc.toObject() as SourceDoc;
+  return doc.toObject();
 }
 
 let listingSeq = 0;
@@ -193,7 +193,7 @@ export async function createListing(overrides: Partial<ListingDoc> = {}): Promis
     descriptionMd: '## About\nBuild things with **React**.',
     ...overrides,
   });
-  return doc.toObject() as ListingDoc;
+  return doc.toObject();
 }
 
 export function db() {

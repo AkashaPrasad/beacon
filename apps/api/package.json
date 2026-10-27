@@ -17,12 +17,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "sync-seed": "node scripts/sync-seed.mjs"
+    "sync-seed": "node scripts/sync-seed.mjs",
+    "dev:token": "tsx --env-file-if-exists=.env src/scripts/dev-token.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.79",
     "@kestrel/shared": "workspace:*",
     "ai": "7.0.154",
+    "bcryptjs": "3.0.3",
     "bullmq": "6.5.0",
     "cookie-parser": "1.4.7",
     "cors": "2.8.6",

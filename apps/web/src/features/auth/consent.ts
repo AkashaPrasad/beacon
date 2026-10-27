@@ -7,7 +7,10 @@ export const CONSENT_VERSION = '2026-10-27';
 export function settingsForAiMode(mode: AiMode, resumeToAi: boolean) {
   switch (mode) {
     case 'beacon':
-      return { ai: { provider: 'default' as const, enabled: true, consent: resumeToAi }, privacy: { sendResumeToAi: resumeToAi } };
+      return {
+        ai: { provider: 'default' as const, enabled: true, consent: resumeToAi },
+        privacy: { sendResumeToAi: resumeToAi },
+      };
     case 'byok':
       // Runs without AI until the user adds a key in Settings > AI & keys.
       return { ai: { enabled: false, consent: false }, privacy: { sendResumeToAi: false } };

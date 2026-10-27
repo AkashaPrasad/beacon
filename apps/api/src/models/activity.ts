@@ -1,11 +1,12 @@
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
+
 import type { FitResult } from '@kestrel/shared';
-import { model, models, Schema, type Model, type Types } from 'mongoose';
 
 const mixed = Schema.Types.Mixed;
 const oid = Schema.Types.ObjectId;
 
 function getModel<T>(name: string, schema: Schema): Model<T> {
-  return (models[name] as Model<T> | undefined) ?? model<T>(name, schema as unknown as Schema<T>);
+  return (mongoose.models[name] as Model<T> | undefined) ?? model<T>(name, schema as unknown as Schema<T>);
 }
 
 // ── matches (worker writes; api reads) ───────────────────────────────────────

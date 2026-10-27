@@ -7,7 +7,11 @@ import { cn } from '@/lib/utils';
  * Decorative by default; pass `title` to make it an image with a name.
  * Under 24 px use the favicon geometry instead (brand README: minimum sizes).
  */
-export function BeaconMark({ title, className, ...props }: ComponentProps<'svg'> & { title?: string }) {
+export function BeaconMark({
+  title,
+  className,
+  ...props
+}: ComponentProps<'svg'> & { title?: string }) {
   return (
     <svg
       viewBox="0 0 512 512"
@@ -31,7 +35,13 @@ export function BeaconMark({ title, className, ...props }: ComponentProps<'svg'>
 }
 
 /** Mark + "Beacon" in Instrument Serif (the lockup). Text stays live so it scales with font settings. */
-export function BeaconLockup({ className, markClassName }: { className?: string; markClassName?: string }) {
+export function BeaconLockup({
+  className,
+  markClassName,
+}: {
+  className?: string;
+  markClassName?: string;
+}) {
   return (
     <span className={cn('inline-flex items-center gap-2 text-fg', className)}>
       <BeaconMark className={cn('size-6', markClassName)} />

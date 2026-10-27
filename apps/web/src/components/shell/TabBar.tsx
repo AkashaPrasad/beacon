@@ -1,8 +1,8 @@
-import { layoutIds, springs } from '@kestrel/ui';
 import { LayoutGroup, m } from 'motion/react';
 import { NavLink, useLocation } from 'react-router';
 
 import { cn } from '@/lib/utils';
+import { layoutIds, springs } from '@kestrel/ui';
 
 import { ME_PATHS, TAB_ITEMS } from './nav';
 import { openSheet } from './shell-state';

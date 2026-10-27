@@ -1,22 +1,28 @@
-import { springs } from '@kestrel/ui';
-import { Info, KeyRound, Server } from 'lucide-react';
+import { ChevronDown, Server } from 'lucide-react';
 import { m } from 'motion/react';
-import { Link } from 'react-router';
 
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { springs } from '@kestrel/ui';
+
+import { CountUp } from './common/CountUp';
 import { formatCount } from '../lib/format';
 import { meterState, type Credits } from '../lib/health';
 
-import { CountUp } from './common/CountUp';
-
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-
 const BAR_TONE = { normal: 'bg-fg-secondary', warning: 'bg-warning', danger: 'bg-danger' } as const;
 
+const BACKEND_LABEL = {
+  cloud: 'Cloud',
+  selfhosted: 'Self-hosted standby',
+  paused: 'Paused until 00:00 IST',
+} as const;
+
 /**
- * Crawl credit meter (DESIGN §6.1 / §10.5): "312 / 500 credits today" in mono with a 4 px bar
- * (`fg-secondary`, `warning` ≥ 80 %, `danger` at 100 %), the active backend, and a details popover.
+ * Crawl credit meter as one quiet line (DESIGN §6.1 / §10.5): "312 / 500 crawl credits today" in mono
+ * with a 4 px bar (`fg-secondary`, `warning` ≥ 80 %, `danger` at 100 %). Everything else (backend,
+ * standby calls, your own usage, what costs credits) is one click away in the popover. The line only
+ * gets louder when it matters: the backend word appears when crawls run on the standby or pause.
+ * The whole line is the popover trigger, so its accessible name reads the numbers and the backend.
  */
 export function CreditMeter({
   credits,
@@ -29,13 +35,12 @@ export function CreditMeter({
 }) {
   if (!credits) {
     return (
-      <div
-        className={cn('flex h-control items-center gap-2 text-small text-fg-tertiary', className)}
+      <p
+        className={cn('flex h-7 items-center gap-2 text-small text-fg-tertiary', className)}
         aria-busy={loading}
       >
-        <span>Crawl credits today</span>
-        <span className="font-mono">— / —</span>
-      </div>
+        <span className="font-mono">— / —</span> crawl credits today
+      </p>
     );
   }
   const s = meterState(credits);
@@ -43,72 +48,65 @@ export function CreditMeter({
     <div
       data-testid="sources-credit-meter"
       data-mode={s.mode}
-      className={cn('flex items-center gap-2', className)}
+      data-tone={s.tone}
+      className={cn('flex min-w-0 items-center', className)}
     >
-      <div
-        data-testid="credit-meter"
-        role="meter"
-        aria-label="Crawl credits used today"
-        aria-valuemin={0}
-        aria-valuemax={credits.cap}
-        aria-valuenow={Math.min(credits.cloudUsedToday, credits.cap)}
-        aria-valuetext={s.description}
-        className="flex min-w-0 flex-col gap-1"
-      >
-        <div className="flex items-baseline gap-2 whitespace-nowrap">
-          <span className="hidden text-caption text-fg-tertiary sm:inline">
-            Crawl credits today
-          </span>
-          <span className="font-mono text-mono text-fg">
-            <CountUp value={credits.cloudUsedToday} onceId="credit-meter" /> /{' '}
-            {formatCount(credits.cap)}
-          </span>
-          <span className="text-caption text-fg-tertiary sm:hidden">credits today</span>
-        </div>
-        <div className="h-1 w-full min-w-24 overflow-hidden rounded-full bg-surface-sunken">
-          <m.div
-            className={cn('h-full w-full origin-left rounded-full', BAR_TONE[s.tone])}
-            initial={false}
-            animate={{ scaleX: s.ratio }}
-            transition={springs.data}
-          />
-        </div>
-      </div>
-      <BackendBadge mode={s.mode} />
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="About crawl credits">
-            <Info strokeWidth={1.5} />
-          </Button>
+          <button
+            type="button"
+            data-testid="sources-credit-backend"
+            className="group/credits -mx-1.5 inline-flex h-7 min-w-0 items-center gap-2 rounded-sm px-1.5 text-small text-fg-secondary transition-colors duration-fast hover:bg-surface-hover hover:text-fg focus-visible:focus-ring"
+          >
+            <span
+              data-testid="credit-meter"
+              data-used={credits.cloudUsedToday}
+              data-cap={credits.cap}
+              className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap"
+            >
+              <span className="font-mono text-mono-sm text-fg">
+                <CountUp value={credits.cloudUsedToday} onceId="credit-meter" /> /{' '}
+                {formatCount(credits.cap)}
+              </span>
+              <span className="truncate">crawl credits today</span>
+              <span
+                aria-hidden="true"
+                className="h-1 w-12 shrink-0 overflow-hidden rounded-full bg-surface-sunken max-sm:hidden"
+              >
+                <m.span
+                  className={cn('block h-full w-full origin-left rounded-full', BAR_TONE[s.tone])}
+                  initial={false}
+                  animate={{ scaleX: s.ratio }}
+                  transition={springs.data}
+                />
+              </span>
+            </span>
+            {s.mode === 'cloud' ? null : (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 whitespace-nowrap',
+                  s.mode === 'selfhosted' ? 'text-info' : 'text-warning',
+                )}
+              >
+                {s.mode === 'selfhosted' ? (
+                  <Server className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+                ) : null}
+                {s.mode === 'selfhosted' ? 'Self-hosted standby' : 'Paused'}
+              </span>
+            )}
+            <ChevronDown
+              className="size-3.5 shrink-0 text-fg-tertiary transition-transform duration-fast group-data-[state=open]/credits:rotate-180"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+            <span className="sr-only">. Crawl backend: {BACKEND_LABEL[s.mode]}. Show details</span>
+          </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-80 p-0">
+        <PopoverContent align="start" className="w-80 p-0">
           <CreditDetails credits={credits} />
         </PopoverContent>
       </Popover>
     </div>
-  );
-}
-
-function BackendBadge({ mode }: { mode: 'cloud' | 'selfhosted' | 'paused' }) {
-  if (mode === 'selfhosted') {
-    return (
-      <span className="inline-flex h-5 items-center gap-1 rounded-xs bg-info-subtle px-1.5 text-caption font-medium whitespace-nowrap text-info">
-        <Server className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-        Self-hosted standby (active)
-      </span>
-    );
-  }
-  if (mode === 'paused') {
-    return (
-      <span className="inline-flex h-5 items-center rounded-xs bg-warning-subtle px-1.5 text-caption font-medium whitespace-nowrap text-warning">
-        Paused
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex h-5 items-center rounded-xs bg-surface-sunken px-1.5 text-caption font-medium text-fg-secondary">
-      Cloud
-    </span>
   );
 }
 
@@ -133,6 +131,7 @@ function CreditDetails({ credits }: { credits: Credits }) {
         </p>
       </div>
       <dl className="divide-y divide-border-subtle border-y border-border-subtle">
+        <Row label="Crawling on" value={BACKEND_LABEL[s.mode]} />
         <Row
           label="Cloud credits today"
           value={`${formatCount(credits.cloudUsedToday)} / ${formatCount(credits.cap)}`}
@@ -147,13 +146,10 @@ function CreditDetails({ credits }: { credits: Credits }) {
             ? 'Today’s crawl budget is used up. Your sources refresh after 00:00 IST; shared packs keep updating.'
             : 'Crawls run on Firecrawl cloud. If the budget runs low, a self-hosted standby takes over automatically.'}
       </p>
-      <Link
-        to="/settings/ai"
-        className="inline-flex items-center gap-1.5 text-small text-accent-strong underline-offset-3 hover:underline focus-visible:focus-ring"
-      >
-        <KeyRound className="size-4" strokeWidth={1.5} aria-hidden="true" />
-        Use my own Firecrawl key
-      </Link>
+      <p className="text-caption text-fg-tertiary">
+        The budget is shared by everyone on Beacon, which keeps it free. Job-board links never use
+        it.
+      </p>
     </div>
   );
 }

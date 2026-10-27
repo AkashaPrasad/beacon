@@ -8,6 +8,7 @@ import { configureVector } from './lib/vector.js';
 import { createLogger } from './logger.js';
 import { ensureIndexes } from './models/index.js';
 import { seedCommunitySources } from './seed/packs.js';
+import { seedAdmin } from './services/admin.js';
 
 const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
@@ -20,9 +21,12 @@ if (env.MONGODB_URI) {
   try {
     await connectMongo({ uri: env.MONGODB_URI, dbName: env.MONGODB_DB });
     logger.info({ db: env.MONGODB_DB }, 'mongo connected');
+    // Indexes first (the users index migration must run before the admin upsert).
     void ensureIndexes()
-      .then(() => logger.info('mongo indexes ensured'))
-      .catch((err: unknown) => logger.warn({ err: (err as Error).message }, 'index build failed'));
+      .then((dropped) => logger.info({ dropped }, 'mongo indexes ensured'))
+      .catch((err: unknown) => logger.warn({ err: (err as Error).message }, 'index build failed'))
+      .then(() => seedAdmin(env, env.PASSWORD_HASH_COST, logger))
+      .catch((err: unknown) => logger.warn({ err: (err as Error).message }, 'admin seeding failed'));
     if (env.SEED_SOURCES) {
       void seedCommunitySources(logger).catch((err: unknown) =>
         logger.warn({ err: (err as Error).message }, 'community source seeding failed'),
@@ -44,7 +48,7 @@ const server = app.listen(env.PORT, () => {
 function shutdown(signal: NodeJS.Signals): void {
   logger.info({ signal }, 'shutting down');
   server.close(() => {
-    Promise.allSettled([queue.close(), redis.quit(), disconnectMongo()]).finally(() => process.exit(0));
+    void Promise.allSettled([queue.close(), redis.quit(), disconnectMongo()]).finally(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }

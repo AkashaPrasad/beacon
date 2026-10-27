@@ -1,11 +1,20 @@
-import { alertRuleInputSchema, alertRulePatchSchema, decodeCursor, encodeCursor } from '@kestrel/shared';
 import { Router } from 'express';
 import type { Types } from 'mongoose';
+import { z } from 'zod';
+
+import {
+  alertConditionsSchema,
+  alertRuleInputSchema,
+  alertRulePatchSchema,
+  decodeCursor,
+  encodeCursor,
+} from '@kestrel/shared';
 
 import type { AppContext } from '../context.js';
 import { badCursor, HttpError, notFound } from '../lib/errors.js';
 import { objectIdParam, parse, toObjectId } from '../lib/validate.js';
 import { currentUser } from '../middleware/auth.js';
+import { createRateLimiter } from '../middleware/rateLimit.js';
 import {
   AlertRule,
   Notification,
@@ -20,6 +29,7 @@ import {
   pushSubscriptionSchema,
   pushUnsubscribeSchema,
 } from '../schemas/index.js';
+import { previewAlert } from '../services/alerts.js';
 import { toAlertDTO, toNotificationDTO, toPushDTO } from '../services/serialize.js';
 
 async function loadRule(userId: Types.ObjectId, rawId: unknown): Promise<AlertRuleDoc> {
@@ -41,8 +51,11 @@ export function createPublicPushRouter(ctx: AppContext): Router {
   return router;
 }
 
+const alertPreviewSchema = z.object({ conditions: alertConditionsSchema.prefault({}) });
+
 export function createAlertsRouter(ctx: AppContext): Router {
   const router = Router();
+  const pushTestLimiter = createRateLimiter('pushtest', ctx.rateLimits.pushtest, ctx.redis, 'user');
 
   // ── Alert rules ──
   router.get('/alerts', async (req, res) => {
@@ -54,7 +67,12 @@ export function createAlertsRouter(ctx: AppContext): Router {
     const { _id } = currentUser(req);
     const body = parse(alertRuleInputSchema, req.body);
     const created = await AlertRule.create({ ...body, userId: _id });
-    res.status(201).json({ rule: toAlertDTO(created.toObject() as AlertRuleDoc) });
+    res.status(201).json({ rule: toAlertDTO(created.toObject()) });
+  });
+
+  router.post('/alerts/preview', async (req, res) => {
+    const { conditions } = parse(alertPreviewSchema, req.body ?? {});
+    res.json(await previewAlert(currentUser(req)._id, conditions, ctx.now()));
   });
 
   router.get('/alerts/:id', async (req, res) => {
@@ -90,6 +108,12 @@ export function createAlertsRouter(ctx: AppContext): Router {
   });
 
   // ── Push subscriptions ──
+  router.post('/push/test', pushTestLimiter, async (req, res) => {
+    const jobId = await ctx.queue.add('notify', { userId: currentUser(req).id, test: true });
+    if (!jobId) throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'The notification queue is unavailable; try again shortly');
+    res.status(202).json({ queued: true, jobId });
+  });
+
   router.get('/push/subscriptions', async (req, res) => {
     const docs = await PushSubscription.find({ userId: currentUser(req)._id }).sort({ createdAt: -1 }).lean<PushSubscriptionDoc[]>();
     res.json({ items: docs.map(toPushDTO) });
@@ -110,7 +134,7 @@ export function createAlertsRouter(ctx: AppContext): Router {
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean<PushSubscriptionDoc>();
-    res.status(201).json({ subscription: toPushDTO(doc!) });
+    res.status(201).json({ subscription: toPushDTO(doc) });
   });
 
   router.delete('/push/subscriptions', async (req, res) => {

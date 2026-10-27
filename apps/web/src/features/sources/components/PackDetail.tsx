@@ -1,16 +1,16 @@
+import type { CommunityRow, PackDTO } from '@/api/sources';
+import { ResponsiveDrawer } from '@/components/responsive-drawer';
+import { Switch } from '@/components/ui/switch';
 import { CompanyLogo } from '@kestrel/ui';
 
+import { HealthBadge } from './HealthBadge';
+import { KindBadge } from './KindBadge';
 import { formatCount } from '../lib/format';
 import { displayHealth, healthReason, type CreditMode } from '../lib/health';
 import { PACK_BLURBS } from '../lib/packs';
 import { displayUrl } from '../lib/rows';
 
-import { HealthBadge } from './HealthBadge';
-import { KindBadge } from './KindBadge';
 
-import type { CommunityRow, PackDTO } from '@/api/sources';
-import { ResponsiveDrawer } from '@/components/responsive-drawer';
-import { Switch } from '@/components/ui/switch';
 
 /** "What's in this pack" (sheet/drawer): every source with how it's read and its health. */
 export function PackDetail({

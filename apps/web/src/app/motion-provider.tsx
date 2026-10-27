@@ -1,8 +1,8 @@
-import { springs, toReducedMotion } from '@kestrel/ui';
 import { domAnimation, LazyMotion, MotionConfig } from 'motion/react';
 import type { ReactNode } from 'react';
 
 import { useTheme } from '@/lib/theme/context';
+import { springs, toReducedMotion } from '@kestrel/ui';
 
 const loadDomMax = () => import('@/lib/motion-features').then((m) => m.default);
 

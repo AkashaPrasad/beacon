@@ -1,8 +1,14 @@
-import { Shortcut } from '@kestrel/ui';
 import { useMemo } from 'react';
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useShortcutList } from '@/lib/shortcuts';
+import { Shortcut } from '@kestrel/ui';
 
 import { openSheet, useOpenSheet } from './shell-state';
 
@@ -16,10 +22,13 @@ export function ShortcutsSheet() {
     const map = new Map<string, { keys: string; description: string }[]>();
     for (const def of list) {
       const group = def.group ?? 'General';
-      map.set(group, [...(map.get(group) ?? []), { keys: def.keys, description: def.description ?? '' }]);
+      map.set(group, [
+        ...(map.get(group) ?? []),
+        { keys: def.keys, description: def.description ?? '' },
+      ]);
     }
     return [...map.entries()].sort(
-      ([a], [b]) => (GROUP_ORDER.indexOf(a) + 100) % 100 - ((GROUP_ORDER.indexOf(b) + 100) % 100),
+      ([a], [b]) => ((GROUP_ORDER.indexOf(a) + 100) % 100) - ((GROUP_ORDER.indexOf(b) + 100) % 100),
     );
   }, [list]);
 

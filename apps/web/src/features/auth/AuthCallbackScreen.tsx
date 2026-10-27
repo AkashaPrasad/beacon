@@ -1,12 +1,12 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
+import { queryKeys } from '@/api/keys';
 import { nextPathFor, useGoogleSignIn } from '@/api/me';
 import type { MeResponse } from '@/api/types';
 import { safeNext } from '@/app/safe-next';
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/api/keys';
 import { consumeOAuthState, oauthRedirectUri } from '@/lib/google-auth';
 
 /** `/auth/callback?code&state` (or `?error=access_denied`) → POST /v1/auth/google → next step. */
@@ -24,7 +24,9 @@ export function Component() {
     const code = params.get('code');
     const { ok, next } = consumeOAuthState(params.get('state'));
     if (error) {
-      void navigate(`/login?error=${error === 'access_denied' ? 'cancelled' : 'failed'}`, { replace: true });
+      void navigate(`/login?error=${error === 'access_denied' ? 'cancelled' : 'failed'}`, {
+        replace: true,
+      });
       return;
     }
     if (!code || !ok) {
@@ -46,7 +48,11 @@ export function Component() {
   }, [params, navigate, signIn, qc]);
 
   return (
-    <div data-testid="auth-callback-page" className="grid min-h-dvh place-items-center bg-bg" role="status">
+    <div
+      data-testid="auth-callback-page"
+      className="grid min-h-dvh place-items-center bg-bg"
+      role="status"
+    >
       <div className="flex items-center gap-2 text-body text-fg-secondary">
         <LoaderCircle className="size-4 animate-spin" strokeWidth={1.5} aria-hidden="true" />
         Signing you in…

@@ -4,15 +4,16 @@
  * the contribution in mono on the right. Bars grow with `springs.data` (never overshoot) and a 20 ms
  * stagger, inside the drawer only. The footer shows the arithmetic: Σ − ghost penalty, then any cap.
  */
-import { DEFAULT_WEIGHTS, SCORE_COMPONENTS, type FitResult } from '@kestrel/shared';
-import { fitBandOf, springs, stagger } from '@kestrel/ui';
 import { Ban, Info } from 'lucide-react';
 import { m } from 'motion/react';
 import { Link } from 'react-router';
 
-import { buildFitBreakdown, describeRow, formatPoints, formatWeight } from '../../lib/breakdown';
 
 import { cn } from '@/lib/utils';
+import { DEFAULT_WEIGHTS, SCORE_COMPONENTS, type FitResult } from '@kestrel/shared';
+import { fitBandOf, springs, stagger } from '@kestrel/ui';
+
+import { buildFitBreakdown, describeRow, formatPoints, formatWeight } from '../../lib/breakdown';
 
 const BAND_FILL: Record<string, string> = {
   low: 'bg-fit-low',
@@ -31,7 +32,7 @@ export function FitBreakdown({ fit, animate = true }: { fit: FitResult; animate?
       </h3>
       <ul className="flex flex-col gap-2.5">
         {view.rows.map((row, index) => (
-          <li key={row.key} className="grid grid-cols-[minmax(0,7.5rem)_1fr_3.25rem] items-center gap-3" aria-label={describeRow(row)}>
+          <li key={row.key} className="grid grid-cols-[minmax(0,9.5rem)_1fr_3.25rem] items-center gap-3" aria-label={describeRow(row)}>
             <span className="flex min-w-0 items-baseline gap-1.5" aria-hidden="true">
               <span className="truncate text-small text-fg-secondary">{row.label}</span>
               <span className="font-mono text-mono-sm text-fg-tertiary">{formatWeight(row.weight)}</span>
@@ -55,7 +56,7 @@ export function FitBreakdown({ fit, animate = true }: { fit: FitResult; animate?
           </li>
         ))}
         {view.ghostPenalty > 0 && (
-          <li className="grid grid-cols-[minmax(0,7.5rem)_1fr_3.25rem] items-center gap-3" aria-label={`Ghost penalty, minus ${formatPoints(view.ghostPenalty, { signed: false })} points`}>
+          <li className="grid grid-cols-[minmax(0,9.5rem)_1fr_3.25rem] items-center gap-3" aria-label={`Ghost penalty, minus ${formatPoints(view.ghostPenalty, { signed: false })} points`}>
             <span className="truncate text-small text-fg-secondary" aria-hidden="true">
               Ghost penalty
             </span>

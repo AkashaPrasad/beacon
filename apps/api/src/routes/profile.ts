@@ -1,7 +1,8 @@
-import { LIMITS, profileInputSchema, profilePatchSchema } from '@kestrel/shared';
 import { Router, type RequestHandler } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
+
+import { LIMITS, profileInputSchema, profilePatchSchema } from '@kestrel/shared';
 
 import { LLM_REASON_MESSAGES, llmForUser } from '../ai/llm.js';
 import type { AppContext } from '../context.js';

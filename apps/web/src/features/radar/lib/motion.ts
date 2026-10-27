@@ -1,10 +1,11 @@
 /**
- * Radar-specific timing and the row → drawer morph. Springs, tweens and variants come from
+ * Radar-specific timing and the row ⇄ listing-page morph. Springs, tweens and variants come from
  * `@kestrel/ui` (docs/MOTION.md is authoritative); the few constants below are MOTION.md values
  * that have no shared token yet (recorded in docs/DECISIONS.md).
  */
-import { layoutIds } from '@kestrel/ui';
 import { flushSync } from 'react-dom';
+
+import { layoutIds } from '@kestrel/ui';
 
 /** MOTION §5.5: the live-insert bar fades out over 4 s. */
 export const LIVE_BAR_FADE_MS = 4000;
@@ -79,31 +80,90 @@ function canMorph(): boolean {
   return true;
 }
 
+/** Poll (timers: rendering is paused inside a View Transition update) until `ready()` or ~200 ms pass. */
+function until(ready: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    let tries = 0;
+    const check = () => {
+      if (ready() || tries++ > 24) resolve();
+      else setTimeout(check, 8);
+    };
+    check();
+  });
+}
+
+const PARTS = ['logo', 'title', 'ring'] as const;
+
+function rowParts(id: string): (readonly [MorphPart, HTMLElement])[] {
+  const row = document.querySelector<HTMLElement>(
+    `[data-testid="radar-row"][data-listing-id="${CSS.escape(id)}"], [data-testid="radar-board-card"][data-listing-id="${CSS.escape(id)}"]`,
+  );
+  if (!row) return [];
+  return PARTS.map((part) => [part, row.querySelector<HTMLElement>(`[data-vt="${part}"]`)] as const).filter(
+    (entry): entry is readonly [MorphPart, HTMLElement] => entry[1] != null,
+  );
+}
+
+function name(parts: readonly (readonly [MorphPart, HTMLElement])[], id: string | null) {
+  for (const [part, el] of parts) el.style.viewTransitionName = id ? viewTransitionName(part, id) : '';
+}
+
 /**
- * Open the drawer for `id`, morphing the row's logo, title and ring into the drawer header when the
- * browser supports View Transitions. `open` must update state synchronously (it runs in flushSync).
+ * Open the listing page for `id`, morphing the row's logo, title and ring into the page header when
+ * the browser supports View Transitions (MOTION §5.6 shared element; progressive enhancement). The
+ * row and the page are never on screen together, so the names move from one to the other inside the
+ * transition. `open` may return a promise (router navigation); the new snapshot waits for the page.
  */
-export function openWithMorph(rowEl: HTMLElement | null, id: string, open: () => void): void {
-  if (!rowEl || !canMorph()) {
-    open();
+export function openWithMorph(_rowEl: HTMLElement | null, id: string, open: () => void | Promise<void>): void {
+  const parts = canMorph() && matchMedia('(min-width: 768px)').matches ? rowParts(id) : [];
+  if (!parts.length) {
+    void open();
     return;
   }
-  const parts = (['logo', 'title', 'ring'] as const)
-    .map((part) => [part, rowEl.querySelector<HTMLElement>(`[data-vt="${part}"]`)] as const)
-    .filter((entry): entry is readonly [MorphPart, HTMLElement] => entry[1] != null);
-  for (const [part, el] of parts) el.style.viewTransitionName = viewTransitionName(part, id);
+  name(parts, id);
   try {
-    const transition = document.startViewTransition(() => {
-      for (const [, el] of parts) el.style.viewTransitionName = '';
-      flushSync(() => {
-        setMorphing(id);
-        open();
-      });
+    const transition = document.startViewTransition(async () => {
+      name(parts, null);
+      flushSync(() => setMorphing(id));
+      await open();
+      await until(() => Boolean(document.querySelector('[data-testid="listing-page"]')));
     });
     void transition.finished.finally(() => setMorphing(null));
   } catch {
-    for (const [, el] of parts) el.style.viewTransitionName = '';
+    name(parts, null);
     setMorphing(null);
-    open();
+    void open();
+  }
+}
+
+/**
+ * Back from the listing page: the page header morphs back into its row (once the list has restored
+ * its scroll position and the row is mounted). Falls back to a plain navigation.
+ */
+export function closeWithMorph(id: string, close: () => void | Promise<void>): void {
+  if (!canMorph() || !matchMedia('(min-width: 768px)').matches) {
+    void close();
+    return;
+  }
+  flushSync(() => setMorphing(id));
+  let parts: (readonly [MorphPart, HTMLElement])[] = [];
+  try {
+    const transition = document.startViewTransition(async () => {
+      flushSync(() => setMorphing(null));
+      await close();
+      await until(() => {
+        const found = rowParts(id);
+        if (found.length && found[0]![1].offsetParent !== null) {
+          parts = found;
+          return true;
+        }
+        return false;
+      });
+      name(parts, id);
+    });
+    void transition.finished.finally(() => name(parts, null));
+  } catch {
+    setMorphing(null);
+    void close();
   }
 }

@@ -7,6 +7,7 @@ import {
   detectReducer,
   estimateDailyCredits,
   initialDetectState,
+  NO_LISTINGS_MESSAGE,
   resultSummary,
   shouldDetect,
   type DetectEvent,
@@ -121,7 +122,50 @@ describe('detecting', () => {
     });
     expect(s).toMatchObject({ status: 'error', error: { kind: 'bad-token' } });
     expect(s.status === 'error' && s.error.message).toContain('“strpie”');
+    expect(s.status === 'error' && s.error.message).toMatch(/^No Greenhouse board called/);
     expect(canSubmit(s)).toBe(false);
+  });
+
+  it('valid:false without a board token falls back to the API message, then copy #10', () => {
+    const withMessage = detectReducer(detecting, {
+      type: 'success',
+      requestId: 1,
+      result: result({ valid: false, boardToken: null, message: 'Empty feed.' }),
+    });
+    expect(withMessage.status === 'error' && withMessage.error.message).toBe('Empty feed.');
+    const bare = detectReducer(detecting, {
+      type: 'success',
+      requestId: 1,
+      result: result({ valid: false, boardToken: null, message: '' }),
+    });
+    expect(bare.status === 'error' && bare.error.message).toBe(NO_LISTINGS_MESSAGE);
+  });
+
+  it('runs the whole path: typing → detecting → detected → typing again → crawl', () => {
+    let s = run([{ type: 'input', value: 'boards.greenhouse.io/stripe' }]);
+    expect(shouldDetect(s)).toBe(true);
+    s = run(
+      [
+        { type: 'start', requestId: 7 },
+        { type: 'success', requestId: 7, result: result() },
+      ],
+      s,
+    );
+    expect(s.status).toBe('detected');
+    s = run(
+      [
+        { type: 'input', value: 'acme.dev/careers' },
+        { type: 'start', requestId: 8 },
+        {
+          type: 'success',
+          requestId: 8,
+          result: result({ kind: 'firecrawl', boardToken: null, costsCredits: true, previewCount: null }),
+        },
+      ],
+      s,
+    );
+    expect(s).toMatchObject({ status: 'crawl', url: 'https://acme.dev/careers' });
+    expect(canSubmit(s)).toBe(true);
   });
 
   it('notes a redirect when finalUrl differs from the input', () => {

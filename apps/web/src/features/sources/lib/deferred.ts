@@ -8,7 +8,7 @@ export const UNDO_WINDOW_MS = 6_000;
 
 interface Pending {
   timer: ReturnType<typeof setTimeout>;
-  commit: () => Promise<unknown> | unknown;
+  commit: () => unknown;
 }
 
 const pending = new Map<string, Pending>();
@@ -29,7 +29,7 @@ export interface DeferredHandle {
 
 export function deferCommit(
   key: string,
-  commit: () => Promise<unknown> | unknown,
+  commit: () => unknown,
   delayMs: number = UNDO_WINDOW_MS,
 ): DeferredHandle {
   listen();

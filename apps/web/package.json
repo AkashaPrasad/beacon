@@ -7,12 +7,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "start": "vite preview --port 5173",
-    "preview": "vite preview",
+    "build": "tsc --noEmit && vite build && node scripts/prerender.mjs",
+    "build:mock": "VITE_MOCK_API=1 pnpm run build",
+    "preview": "vite preview --port 4173 --strictPort",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -32,7 +34,6 @@
     "@tanstack/react-virtual": "3.14.23",
     "class-variance-authority": "0.7.1",
     "cmdk": "1.1.1",
-    "cn": "^0.5.0",
     "idb-keyval": "6.3.0",
     "lucide-react": "1.62.0",
     "motion": "12.24.8",

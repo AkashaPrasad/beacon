@@ -36,7 +36,7 @@ describe('radar MSW fixtures', () => {
     expect(first.items).toHaveLength(10);
     expect(first.total).toBeGreaterThan(10);
     expect(first.nextCursor).toBeTruthy();
-    const second = page(`limit=10&minFit=0&cursor=${first.nextCursor}`);
+    const second = page(`limit=10&minFit=0&cursor=${first.nextCursor ?? ''}`);
     expect(second.total).toBeUndefined();
     expect(second.items[0]!.listing.id).not.toBe(first.items[0]!.listing.id);
     expect(queryFeed(new URLSearchParams('cursor=@@'))).toEqual({ error: 'BAD_CURSOR' });

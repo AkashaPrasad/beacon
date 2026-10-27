@@ -1,4 +1,3 @@
-import { Shortcut } from '@kestrel/ui';
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { Briefcase, Clock } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/command';
 import { Kbd } from '@/components/ui/kbd';
 import { ariaKeyShortcuts } from '@/lib/shortcuts';
+import { Shortcut } from '@kestrel/ui';
 
 import {
   closePalette,
@@ -42,11 +42,17 @@ export function Component({ open }: { open: boolean }) {
   const listings = useMemo(() => {
     if (!open) return [];
     const seen = new Map<string, { id: string; title: string; company: string }>();
-    for (const [, data] of qc.getQueriesData<InfiniteData<FeedResponse>>({ queryKey: queryKeys.feed.all })) {
+    for (const [, data] of qc.getQueriesData<InfiniteData<FeedResponse>>({
+      queryKey: queryKeys.feed.all,
+    })) {
       for (const page of data?.pages ?? []) {
         for (const item of page.items ?? []) {
           if (!seen.has(item.listing.id) && !item.hidden) {
-            seen.set(item.listing.id, { id: item.listing.id, title: item.listing.title, company: item.listing.company });
+            seen.set(item.listing.id, {
+              id: item.listing.id,
+              title: item.listing.title,
+              company: item.listing.company,
+            });
           }
         }
       }
@@ -60,7 +66,7 @@ export function Component({ open }: { open: boolean }) {
     const map = new Map<string, Item[]>();
     for (const item of registered) map.set(item.group, [...(map.get(item.group) ?? []), item]);
     return [...map.entries()].sort(
-      ([a], [b]) => (GROUP_ORDER.indexOf(a) + 100) % 100 - ((GROUP_ORDER.indexOf(b) + 100) % 100),
+      ([a], [b]) => ((GROUP_ORDER.indexOf(a) + 100) % 100) - ((GROUP_ORDER.indexOf(b) + 100) % 100),
     );
   }, [registered]);
 
@@ -86,12 +92,18 @@ export function Component({ open }: { open: boolean }) {
         />
         <CommandList aria-live="polite">
           <CommandEmpty>
-            {query ? `No matches for “${query}”. Try fewer words.` : 'Type to search listings and commands.'}
+            {query
+              ? `No matches for “${query}”. Try fewer words.`
+              : 'Type to search listings and commands.'}
           </CommandEmpty>
           {query && listings.length > 0 && (
             <CommandGroup heading="Listings">
               {listings.map((l) => (
-                <CommandItem key={l.id} value={`listing ${l.title} ${l.company} ${l.id}`} onSelect={() => openListing(l.id)}>
+                <CommandItem
+                  key={l.id}
+                  value={`listing ${l.title} ${l.company} ${l.id}`}
+                  onSelect={() => openListing(l.id)}
+                >
                   <Briefcase strokeWidth={1.5} />
                   <span className="truncate">{l.title}</span>
                   <span className="truncate text-small text-fg-tertiary">{l.company}</span>
@@ -102,7 +114,11 @@ export function Component({ open }: { open: boolean }) {
           {!query && recent.length > 0 && (
             <CommandGroup heading="Recent">
               {recent.map((l) => (
-                <CommandItem key={l.id} value={`recent ${l.title} ${l.company}`} onSelect={() => openListing(l.id)}>
+                <CommandItem
+                  key={l.id}
+                  value={`recent ${l.title} ${l.company}`}
+                  onSelect={() => openListing(l.id)}
+                >
                   <Clock strokeWidth={1.5} />
                   <span className="truncate">{l.title}</span>
                   <span className="truncate text-small text-fg-tertiary">{l.company}</span>
@@ -124,7 +140,9 @@ export function Component({ open }: { open: boolean }) {
                   >
                     {Icon && <Icon strokeWidth={1.5} />}
                     <span className="truncate">{item.label}</span>
-                    {item.hint && <span className="truncate text-small text-fg-tertiary">{item.hint}</span>}
+                    {item.hint && (
+                      <span className="truncate text-small text-fg-tertiary">{item.hint}</span>
+                    )}
                     {item.shortcut && (
                       <CommandShortcut>
                         <Shortcut keys={item.shortcut} />

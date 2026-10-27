@@ -12,16 +12,17 @@
  * - `removeSourceFromCache` + `deleteSourceRequest`     DELETE with a deferred commit, so Undo restores the same source
  * - `useTogglePack()`       POST /v1/sources/packs/:id/enable|disable, optimistic (packs + community rows)
  */
-import type { OpportunityType, RefreshInterval } from '@kestrel/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { api, isApiError } from '@/lib/api';
+import type { OpportunityType, RefreshInterval } from '@kestrel/shared';
 
 import { queryKeys } from './keys';
 import type {
   CommunitySourceDTO,
   CreditsResponse,
   DetectResult,
+  FeedResponse,
   PackDTO,
   SourceCreateBody,
   SourceDTO,
@@ -114,6 +115,66 @@ export function usePacks() {
   });
 }
 
+const sourceKey = (id: string) => [...queryKeys.sources.all, 'detail', id] as const;
+const sourceListingsKey = (id: string) => [...queryKeys.sources.all, 'listings', id] as const;
+
+/**
+ * One source (`GET /v1/sources/:id`, own personal or any community source). The source page reads
+ * the list caches first (instant, and they carry optimistic edits); this fetch covers deep links to
+ * a source that is in neither list (e.g. a pack you haven't turned on).
+ */
+export function useSource(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: sourceKey(id),
+    queryFn: ({ signal }) =>
+      api.get<{ source: SourceRow | CommunityRow }>(`/v1/sources/${encodeURIComponent(id)}`, {
+        signal,
+      }),
+    select: (data) => data.source,
+    enabled: options.enabled ?? true,
+    retry: (count, error) => !(isApiError(error) && error.status === 404) && count < 2,
+    meta: { persist: false },
+  });
+}
+
+export interface SourceListing {
+  id: string;
+  title: string;
+  company: string;
+  postedAt: Date | string | null;
+  score: number | null;
+}
+
+const sourceListingsQuery = (id: string) => ({
+  queryKey: sourceListingsKey(id),
+  queryFn: async ({ signal }: { signal?: AbortSignal }): Promise<SourceListing[]> => {
+    const res = await api.get<FeedResponse>('/v1/feed', {
+      signal,
+      query: { sourceIds: id, sort: 'posted', limit: 5 },
+    });
+    return res.items.map((i) => ({
+      id: i.listing.id,
+      title: i.listing.title,
+      company: i.listing.company,
+      postedAt: i.listing.postedAt ?? null,
+      score: i.score,
+    }));
+  },
+  staleTime: 60_000,
+  retry: false,
+  meta: { persist: false },
+});
+
+/** The newest few listings from one source (`GET /v1/feed?sourceIds=…&sort=posted`). */
+export function useSourceListings(id: string) {
+  return useQuery(sourceListingsQuery(id));
+}
+
+/** Hover/focus prefetch for a source page link (cheap: one small feed page). */
+export function prefetchSourcePage(qc: QueryClient, id: string): void {
+  void qc.prefetchQuery(sourceListingsQuery(id));
+}
+
 export function useCredits() {
   return useQuery({
     queryKey: queryKeys.sources.credits,
@@ -161,10 +222,17 @@ function invalidateDownstream(qc: QueryClient) {
 
 let tempIds = 0;
 
-function optimisticRow(
-  body: SourceCreateBody & { preview?: DetectResult | null },
-  id: string,
-): SourceRow {
+export type CreateSourceVariables = SourceCreateBody & {
+  /** The detection shown in the dialog (names the optimistic row). Not sent. */
+  preview?: DetectResult | null;
+  /**
+   * Default true: the row appears at the top immediately ("Checking…"). Pass false when the dialog
+   * already suspects a duplicate, so a 409 never flashes a row in and out. Not sent.
+   */
+  optimistic?: boolean;
+};
+
+function optimisticRow(body: CreateSourceVariables, id: string): SourceRow {
   const now = new Date();
   let host = body.url;
   try {
@@ -197,17 +265,16 @@ function optimisticRow(
   };
 }
 
+
 /** Add a personal source. The row appears at the top immediately ("Checking…"). */
 export function useCreateSource() {
   const qc = useQueryClient();
   return useMutation({
     mutationKey: ['sources', 'create'],
-    mutationFn: ({
-      preview: _preview,
-      ...body
-    }: SourceCreateBody & { preview?: DetectResult | null }) =>
+    mutationFn: ({ preview: _preview, optimistic: _optimistic, ...body }: CreateSourceVariables) =>
       api.post<{ source: SourceRow; detection: DetectResult | null }>('/v1/sources', body),
     onMutate: async (body) => {
+      if (body.optimistic === false) return { previous: undefined, tempId: null };
       await qc.cancelQueries({ queryKey: queryKeys.sources.mine });
       const previous = qc.getQueryData<SourceList>(queryKeys.sources.mine);
       const tempId = `optimistic-${(tempIds += 1)}`;
@@ -215,10 +282,14 @@ export function useCreateSource() {
       return { previous, tempId };
     },
     onError: (_error, _body, context) => {
-      if (context) qc.setQueryData(queryKeys.sources.mine, context.previous);
+      if (context?.tempId) qc.setQueryData(queryKeys.sources.mine, context.previous);
     },
     onSuccess: ({ source }, _body, context) => {
-      setMine(qc, (rows) => rows.map((r) => (r.id === context.tempId ? source : r)));
+      setMine(qc, (rows) =>
+        context.tempId
+          ? rows.map((r) => (r.id === context.tempId ? source : r))
+          : [source, ...rows.filter((r) => r.id !== source.id)],
+      );
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.sources.mine });

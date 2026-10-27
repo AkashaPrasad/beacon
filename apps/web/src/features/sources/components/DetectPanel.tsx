@@ -1,13 +1,14 @@
+import { CircleAlert, CircleCheck, CornerDownRight, Globe, Info, RotateCw } from 'lucide-react';
+import { AnimatePresence, m, useIsPresent } from 'motion/react';
+import type { ReactNode } from 'react';
+
+import { Button } from '@/components/ui/button';
 import { CompanyLogo, Skeleton, springs, tweens, variants } from '@kestrel/ui';
-import { CircleAlert, CircleCheck, CornerDownRight, Globe, RotateCw } from 'lucide-react';
-import { AnimatePresence, m } from 'motion/react';
 
 import { resultSummary, type DetectState } from '../lib/detect-machine';
 import { KIND_ICONS } from '../lib/kind-icons';
 import { displayUrl } from '../lib/rows';
 
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 /**
  * Detection result region (DESIGN §10.5, copy #9/#10): detecting shimmer → animated reveal of the
@@ -18,12 +19,15 @@ export function DetectPanel({
   state,
   creditsPerDay,
   creditsPaused,
+  duplicate = null,
   onRetry,
   onShowExisting,
 }: {
   state: DetectState;
   creditsPerDay: number;
   creditsPaused: boolean;
+  /** A personal source with the same normalised URL (a hint; the server decides on submit). */
+  duplicate?: { id: string; name: string } | null;
   onRetry: () => void;
   onShowExisting?: (id: string) => void;
 }) {
@@ -37,64 +41,92 @@ export function DetectPanel({
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {key === 'none' ? null : (
-          <m.div
-            key={key}
-            layout="position"
-            variants={variants.fade}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="flex flex-col gap-2"
-          >
+          <PanelItem key={key}>
             {state.status === 'detecting' ? <Detecting /> : null}
             {state.status === 'detected' || state.status === 'crawl' ? (
-              <Result state={state} creditsPerDay={creditsPerDay} creditsPaused={creditsPaused} />
+              <Result
+                state={state}
+                creditsPerDay={creditsPerDay}
+                creditsPaused={creditsPaused}
+                duplicate={duplicate}
+                onShowExisting={onShowExisting}
+              />
             ) : null}
             {state.status === 'error' ? (
-              <div className="flex flex-col gap-2">
-                <p
-                  data-testid="source-detect-result"
-                  className="flex items-start gap-2 text-small text-danger"
-                >
-                  <CircleAlert
-                    className="mt-0.5 size-4 shrink-0"
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                  />
-                  <span>{state.error.message}</span>
-                </p>
-                <div className="flex gap-2 pl-6">
-                  {state.error.kind === 'duplicate' && state.error.existingId && onShowExisting ? (
-                    <Button
-                      size="xs"
-                      variant="secondary"
-                      onClick={() => onShowExisting(state.error.existingId!)}
-                    >
-                      Show it
-                    </Button>
-                  ) : null}
-                  {state.error.kind === 'unreachable' ||
-                  state.error.kind === 'rate-limited' ||
-                  state.error.kind === 'unknown' ? (
-                    <Button size="xs" variant="ghost" onClick={onRetry}>
-                      <RotateCw strokeWidth={1.5} /> Try again
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+              <ErrorLine error={state.error} onRetry={onRetry} onShowExisting={onShowExisting} />
             ) : null}
-          </m.div>
+          </PanelItem>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
+/**
+ * One state of the panel. While a state animates out (`popLayout` keeps it for 120 ms) it is inert
+ * and hidden from assistive tech, and drops the line testid, so there is only ever one current line.
+ */
+function PanelItem({ children }: { children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <m.div
+      layout="position"
+      variants={variants.fade}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      aria-hidden={present ? undefined : true}
+      inert={!present}
+      className="flex flex-col gap-2"
+    >
+      {children}
+    </m.div>
+  );
+}
+
+function useLineTestId(): string | undefined {
+  return useIsPresent() ? 'source-detect-result' : undefined;
+}
+
+function ErrorLine({
+  error,
+  onRetry,
+  onShowExisting,
+}: {
+  error: Extract<DetectState, { status: 'error' }>['error'];
+  onRetry: () => void;
+  onShowExisting?: (id: string) => void;
+}) {
+  const testId = useLineTestId();
+  const existingId = error.kind === 'duplicate' ? error.existingId : undefined;
+  return (
+    <div className="flex flex-col gap-2">
+      <p data-testid={testId} className="flex items-start gap-2 text-small text-danger">
+        <CircleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <span>{error.message}</span>
+      </p>
+      <div className="flex gap-2 pl-6">
+        {existingId && onShowExisting ? (
+          <Button size="xs" variant="secondary" onClick={() => onShowExisting(existingId)}>
+            Show it
+          </Button>
+        ) : null}
+        {error.kind === 'unreachable' || error.kind === 'rate-limited' || error.kind === 'unknown' ? (
+          <Button size="xs" variant="ghost" onClick={onRetry}>
+            <RotateCw strokeWidth={1.5} /> Try again
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function Detecting() {
+  const testId = useLineTestId();
   return (
     <div className="flex flex-col gap-2">
       <p
-        data-testid="source-detect-result"
+        data-testid={testId}
         className="flex items-center gap-2 font-mono text-mono-sm text-fg-secondary"
       >
         <span
@@ -121,21 +153,23 @@ function Result({
   state,
   creditsPerDay,
   creditsPaused,
+  duplicate,
+  onShowExisting,
 }: {
   state: Extract<DetectState, { status: 'detected' | 'crawl' }>;
   creditsPerDay: number;
   creditsPaused: boolean;
+  duplicate: { id: string; name: string } | null;
+  onShowExisting?: (id: string) => void;
 }) {
+  const testId = useLineTestId();
   const { result, redirectedTo } = state;
   const { kindLabel, token, count } = resultSummary(result);
   const KindIcon = KIND_ICONS[result.kind];
   const crawl = state.status === 'crawl';
   return (
     <div className="flex flex-col gap-2">
-      <p
-        data-testid="source-detect-result"
-        className={cn('flex items-start gap-2 text-small', crawl ? 'text-fg' : 'text-fg')}
-      >
+      <p data-testid={testId} className="flex items-start gap-2 text-small text-fg">
         <m.span
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1, transition: springs.snappy }}
@@ -150,9 +184,9 @@ function Result({
         </m.span>
         {crawl ? (
           <span>
-            No job board API here. We’ll crawl this page; uses ~
-            <span className="font-mono">{creditsPerDay}</span>{' '}
-            {creditsPerDay === 1 ? 'credit' : 'credits'}/day.
+            No job board API here. We’ll read the page instead (uses about{' '}
+            <span className="font-mono">{creditsPerDay}</span> crawl{' '}
+            {creditsPerDay === 1 ? 'credit' : 'credits'} a day).
           </span>
         ) : (
           <span className="font-mono text-mono-sm">
@@ -166,7 +200,7 @@ function Result({
             {token ? (
               <code className="rounded-xs bg-surface-sunken px-1 text-fg">{token}</code>
             ) : null}
-            {count ? <> · {count}</> : null}
+            {count ? <> → {count}</> : null}
           </span>
         )}
       </p>
@@ -175,6 +209,23 @@ function Result({
           <CornerDownRight className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           Redirects to <span className="font-mono">{displayUrl(redirectedTo)}</span>; Beacon will
           watch that page.
+        </p>
+      ) : null}
+      {duplicate ? (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-caption text-fg-secondary">
+          <Info className="size-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          <span>
+            You already watch this page as “{duplicate.name}”.
+          </span>
+          {onShowExisting ? (
+            <button
+              type="button"
+              onClick={() => onShowExisting(duplicate.id)}
+              className="rounded-xs text-accent-strong underline-offset-3 hover:underline focus-visible:focus-ring"
+            >
+              Show it
+            </button>
+          ) : null}
         </p>
       ) : null}
       {crawl && creditsPaused ? (

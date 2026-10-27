@@ -1,18 +1,19 @@
+import { Router, type Response } from 'express';
+import type { Model, Types } from 'mongoose';
+
 import {
   normaliseWeights,
   settingsPatchSchema,
   weightsInputSchema,
   type AiProvider,
-  type WeightsInput,
 } from '@kestrel/shared';
-import { Router, type Response } from 'express';
-import type { Model, Types } from 'mongoose';
 
 import { byokConfig, PROVIDER_BASE_URLS, serverConfig, testLlm, type LlmConfig } from '../ai/llm.js';
 import type { AppContext } from '../context.js';
 import { aiKeyAad, encryptSecret } from '../lib/crypto.js';
 import { badRequest, HttpError } from '../lib/errors.js';
 import { assertPublicUrl } from '../lib/http.js';
+import { redisKeys, utcDay, withTimeout } from '../lib/redis.js';
 import { parse } from '../lib/validate.js';
 import { clearSessionCookie, currentUser } from '../middleware/auth.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
@@ -111,7 +112,7 @@ export function createSettingsRouter(ctx: AppContext): Router {
     }
     let weightsChanged = false;
     if (patch.weights) {
-      const merged = { ...current.weights, ...patch.weights } as WeightsInput;
+      const merged = { ...current.weights, ...patch.weights };
       set['weights'] = parse(weightsInputSchema, merged);
       weightsChanged = JSON.stringify(normaliseWeights(current.weights)) !== JSON.stringify(normaliseWeights(merged));
     }
@@ -153,6 +154,29 @@ export function createSettingsRouter(ctx: AppContext): Router {
       { returnDocument: 'after' },
     ).lean<SettingsDoc>();
     res.json({ ai: toAiSettingsDTO(updated!.ai) });
+  });
+
+  router.get('/settings/ai/usage', async (req, res) => {
+    const { id } = currentUser(req);
+    const day = utcDay(ctx.now());
+    let calls: string | null = null;
+    let tokens: Record<string, string> = {};
+    try {
+      [calls, tokens] = await withTimeout(
+        Promise.all([ctx.redis.get(redisKeys.llmCalls(id, day)), ctx.redis.hgetall(redisKeys.llmTokens(id, day))]),
+        1_500,
+        'ai usage',
+      );
+    } catch (err) {
+      ctx.logger.warn({ err: (err as Error).message }, 'ai usage unavailable');
+    }
+    const num = (v: string | null | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : 0);
+    res.json({
+      date: day,
+      calls: num(calls),
+      cap: ctx.env.LLM_DAILY_USER_CAP,
+      tokens: { prompt: num(tokens['prompt']), completion: num(tokens['completion']), total: num(tokens['total']) },
+    });
   });
 
   router.post('/settings/ai/test', aiTestLimiter, async (req, res) => {

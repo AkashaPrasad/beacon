@@ -7,6 +7,7 @@ import {
   formatDayMonth,
   formatRelative,
   formatShortDate,
+  formatTime,
   fromDateInputValue,
   toDateInputValue,
 } from './format';
@@ -24,6 +25,8 @@ describe('format', () => {
     expect(formatShortDate(NOW)).toBe('Tue 27 Oct');
     expect(formatDayMonth('2026-10-14T06:00:00Z')).toBe('14 Oct');
     expect(formatAbsolute('2026-10-28T18:29:00Z')).toBe('Wed 28 Oct, 23:59 IST');
+    expect(formatTime(Date.parse('2026-10-27T05:12:00Z'))).toBe('10:42');
+    expect(formatTime(Number.NaN)).toBe('—');
   });
   it('date inputs round-trip', () => {
     expect(toDateInputValue(NOW)).toBe('2026-10-27');

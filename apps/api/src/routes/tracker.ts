@@ -1,13 +1,13 @@
+import { Router } from 'express';
+import type { Types } from 'mongoose';
+
 import {
   DAY_MS,
   NUDGE_FOLLOW_UP_DAYS,
   NUDGE_GHOSTED_DAYS,
   TRACKER_STAGES,
-  trackerMoveSchema,
   type TrackerStage,
 } from '@kestrel/shared';
-import { Router } from 'express';
-import type { Types } from 'mongoose';
 
 import type { AppContext } from '../context.js';
 import { conflict, notFound } from '../lib/errors.js';
@@ -16,7 +16,12 @@ import { currentUser } from '../middleware/auth.js';
 import { TrackerItem, type TrackerItemDoc } from '../models/activity.js';
 import { Listing, type ListingDoc } from '../models/listing.js';
 import { Source, type SourceDoc } from '../models/source.js';
-import { trackerCreateBodySchema, trackerListQuerySchema, trackerPatchSchema } from '../schemas/index.js';
+import {
+  trackerCreateBodySchema,
+  trackerListQuerySchema,
+  trackerMoveBodySchema,
+  trackerPatchSchema,
+} from '../schemas/index.js';
 import { toTrackerDTO } from '../services/serialize.js';
 import { canSeeListing } from '../services/visibility.js';
 
@@ -210,7 +215,7 @@ export function createTrackerRouter(ctx: AppContext): Router {
       lastActivityAt: now,
       history: [{ stage, at: now }],
     });
-    res.status(201).json({ item: toTrackerDTO(created.toObject() as TrackerItemDoc) });
+    res.status(201).json({ item: toTrackerDTO(created.toObject()) });
   });
 
   router.get('/tracker/:id', async (req, res) => {
@@ -237,7 +242,16 @@ export function createTrackerRouter(ctx: AppContext): Router {
   router.post('/tracker/:id/move', async (req, res) => {
     const { _id } = currentUser(req);
     const item = await loadItem(_id, req.params['id']);
-    const { stage, position } = parse(trackerMoveSchema, req.body);
+    const { stage, position, fromStage, ifUnmodifiedSince } = parse(trackerMoveBodySchema, req.body);
+    const stale =
+      (fromStage !== undefined && fromStage !== item.stage) ||
+      (ifUnmodifiedSince !== undefined && new Date(item.updatedAt).getTime() > ifUnmodifiedSince.getTime());
+    if (stale) {
+      throw conflict('This card changed in another tab; the board has been refreshed', {
+        reason: 'stale',
+        item: toTrackerDTO(item),
+      });
+    }
     res.json(await moveItem(ctx, item, stage, position));
   });
 

@@ -2,6 +2,8 @@
  * API-local request schemas (docs/API.md marks them "(api)"). Each one extends or composes a
  * shared schema; candidates for @kestrel/shared are listed in docs/SHARED-REQUESTS.md.
  */
+import { z } from 'zod';
+
 import {
   AI_PROVIDERS,
   booleanishSchema,
@@ -19,10 +21,11 @@ import {
   sourceKindSchema,
   trackerCreateSchema,
   trackerStageSchema,
+  trackerMoveSchema,
   trackerUpdateSchema,
 } from '@kestrel/shared';
-import { z } from 'zod';
 
+import { passwordSchema } from '../lib/password.js';
 import { AI_MODES, ONBOARDING_STEPS } from '../models/user.js';
 
 const objectIdString = z.string().regex(/^[a-f0-9]{24}$/i, 'Expected a 24-character id');
@@ -33,6 +36,21 @@ export const googleAuthSchema = z.union([
   z.object({ credential: z.string().min(10).max(8_192) }).strict(),
   z.object({ code: z.string().min(4).max(2_048), redirectUri: httpUrlSchema }).strict(),
 ]);
+
+const emailSchema = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address').max(254));
+
+export const registerSchema = z
+  .object({ email: emailSchema, password: passwordSchema, name: z.string().trim().min(1).max(120) })
+  .strict();
+
+export const loginSchema = z
+  .object({ email: emailSchema, password: z.string().min(1).max(1_024) })
+  .strict();
+
+/** Set or change the password of the signed-in account. */
+export const passwordSetSchema = z
+  .object({ password: passwordSchema, currentPassword: z.string().min(1).max(1_024).optional() })
+  .strict();
 
 export const mePatchSchema = z
   .object({
@@ -101,6 +119,17 @@ export const trackerPatchSchema = trackerUpdateSchema.extend({
 });
 
 export const trackerListQuerySchema = z.object({ stage: trackerStageSchema.optional() });
+
+/**
+ * Kanban drop. The optional preconditions make a move from a stale board (another tab moved the
+ * card) a `409 CONFLICT` instead of silently overwriting it.
+ */
+export const trackerMoveBodySchema = trackerMoveSchema.extend({
+  /** The stage the client believes the card is in. */
+  fromStage: trackerStageSchema.optional(),
+  /** The card's `updatedAt` as the client last saw it. */
+  ifUnmodifiedSince: dateSchema.optional(),
+});
 
 // ── Push & notifications ─────────────────────────────────────────────────────
 

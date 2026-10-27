@@ -34,7 +34,10 @@ function randomState(): string {
 export function createOAuthState(next: string | null): string {
   const state = randomState();
   try {
-    sessionStorage.setItem(STATE_KEY, JSON.stringify({ state, next, at: Date.now() } satisfies StoredState));
+    sessionStorage.setItem(
+      STATE_KEY,
+      JSON.stringify({ state, next, at: Date.now() } satisfies StoredState),
+    );
   } catch {
     /* private mode: the callback will treat the state as unknown and ask to retry */
   }
@@ -77,7 +80,9 @@ declare global {
 /** Fallback redirect without the GIS library. With the MSW mock running, Google is simulated. */
 export function beginGoogleRedirect(state: string): void {
   if (env.mockApi && window.__BEACON_MOCK__) {
-    window.location.assign(`/auth/callback?code=mock-google-code&state=${encodeURIComponent(state)}`);
+    window.location.assign(
+      `/auth/callback?code=mock-google-code&state=${encodeURIComponent(state)}`,
+    );
     return;
   }
   window.location.assign(googleAuthUrl(state));

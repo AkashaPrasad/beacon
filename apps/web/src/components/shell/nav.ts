@@ -1,4 +1,12 @@
-import { BellRing, CalendarClock, CircleUserRound, Radar, Rss, SquareKanban, type LucideIcon } from 'lucide-react';
+import {
+  BellRing,
+  CalendarClock,
+  CircleUserRound,
+  Radar,
+  Rss,
+  SquareKanban,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface NavItem {
   to: string;

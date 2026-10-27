@@ -1,5 +1,6 @@
-import { DAY_MS } from '@kestrel/shared';
 import { describe, expect, it } from 'vitest';
+
+import { DAY_MS } from '@kestrel/shared';
 
 import {
   clockStart,

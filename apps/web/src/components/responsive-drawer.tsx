@@ -1,4 +1,3 @@
-import { tweens, variants } from '@kestrel/ui';
 import { XIcon } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
@@ -11,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { useShortcut } from '@/lib/shortcuts';
 import { useBreakpoint } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
+import { tweens, variants } from '@kestrel/ui';
 
 export interface ResponsiveDrawerProps {
   open: boolean;
@@ -72,7 +72,9 @@ function Header({
           <h2 id={titleId} ref={titleRef} tabIndex={-1} className="text-h2 text-fg outline-none">
             {title}
           </h2>
-          {description != null && <p className="mt-0.5 text-small text-fg-secondary">{description}</p>}
+          {description != null && (
+            <p className="mt-0.5 text-small text-fg-secondary">{description}</p>
+          )}
         </div>
         {actions}
         <Button variant="ghost" size="icon-sm" aria-label="Close details" onClick={onClose}>
@@ -100,7 +102,11 @@ function Body({ children, contentKey }: { children: ReactNode; contentKey?: stri
 }
 
 function useEscToClose(open: boolean, onOpenChange: (open: boolean) => void) {
-  useShortcut('escape', () => onOpenChange(false), { enabled: open, scope: 'drawer', allowInInput: false });
+  useShortcut('escape', () => onOpenChange(false), {
+    enabled: open,
+    scope: 'drawer',
+    allowInInput: false,
+  });
 }
 
 function PushDrawer({ open, onOpenChange, className, ...props }: ResponsiveDrawerProps) {
@@ -153,10 +159,26 @@ function OverlayDrawer({ open, onOpenChange, className, ...props }: ResponsiveDr
   );
 }
 
-function SheetDrawer({ open, onOpenChange, className, title, description, actions, leading, children, contentKey, ...rest }: ResponsiveDrawerProps) {
+function SheetDrawer({
+  open,
+  onOpenChange,
+  className,
+  title,
+  description,
+  actions,
+  leading,
+  children,
+  contentKey,
+  ...rest
+}: ResponsiveDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" showCloseButton={false} className={cn('gap-0', className)} data-testid={rest['data-testid']}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className={cn('gap-0', className)}
+        data-testid={rest['data-testid']}
+      >
         <header className="sticky top-0 z-sticky flex flex-col gap-2 border-b border-border-subtle bg-surface px-4 py-3">
           {leading}
           <div className="flex items-start gap-2">
@@ -169,7 +191,12 @@ function SheetDrawer({ open, onOpenChange, className, title, description, action
               )}
             </div>
             {actions}
-            <Button variant="ghost" size="icon-sm" aria-label="Close details" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close details"
+              onClick={() => onOpenChange(false)}
+            >
               <XIcon strokeWidth={1.5} />
             </Button>
           </div>
@@ -195,7 +222,11 @@ function BottomSheetDrawer({
 }: ResponsiveDrawerProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} snapPoints={[0.6, 1]} fadeFromIndex={0}>
-      <DrawerContent handleLabel={handleLabel} className={cn('h-dvh', className)} data-testid={rest['data-testid']}>
+      <DrawerContent
+        handleLabel={handleLabel}
+        className={cn('h-dvh', className)}
+        data-testid={rest['data-testid']}
+      >
         <div className="flex flex-col gap-2 border-b border-border-subtle px-4 pb-3">
           {leading}
           <div className="flex items-start gap-2">

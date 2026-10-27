@@ -1,0 +1,211 @@
+/*
+ * Public site atmosphere (docs/MARKETING.md). Plain CSS on the design tokens: everything here is a
+ * static paint layer or a transform/opacity animation (MOTION §7). One hue only: signal amber at
+ * varying alpha, never a multi-hue gradient (DESIGN §1). Ambient loops are landing-only and stop under
+ * reduced motion (the global rule in styles/index.css collapses animation durations) and while off-screen
+ * (`data-paused`).
+ */
+
+:root {
+  /* Ambient loop lengths (landing only; product UI never loops, MOTION §1.7). */
+  --mk-beam-sweep: 16s;
+  --mk-marquee: 70s;
+  /* The lamp, as channels so alpha can vary (dark-theme accent #FFB547; the hero is always dark). */
+  --mk-lamp: 255 181 71;
+  --mk-ink: 237 234 230;
+}
+
+/* ── Grain: SVG fractal noise, ~4 % (static, tiled, composited once) ───────────────────────── */
+.mk-grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+.mk-grain-ink {
+  opacity: 0.03;
+  filter: invert(1);
+}
+
+/* ── Dotted radar grid, fading out from the lamp ──────────────────────────────────────────── */
+.mk-dots {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center, rgb(var(--mk-ink) / 0.16) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+  background-position: center top;
+  mask-image: radial-gradient(
+    ellipse 70% 80% at var(--mk-src-x, 78%) var(--mk-src-y, 8%),
+    #000 0%,
+    rgb(0 0 0 / 0.55) 35%,
+    transparent 72%
+  );
+}
+.mk-dots-paper {
+  background-image: radial-gradient(circle at center, rgb(28 25 23 / 0.1) 1px, transparent 1.5px);
+}
+.dark .mk-dots-paper {
+  background-image: radial-gradient(circle at center, rgb(var(--mk-ink) / 0.09) 1px, transparent 1.5px);
+}
+
+/* ── Amber glow around the lamp (one hue, alpha only) ─────────────────────────────────────── */
+.mk-glow {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgb(var(--mk-lamp) / 0.2), rgb(var(--mk-lamp) / 0.07) 45%, rgb(var(--mk-lamp) / 0) 100%);
+}
+
+/* ── The beam: a tapered cone from the lamp. The element's left-centre is the lamp; the wedge is a
+   conic gradient (soft angular edges) faded along its length by a radial mask. It sweeps by
+   rotating about the lamp (transform only). ─────────────────────────────────────────────── */
+.mk-beam {
+  pointer-events: none;
+  position: absolute;
+  left: var(--mk-src-x, 78%);
+  top: var(--mk-src-y, 8%);
+  width: var(--mk-beam-length, 88rem);
+  height: calc(var(--mk-beam-length, 88rem) * 0.62);
+  translate: 0 -50%;
+  transform-origin: 0% 50%;
+  rotate: var(--mk-beam-dir, 205deg);
+  background: conic-gradient(
+    from 72deg at 0% 50%,
+    rgb(var(--mk-lamp) / 0) 0deg,
+    rgb(var(--mk-lamp) / 0.1) 9deg,
+    rgb(var(--mk-lamp) / 0.2) 18deg,
+    rgb(var(--mk-lamp) / 0.1) 27deg,
+    rgb(var(--mk-lamp) / 0) 36deg,
+    rgb(var(--mk-lamp) / 0) 360deg
+  );
+  mask-image: radial-gradient(circle at 0% 50%, #000 0%, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.25) 62%, transparent 82%);
+}
+.mk-beam[data-sweep] {
+  animation: mk-beam-sweep var(--mk-beam-sweep) var(--ease-in-out) infinite alternate;
+}
+.mk-beam[data-paused] {
+  animation-play-state: paused;
+}
+@keyframes mk-beam-sweep {
+  from {
+    rotate: calc(var(--mk-beam-dir, 205deg) - var(--mk-beam-swing, 9deg));
+  }
+  to {
+    rotate: calc(var(--mk-beam-dir, 205deg) + var(--mk-beam-swing, 9deg));
+  }
+}
+
+/* The lamp itself: a solid source and a thin halo ring (the mark's construction at scale). */
+.mk-lamp {
+  pointer-events: none;
+  position: absolute;
+  left: var(--mk-src-x, 78%);
+  top: var(--mk-src-y, 8%);
+  translate: -50% -50%;
+}
+
+/* ── Logo marquee: one track, duplicated, translated -50 % (transform only); pauses on hover/focus ── */
+.mk-marquee {
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+.mk-marquee-track {
+  animation: mk-marquee var(--mk-marquee) linear infinite;
+}
+.mk-marquee:hover .mk-marquee-track,
+.mk-marquee:focus-within .mk-marquee-track,
+.mk-marquee[data-paused] .mk-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes mk-marquee {
+  to {
+    translate: -50% 0;
+  }
+}
+/* Greyscale at rest, colour on hover: two stacked copies of the same (cached) favicon, crossfaded
+   by opacity, so no filter ever animates. */
+.mk-logo-grey {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.mk-logo-colour {
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mk-logo:hover .mk-logo-colour {
+    opacity: 1;
+  }
+}
+.mk-logo:focus-visible .mk-logo-colour {
+  opacity: 1;
+}
+
+/* Under reduced motion the marquee becomes a static, wrapping wall (no loop at all). */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .mk-marquee-track {
+    animation: none;
+  }
+  :root:not([data-motion='full']) .mk-beam[data-sweep] {
+    animation: none;
+  }
+}
+[data-motion='reduced'] .mk-marquee-track,
+[data-motion='reduced'] .mk-beam[data-sweep] {
+  animation: none;
+}
+
+/* ── Below-fold sections skip rendering until near the viewport (no layout shift: intrinsic size) ── */
+.mk-cv {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--mk-cv-size, 900px);
+}
+
+/* Editorial display sizes for the public site (Instrument Serif 56–88 px on desktop). */
+.mk-display-hero {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.625rem, 1.4rem + 5.6vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: -0.022em;
+}
+.mk-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.25rem, 1.5rem + 3.2vw, 3.75rem);
+  line-height: 1.04;
+  letter-spacing: -0.018em;
+}
+.mk-display-sm {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.875rem, 1.4rem + 1.9vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.014em;
+}
+
+/* Pointer tilt container (perspective lives on the parent so the frame's own transform stays 2D-cheap). */
+.mk-tilt-stage {
+  perspective: 1400px;
+}
+
+/* A hairline that reads as light on the dark bands (amber at low alpha). */
+.mk-hairline-lamp {
+  border-color: rgb(var(--mk-lamp) / 0.28);
+}
+
+/* Native <details> FAQ: rotate the chevron, never animate height. */
+.mk-faq summary::-webkit-details-marker {
+  display: none;
+}
+.mk-faq summary {
+  list-style: none;
+}
+.mk-faq[open] .mk-faq-chevron {
+  rotate: 45deg;
+}
+.mk-faq-chevron {
+  transition: rotate var(--duration-base) var(--ease-spring);
+}

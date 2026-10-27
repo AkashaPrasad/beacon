@@ -19,7 +19,7 @@ export interface WithUndoOptions<T> {
   /** The action. Usually a mutation whose hook already applied the optimistic update. */
   run: () => Promise<T> | T;
   /** Inverse action. */
-  undo: (result: T | undefined) => Promise<unknown> | unknown;
+  undo: (result: T | undefined) => unknown;
   /** Toast after a successful undo (default: none; the UI already shows the restored state). */
   undoneMessage?: string;
   durationMs?: number;
@@ -32,7 +32,13 @@ interface UndoEntry {
 
 let last: UndoEntry | null = null;
 
-export function withUndo<T>({ message, run, undo, undoneMessage, durationMs = 6000 }: WithUndoOptions<T>) {
+export function withUndo<T>({
+  message,
+  run,
+  undo,
+  undoneMessage,
+  durationMs = 6000,
+}: WithUndoOptions<T>) {
   let result: T | undefined;
   let undone = false;
 

@@ -148,3 +148,134 @@ export function columnCounts(columns: BoardColumns): Record<TrackerStage, number
     number
   >;
 }
+
+// ── Keyboard drag (Space lifts, arrows move one slot, Space/Enter drops, Esc cancels) ──────────
+
+export type Direction = 'up' | 'down' | 'left' | 'right';
+
+/**
+ * Where a one-slot keyboard move takes a card. Left/right go to the neighbouring stage in `order`
+ * at the same index (clamped to that column's end); up/down move within the column. Null at an edge.
+ */
+export function keyboardTarget(
+  columns: BoardColumns,
+  id: string,
+  direction: Direction,
+  order: readonly TrackerStage[] = TRACKER_STAGES,
+): BoardLocation | null {
+  const at = locate(columns, id);
+  if (!at) return null;
+  if (direction === 'up' || direction === 'down') {
+    const index = at.index + (direction === 'up' ? -1 : 1);
+    if (index < 0 || index >= columns[at.stage].length) return null;
+    return { stage: at.stage, index };
+  }
+  const pos = order.indexOf(at.stage);
+  const next = pos === -1 ? undefined : order[pos + (direction === 'left' ? -1 : 1)];
+  if (!next) return null;
+  return { stage: next, index: Math.min(at.index, columns[next].length) };
+}
+
+export interface KeyboardDrag {
+  id: string;
+  /** Where the card was picked up. */
+  origin: BoardLocation;
+  /** Where it is now (preview). */
+  current: BoardLocation;
+  /** Preview board while lifted. */
+  columns: BoardColumns;
+}
+
+export type KeyboardDragEvent =
+  | { type: 'lift'; id: string; columns: BoardColumns }
+  | { type: 'move'; direction: Direction }
+  | { type: 'drop' }
+  | { type: 'cancel' };
+
+export interface KeyboardDragOutcome {
+  kind: 'lifted' | 'moved' | 'blocked' | 'dropped' | 'cancelled';
+  from: BoardLocation;
+  to: BoardLocation;
+  /** Board after the event (for `dropped`: the board to commit; for `cancelled`: the original). */
+  columns: BoardColumns;
+}
+
+export interface KeyboardDragResult {
+  state: KeyboardDrag | null;
+  outcome: KeyboardDragOutcome | null;
+}
+
+/** Pure keyboard-drag reducer. The board component announces and commits from `outcome`. */
+export function keyboardDrag(
+  state: KeyboardDrag | null,
+  event: KeyboardDragEvent,
+  order: readonly TrackerStage[] = TRACKER_STAGES,
+): KeyboardDragResult {
+  switch (event.type) {
+    case 'lift': {
+      if (state) return { state, outcome: null };
+      const at = locate(event.columns, event.id);
+      if (!at) return { state: null, outcome: null };
+      const next: KeyboardDrag = { id: event.id, origin: at, current: at, columns: event.columns };
+      return { state: next, outcome: { kind: 'lifted', from: at, to: at, columns: event.columns } };
+    }
+    case 'move': {
+      if (!state) return { state, outcome: null };
+      const target = keyboardTarget(state.columns, state.id, event.direction, order);
+      if (!target) {
+        return {
+          state,
+          outcome: { kind: 'blocked', from: state.current, to: state.current, columns: state.columns },
+        };
+      }
+      const columns = moveItem(state.columns, state.id, target.stage, target.index);
+      const to = locate(columns, state.id) ?? target;
+      return {
+        state: { ...state, columns, current: to },
+        outcome: { kind: 'moved', from: state.current, to, columns },
+      };
+    }
+    case 'drop': {
+      if (!state) return { state, outcome: null };
+      return {
+        state: null,
+        outcome: { kind: 'dropped', from: state.origin, to: state.current, columns: state.columns },
+      };
+    }
+    case 'cancel': {
+      if (!state) return { state, outcome: null };
+      const columns = moveItem(state.columns, state.id, state.origin.stage, state.origin.index);
+      return {
+        state: null,
+        outcome: { kind: 'cancelled', from: state.current, to: state.origin, columns },
+      };
+    }
+  }
+}
+
+/**
+ * Roving-focus neighbour for arrow keys when nothing is lifted. `visible` is the on-screen column
+ * order (Closed contributes only its visible segment). Left/right skip empty columns and keep the
+ * row index where possible.
+ */
+export function neighbourId(
+  columns: BoardColumns,
+  id: string,
+  direction: Direction,
+  visible: readonly TrackerStage[],
+): string | null {
+  const at = locate(columns, id);
+  if (!at) return null;
+  if (direction === 'up' || direction === 'down') {
+    const list = columns[at.stage];
+    return list[at.index + (direction === 'up' ? -1 : 1)] ?? null;
+  }
+  const step = direction === 'left' ? -1 : 1;
+  for (let i = visible.indexOf(at.stage) + step; i >= 0 && i < visible.length; i += step) {
+    const stage = visible[i];
+    if (!stage) break;
+    const list = columns[stage];
+    if (list.length) return list[Math.min(at.index, list.length - 1)] ?? null;
+  }
+  return null;
+}

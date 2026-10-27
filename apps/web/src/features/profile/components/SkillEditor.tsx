@@ -91,7 +91,7 @@ export function SkillChip({ skill, onCycle, onRemove, readOnly }: SkillChipProps
             title={`${meta.label}. Change to ${next.label}`}
             aria-label={`${skill.name} proficiency: ${meta.label}. Change to ${next.label}`}
             data-testid="profile-skill-proficiency"
-            className="hit-area flex h-full items-center gap-1 px-1.5 text-fg-tertiary transition-colors duration-fast hover:bg-surface-hover hover:text-fg focus-visible:focus-ring-inset active:bg-surface-active"
+            className="flex h-full items-center gap-1 px-1.5 text-fg-tertiary transition-colors duration-fast hover:bg-surface-hover hover:text-fg focus-visible:focus-ring-inset active:bg-surface-active"
           >
             <ProficiencyBars level={level} />
             <span className="hidden text-caption sm:inline">{meta.label}</span>
@@ -101,7 +101,7 @@ export function SkillChip({ skill, onCycle, onRemove, readOnly }: SkillChipProps
             onClick={onRemove}
             aria-label={`Remove ${skill.name}`}
             data-testid="profile-skill-remove"
-            className="hit-area flex h-full items-center rounded-r-xs border-l border-border-subtle px-1.5 text-fg-tertiary transition-colors duration-fast hover:bg-surface-hover hover:text-fg focus-visible:focus-ring-inset active:bg-surface-active"
+            className="flex h-full items-center rounded-r-xs border-l border-border-subtle px-1.5 text-fg-tertiary transition-colors duration-fast hover:bg-surface-hover hover:text-fg focus-visible:focus-ring-inset active:bg-surface-active"
           >
             <X className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>

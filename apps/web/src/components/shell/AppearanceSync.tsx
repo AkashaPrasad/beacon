@@ -26,7 +26,13 @@ export function AppearanceSync() {
     const s = me.settings;
     setAppearance(
       fromServerAppearance(
-        { theme: s.theme, accent: s.accent, density: s.density, fontSize: s.fontSize, reducedMotion: s.reducedMotion },
+        {
+          theme: s.theme,
+          accent: s.accent,
+          density: s.density,
+          fontSize: s.fontSize,
+          reducedMotion: s.reducedMotion,
+        },
         appearance,
       ),
       'server',

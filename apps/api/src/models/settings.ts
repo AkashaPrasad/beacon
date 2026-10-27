@@ -1,5 +1,6 @@
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
+
 import type { AiProvider, WeightsInput } from '@kestrel/shared';
-import { model, models, Schema, type Model, type Types } from 'mongoose';
 
 export interface SettingsDoc {
   _id: Types.ObjectId;
@@ -71,4 +72,4 @@ const settingsSchema = new Schema(
 );
 
 export const Settings: Model<SettingsDoc> =
-  (models['Settings'] as Model<SettingsDoc> | undefined) ?? model<SettingsDoc>('Settings', settingsSchema as unknown as Schema<SettingsDoc>);
+  (mongoose.models['Settings'] as Model<SettingsDoc> | undefined) ?? model<SettingsDoc>('Settings', settingsSchema as unknown as Schema<SettingsDoc>);

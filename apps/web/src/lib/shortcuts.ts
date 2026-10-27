@@ -74,7 +74,11 @@ function parseChord(token: string): Chord {
   const key = parts.pop() ?? '';
   return {
     key: KEY_ALIASES[key] ?? key,
-    mod: parts.includes('mod') || parts.includes('meta') || parts.includes('ctrl') || parts.includes('cmd'),
+    mod:
+      parts.includes('mod') ||
+      parts.includes('meta') ||
+      parts.includes('ctrl') ||
+      parts.includes('cmd'),
     shift: parts.includes('shift'),
     alt: parts.includes('alt') || parts.includes('option'),
   };
@@ -112,13 +116,17 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (tag === 'INPUT') {
     const type = (target as HTMLInputElement).type;
-    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(type);
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(
+      type,
+    );
   }
   return target.getAttribute('role') === 'combobox' || target.getAttribute('role') === 'textbox';
 }
 
 function inDialog(target: EventTarget | null): boolean {
-  return target instanceof Element && Boolean(target.closest('[role="dialog"], [role="alertdialog"]'));
+  return (
+    target instanceof Element && Boolean(target.closest('[role="dialog"], [role="alertdialog"]'))
+  );
 }
 
 export class ShortcutRegistry {
@@ -128,10 +136,15 @@ export class ShortcutRegistry {
   private pending: { chords: Chord[]; at: number } | null = null;
   private listeners = new Set<() => void>();
   private snapshot: readonly ShortcutDefinition[] = [];
-  private singleKeyEnabled = readJson<{ singleKey?: boolean }>(STORAGE_KEYS.shortcuts, {}).singleKey !== false;
+  private singleKeyEnabled =
+    readJson<{ singleKey?: boolean }>(STORAGE_KEYS.shortcuts, {}).singleKey !== false;
   apple = isApplePlatform();
 
-  register(keys: string, handler: (event: KeyboardEvent) => void, options: ShortcutOptions = {}): () => void {
+  register(
+    keys: string,
+    handler: (event: KeyboardEvent) => void,
+    options: ShortcutOptions = {},
+  ): () => void {
     const chords = parseKeys(keys);
     const def: ShortcutDefinition = {
       id: this.nextId++,
@@ -215,7 +228,8 @@ export class ShortcutRegistry {
     const editable = isEditableTarget(event.target);
     const dialog = inDialog(event.target);
     const now = Date.now();
-    const pending = this.pending && now - this.pending.at < SEQUENCE_TIMEOUT_MS ? this.pending : null;
+    const pending =
+      this.pending && now - this.pending.at < SEQUENCE_TIMEOUT_MS ? this.pending : null;
     this.pending = null;
 
     const allowed = (def: ShortcutDefinition) =>
@@ -229,9 +243,13 @@ export class ShortcutRegistry {
       const chords = parseKeys(def.keys);
       if (pending) {
         const prefix = pending.chords;
-        if (chords.length === prefix.length + 1 && matchesChord(event, chords[chords.length - 1]!, this.apple)) {
+        if (
+          chords.length === prefix.length + 1 &&
+          matchesChord(event, chords[chords.length - 1]!, this.apple)
+        ) {
           const prefixMatches = prefix.every(
-            (c, i) => chords[i]?.key === c.key && chords[i]?.mod === c.mod && chords[i]?.shift === c.shift,
+            (c, i) =>
+              chords[i]?.key === c.key && chords[i]?.mod === c.mod && chords[i]?.shift === c.shift,
           );
           if (prefixMatches) return this.fire(def, event);
         }
@@ -286,12 +304,24 @@ export function installShortcutListener(target: Document | Window = document): (
  * Register a shortcut for the lifetime of the component. The latest `handler` is always called
  * (no need to memoise it).
  */
-export function useShortcut(keys: string, handler: (event: KeyboardEvent) => void, options: ShortcutOptions = {}) {
+export function useShortcut(
+  keys: string,
+  handler: (event: KeyboardEvent) => void,
+  options: ShortcutOptions = {},
+) {
   const ref = useRef(handler);
   useEffect(() => {
     ref.current = handler;
   });
-  const { description, group, scope, allowInInput, allowInDialog, preventDefault, enabled = true } = options;
+  const {
+    description,
+    group,
+    scope,
+    allowInInput,
+    allowInDialog,
+    preventDefault,
+    enabled = true,
+  } = options;
   useEffect(() => {
     if (!enabled) return undefined;
     return shortcuts.register(keys, (event) => ref.current(event), {
@@ -312,7 +342,11 @@ export function useShortcutScope(scope: string, enabled = true) {
 
 /** Live list of described shortcuts (for the `?` sheet). */
 export function useShortcutList(): readonly ShortcutDefinition[] {
-  return useSyncExternalStore(shortcuts.subscribe, () => shortcuts.list(), () => shortcuts.list());
+  return useSyncExternalStore(
+    shortcuts.subscribe,
+    () => shortcuts.list(),
+    () => shortcuts.list(),
+  );
 }
 
 /** `aria-keyshortcuts` value for a key string ("mod+k" → "Meta+K" / "Control+K"). */

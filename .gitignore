@@ -19,6 +19,7 @@
 .env
 .env.*
 .idea/
+.lighthouseci/
 .terraform/
 .turbo/
 .vite/

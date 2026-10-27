@@ -1,28 +1,9 @@
-import {
-  OPPORTUNITY_TYPE_LABELS,
-  OPPORTUNITY_TYPES,
-  type OpportunityType,
-  type RefreshInterval,
-} from '@kestrel/shared';
-import { durations, usePrefersReducedMotion } from '@kestrel/ui';
 import { Link2 } from 'lucide-react';
 import { useAnimate } from 'motion/react';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 
-import {
-  canSubmit,
-  candidateUrl,
-  estimateDailyCredits,
-  type DetectState,
-} from '../lib/detect-machine';
-import { markSourceJustAdded } from '../lib/just-added';
-import { INTERVAL_OPTIONS } from '../lib/rows';
-import { useSourceDetection } from '../lib/use-detect';
-
-import { DetectPanel } from './DetectPanel';
-
-import { useCreateSource, type SourceRow } from '@/api/sources';
+import { useCreateSource, type CreateSourceVariables, type SourceRow } from '@/api/sources';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,6 +24,25 @@ import {
 } from '@/components/ui/select';
 import { errorMessage, isApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  OPPORTUNITY_TYPE_LABELS,
+  OPPORTUNITY_TYPES,
+  type OpportunityType,
+  type RefreshInterval,
+} from '@kestrel/shared';
+import { durations, usePrefersReducedMotion } from '@kestrel/ui';
+
+import { DetectPanel } from './DetectPanel';
+import {
+  canSubmit,
+  candidateUrl,
+  estimateDailyCredits,
+  type DetectError,
+  type DetectState,
+} from '../lib/detect-machine';
+import { markSourceJustAdded } from '../lib/just-added';
+import { INTERVAL_OPTIONS } from '../lib/rows';
+import { useSourceDetection } from '../lib/use-detect';
 
 const ANY = 'any';
 
@@ -50,6 +50,12 @@ function defaultInterval(state: DetectState): RefreshInterval {
   if (state.status === 'crawl') return 'daily';
   if (state.status === 'detected' && state.result.kind === 'rss') return 'daily';
   return '6h';
+}
+
+function existingIdOf(error: unknown): string | undefined {
+  if (!isApiError(error)) return undefined;
+  const details = error.details as { existingId?: unknown } | undefined;
+  return typeof details?.existingId === 'string' ? details.existingId : undefined;
 }
 
 /**
@@ -113,10 +119,12 @@ function AddSourceForm({
 }) {
   const inputId = useId();
   const hintId = useId();
-  const { state, setInput, retry, detectNow } = useSourceDetection(initialUrl);
+  const { state, setInput: setDetectInput, retry, detectNow } = useSourceDetection(initialUrl);
   const create = useCreateSource();
   const [typeTag, setTypeTag] = useState<string>(ANY);
   const [interval, setIntervalValue] = useState<RefreshInterval | null>(null);
+  /** The server's verdict on submit (409 "Already added"), shown in the detection region. */
+  const [submitError, setSubmitError] = useState<DetectError | null>(null);
   const [fieldRef, animateField] = useAnimate<HTMLDivElement>();
   const reduced = usePrefersReducedMotion();
   /** Invalid input: x ±3 px, 2 cycles, 240 ms (MOTION §4: the only shake in the product). */
@@ -128,17 +136,23 @@ function AddSourceForm({
       { duration: durations.slow, ease: 'linear' },
     );
   };
+  const setInput = (value: string) => {
+    setSubmitError(null);
+    setDetectInput(value);
+  };
 
   const effectiveInterval = interval ?? defaultInterval(state);
   const resultUrl =
     state.status === 'detected' || state.status === 'crawl'
       ? (state.result.finalUrl ?? state.url)
       : null;
+  /** Client-side hint only: the server decides (409) when the user submits anyway. */
   const duplicate = resultUrl
     ? existing.find(
         (s) =>
-          candidateUrl(s.url) === candidateUrl(resultUrl) ||
-          candidateUrl(s.url) === candidateUrl(state.input),
+          !s.optimistic &&
+          (candidateUrl(s.url) === candidateUrl(resultUrl) ||
+            candidateUrl(s.url) === candidateUrl(state.input)),
       )
     : undefined;
 
@@ -148,63 +162,84 @@ function AddSourceForm({
       else shake();
       return;
     }
-    if (duplicate) return;
+    if (create.isPending || submitError) return;
     const { result } = state;
     const url = result.finalUrl ?? state.url;
-    const tag = typeTag === ANY ? null : (typeTag as OpportunityType);
-    markSourceJustAdded(url);
     const name = result.name ?? result.companyName ?? undefined;
-    create.mutate(
-      {
-        url,
-        ...(name ? { name } : {}),
-        typeTag: tag,
-        refreshInterval: effectiveInterval,
-        kind: result.kind,
-        boardToken: result.config.boardToken ?? result.boardToken,
-        feedUrl: result.config.feedUrl,
-        preview: result,
-      },
-      {
-        onSuccess: ({ source }) => toast.success(`Added ${source.name}. Checking it now.`),
-        onError: (error) => {
+    const body: CreateSourceVariables = {
+      url,
+      ...(name ? { name } : {}),
+      typeTag: typeTag === ANY ? null : (typeTag as OpportunityType),
+      refreshInterval: effectiveInterval,
+      kind: result.kind,
+      boardToken: result.config.boardToken ?? result.boardToken,
+      feedUrl: result.config.feedUrl,
+      preview: result,
+    };
+
+    // `mutateAsync`, not `mutate(…, callbacks)`: the dialog unmounts on close, and per-call callbacks
+    // never fire after their observer unmounts (the toasts would be lost).
+    if (duplicate) {
+      // Probably one we already watch: wait for the server with the dialog open, no optimistic row.
+      void create.mutateAsync({ ...body, optimistic: false }).then(
+        ({ source }) => {
+          markSourceJustAdded(source.url);
+          toast.success(`Added ${source.name}. Checking it now.`);
+          onDone();
+        },
+        (error: unknown) => {
           if (isApiError(error) && error.status === 409) {
-            const existingId = (error.details as { existingId?: string } | undefined)?.existingId;
-            toast(
-              'Already added.',
-              existingId
-                ? { action: { label: 'Show it', onClick: () => onShowExisting(existingId) } }
-                : {},
-            );
+            setSubmitError({
+              kind: 'duplicate',
+              message: 'Already added. You already watch this page.',
+              existingId: existingIdOf(error) ?? duplicate.id,
+            });
           } else {
             toast.error(`Couldn't add the source. ${errorMessage(error)}`, { duration: 8000 });
           }
         },
+      );
+      return;
+    }
+
+    markSourceJustAdded(url);
+    void create.mutateAsync(body).then(
+      ({ source }) => toast.success(`Added ${source.name}. Checking it now.`),
+      (error: unknown) => {
+        if (isApiError(error) && error.status === 409) {
+          const existingId = existingIdOf(error);
+          toast(
+            'Already added.',
+            existingId
+              ? { action: { label: 'Show it', onClick: () => onShowExisting(existingId) } }
+              : {},
+          );
+        } else {
+          toast.error(`Couldn't add the source. ${errorMessage(error)}`, { duration: 8000 });
+        }
       },
     );
     onDone();
   };
 
-  const shownState: DetectState =
-    duplicate && (state.status === 'detected' || state.status === 'crawl')
-      ? {
-          status: 'error',
-          input: state.input,
-          url: state.url,
-          result: state.result,
-          error: {
-            kind: 'duplicate',
-            message: 'Already added. You already watch this page.',
-            existingId: duplicate.id,
-          },
-        }
-      : state;
+  const shownState: DetectState = submitError
+    ? {
+        status: 'error',
+        input: state.input,
+        url: 'url' in state ? state.url : null,
+        result: 'result' in state ? state.result : null,
+        error: submitError,
+      }
+    : state;
   const hint = state.status === 'typing' ? state.hint : null;
   const ready = canSubmit(shownState);
   const creditsPerDay = estimateDailyCredits(effectiveInterval);
 
   return (
     <form
+      // Native `type=url` validation would block "boards.greenhouse.io/stripe" (no scheme); the
+      // detection state machine is the validator.
+      noValidate
       className="flex min-h-0 flex-1 flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -240,7 +275,7 @@ function AddSourceForm({
             className="pl-9 font-mono text-mono"
             value={state.input}
             aria-describedby={hint ? hintId : undefined}
-            aria-invalid={state.status === 'error' || undefined}
+            aria-invalid={shownState.status === 'error' || undefined}
             onChange={(e) => setInput(e.target.value)}
             onPaste={(e) => {
               const text = e.clipboardData.getData('text');
@@ -259,6 +294,7 @@ function AddSourceForm({
         state={shownState}
         creditsPerDay={creditsPerDay}
         creditsPaused={creditsPaused}
+        duplicate={!submitError && duplicate ? { id: duplicate.id, name: duplicate.name } : null}
         onRetry={retry}
         onShowExisting={onShowExisting}
       />
@@ -315,7 +351,8 @@ function AddSourceForm({
           type="submit"
           variant="primary"
           data-testid="source-add-submit"
-          disabled={!ready || create.isPending}
+          disabled={!ready}
+          aria-busy={create.isPending || undefined}
         >
           {shownState.status === 'crawl' ? 'Add anyway' : 'Add source'}
         </Button>

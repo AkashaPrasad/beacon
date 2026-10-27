@@ -1,6 +1,7 @@
-import { profileInputSchema, type ProfileInput } from '@kestrel/shared';
 import type { Types } from 'mongoose';
 import type { z } from 'zod';
+
+import { profileInputSchema, type ProfileInput } from '@kestrel/shared';
 
 import type { AppContext } from '../context.js';
 import { sha256Hex, stableStringify } from '../lib/crypto.js';

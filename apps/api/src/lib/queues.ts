@@ -2,7 +2,6 @@ import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 
 import type { Logger } from '../logger.js';
-
 import { withTimeout } from './redis.js';
 
 /** Same names as `apps/worker/src/queues.ts` (QUEUE_NAMES); the worker owns processing. */
@@ -18,10 +17,11 @@ export const QUEUE_NAMES = {
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
 export type JobPayloads = {
-  ingest: { sourceId: string; reason: 'created' | 'enabled' | 'pack' };
+  ingest: { sourceId: string; reason: 'created' | 'enabled' | 'pack' | 'manual' };
   embed: { kind: 'profile'; userId: string };
   match: { userId: string; reason: 'profile' | 'weights' | 'sources' | 'manual' };
-  notify: { userId: string; alertRuleId: string; test: true };
+  /** `alertRuleId` is omitted for the generic test from Settings (`POST /v1/push/test`). */
+  notify: { userId: string; alertRuleId?: string; test: true };
 };
 export type ProducedQueue = keyof JobPayloads;
 
@@ -31,6 +31,18 @@ export interface EnqueueOptions {
   dedupTtlMs?: number;
 }
 
+export interface QueueCounts {
+  name: string;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+}
+
+/** Every queue the admin overview reports (the worker's QUEUE_NAMES plus its dead-letter queue). */
+export const OBSERVED_QUEUES = [...Object.values(QUEUE_NAMES), 'dead'] as const;
+
 /** Producer side of the job queues. `add` never throws: failures are logged and return null. */
 export interface JobQueue {
   add<Q extends ProducedQueue>(
@@ -38,6 +50,8 @@ export interface JobQueue {
     data: JobPayloads[Q],
     options?: EnqueueOptions,
   ): Promise<string | null>;
+  /** Job counts per queue (BullMQ `getJobCounts`); rejects when Redis is unreachable. */
+  counts(): Promise<QueueCounts[]>;
   close(): Promise<void>;
 }
 
@@ -54,8 +68,8 @@ export function createBullQueue(redisUrl: string, logger: Logger): JobQueue {
   connection.on('error', () => {
     /* logged by the main redis client */
   });
-  const queues = new Map<ProducedQueue, Queue>();
-  const get = (name: ProducedQueue): Queue => {
+  const queues = new Map<string, Queue>();
+  const get = (name: string): Queue => {
     let queue = queues.get(name);
     if (!queue) {
       queue = new Queue(name, { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS });
@@ -84,6 +98,25 @@ export function createBullQueue(redisUrl: string, logger: Logger): JobQueue {
         return null;
       }
     },
+    async counts() {
+      return withTimeout(
+        Promise.all(
+          OBSERVED_QUEUES.map(async (name) => {
+            const c = await get(name).getJobCounts('waiting', 'active', 'delayed', 'failed', 'completed');
+            return {
+              name,
+              waiting: c['waiting'] ?? 0,
+              active: c['active'] ?? 0,
+              delayed: c['delayed'] ?? 0,
+              failed: c['failed'] ?? 0,
+              completed: c['completed'] ?? 0,
+            };
+          }),
+        ),
+        3_000,
+        'queue counts',
+      );
+    },
     async close() {
       await Promise.allSettled([...queues.values()].map((q) => q.close()));
       connection.disconnect();
@@ -106,6 +139,19 @@ export class RecordingQueue implements JobQueue {
     this.jobs.push({ queue, data: { ...data }, options });
     this.seq += 1;
     return Promise.resolve(`${queue}-${this.seq}`);
+  }
+
+  counts(): Promise<QueueCounts[]> {
+    return Promise.resolve(
+      OBSERVED_QUEUES.map((name) => ({
+        name,
+        waiting: this.jobs.filter((j) => j.queue === name).length,
+        active: 0,
+        delayed: 0,
+        failed: 0,
+        completed: 0,
+      })),
+    );
   }
 
   of(queue: ProducedQueue): Record<string, unknown>[] {

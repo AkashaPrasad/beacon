@@ -26,7 +26,7 @@ export function TokenChips({ items, onRemove, className, ...rest }: TokenChipsPr
                 type="button"
                 onClick={() => onRemove(item.value)}
                 aria-label={`Remove ${item.label}`}
-                className="hit-area ml-0.5 grid h-full place-items-center rounded-r-xs px-1.5 transition-colors duration-fast hover:bg-accent-subtle-fg/10 focus-visible:focus-ring-inset"
+                className="ml-0.5 grid h-full place-items-center rounded-r-xs px-1.5 transition-colors duration-fast hover:bg-accent-subtle-fg/10 focus-visible:focus-ring-inset"
               >
                 <X className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
               </button>

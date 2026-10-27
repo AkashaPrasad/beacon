@@ -1,3 +1,5 @@
+import type { Types } from 'mongoose';
+
 import {
   normaliseWeights,
   SCORE_COMPONENTS,
@@ -5,7 +7,6 @@ import {
   type ListingPublic,
   type ScoreComponent,
 } from '@kestrel/shared';
-import type { Types } from 'mongoose';
 
 import type {
   AlertRuleDoc,
@@ -28,6 +29,7 @@ export function toPublicUser(doc: UserDoc) {
     name: doc.name,
     avatarUrl: doc.avatarUrl ?? null,
     role: doc.role ?? 'user',
+    authMethods: { google: Boolean(doc.googleSub), password: Boolean(doc.passwordHash) },
     onboardingCompletedAt: doc.onboardingCompletedAt ?? null,
     lastLoginAt: doc.lastLoginAt ?? null,
     lastSeenFeedAt: doc.lastSeenFeedAt ?? null,
@@ -45,11 +47,15 @@ export function toSourceDTO(doc: SourceDoc) {
     scope: doc.scope,
     ownerId: idOf(doc.ownerId),
     packId: doc.packId ?? null,
+    packIds: doc.packIds ?? (doc.packId ? [doc.packId] : []),
     typeTag: doc.typeTag ?? null,
     enabled: doc.enabled,
     refreshInterval: doc.refreshInterval,
     health: doc.health,
+    healthCode: doc.healthCode ?? null,
     lastCheckedAt: doc.lastCheckedAt ?? null,
+    lastSuccessAt: doc.lastSuccessAt ?? null,
+    consecutiveFailures: doc.consecutiveFailures ?? 0,
     listingsFound: doc.listingsFound ?? 0,
     errorReason: doc.errorReason ?? null,
     config: {

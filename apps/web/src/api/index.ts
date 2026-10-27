@@ -2,7 +2,19 @@
 export * from './types';
 export { queryKeys } from './keys';
 export { patchListingEverywhere, findCachedFeedItem } from './feed-cache';
-export { useMe, useUpdateMe, useGoogleSignIn, useLogout, fetchMe, isOnboarded, nextPathFor } from './me';
+export {
+  useMe,
+  useUpdateMe,
+  useGoogleSignIn,
+  useEmailLogin,
+  useRegister,
+  useLogout,
+  fetchMe,
+  isAdmin,
+  isOnboarded,
+  nextPathFor,
+} from './me';
+export { useAdminOverview } from './admin';
 export { useSettings, useUpdateSettings, useTestAiKey, useUpdateWeights } from './settings';
 export {
   useFeed,
@@ -17,7 +29,14 @@ export {
 } from './feed';
 // Listing detail, save/hide/track (owned by web-radar).
 export * from './listings';
-export { useSources, usePacks, useCredits, useDetectSource, useCreateSource, useTogglePack } from './sources';
+export {
+  useSources,
+  usePacks,
+  useCredits,
+  useDetectSource,
+  useCreateSource,
+  useTogglePack,
+} from './sources';
 export {
   useTracker,
   useTrackerAnalytics,
@@ -29,4 +48,9 @@ export {
 export { useAlerts, useCreateAlert, useUpdateAlert, useDeleteAlert } from './alerts';
 export { useNotifications, useMarkNotificationsRead } from './notifications';
 export { useProfile, useUpdateProfile, useUploadResume } from './profile';
-export { usePushSubscription, usePushSubscriptions, getPushSupport, type PushSupport } from './push';
+export {
+  usePushSubscription,
+  usePushSubscriptions,
+  getPushSupport,
+  type PushSupport,
+} from './push';

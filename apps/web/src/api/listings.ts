@@ -17,12 +17,14 @@
  */
 import {
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
   type InfiniteData,
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { api, isApiError } from '@/lib/api';
 
@@ -132,7 +134,7 @@ export function fetchListing(id: string, signal?: AbortSignal): Promise<ListingD
 /** Detail for the drawer (`/radar/:listingId`). Placeholder = the cached feed row. */
 export function useListing(id: string | null | undefined) {
   const qc = useQueryClient();
-  return useQuery({
+  return useQuery<ListingDetail, Error, ListingDetail, ReturnType<typeof listingKeys.detail>>({
     queryKey: listingKeys.detail(id ?? ''),
     queryFn: ({ signal }) => fetchListing(id!, signal),
     enabled: Boolean(id),
@@ -142,6 +144,23 @@ export function useListing(id: string | null | undefined) {
       return hit ? listingDetailFromFeedItem(hit) : undefined;
     },
   });
+}
+
+/**
+ * Ids of listings whose save/hide/track write is queued while offline (`isPaused`). Rows show
+ * `data-pending="true"` plus an sr-only "Waiting to sync" (MOTION §5.18 pending dot).
+ */
+export function usePendingListingIds(): ReadonlySet<string> {
+  const ids = useMutationState({
+    filters: { mutationKey: ['listing'], predicate: (mutation) => mutation.state.isPaused },
+    select: (mutation) => {
+      const vars = mutation.state.variables as { id?: string; listingId?: string } | undefined;
+      return vars?.id ?? vars?.listingId ?? null;
+    },
+  });
+  const key = ids.join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => new Set(ids.filter((id): id is string => Boolean(id))), [key]);
 }
 
 /** Warm the drawer on hover/focus (BRIEF addendum: prefetch on hover/focus). No-op while fresh. */

@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
+import { readJson, writeJson } from '@/lib/storage';
+
 import {
   filtersFromSearchParams,
   filtersToSearchParams,
@@ -15,7 +17,6 @@ import {
   type RadarView,
 } from '../lib/filters';
 
-import { readJson, writeJson } from '@/lib/storage';
 
 const LAST_SEARCH_KEY = 'beacon:radar:last-search';
 
@@ -73,16 +74,23 @@ export function useRadarFilters() {
     [setParams],
   );
 
-  /** Open the drawer (pushes history so Back closes it), or swap it (replace) while open. */
+  /**
+   * Open the drawer (pushes history so Back closes it), or swap it (replace) while open. Resolves when
+   * the router has accepted the navigation (the morph then waits for the drawer to be in the DOM).
+   */
   const openListing = useCallback(
-    (id: string, { replace = false }: { replace?: boolean } = {}) => {
-      void navigate({ pathname: `/radar/${encodeURIComponent(id)}`, search: location.search }, { replace });
-    },
+    (id: string, { replace = false }: { replace?: boolean } = {}): Promise<void> =>
+      Promise.resolve(
+        navigate(
+          { pathname: `/radar/${encodeURIComponent(id)}`, search: location.search },
+          { replace, preventScrollReset: true },
+        ),
+      ),
     [navigate, location.search],
   );
 
   const closeListing = useCallback(() => {
-    void navigate({ pathname: '/radar', search: location.search }, { replace: false });
+    void navigate({ pathname: '/radar', search: location.search }, { replace: false, preventScrollReset: true });
   }, [navigate, location.search]);
 
   return { filters, view, search, listingId, setFilters, setView, openListing, closeListing };

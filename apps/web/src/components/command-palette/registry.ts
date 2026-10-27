@@ -12,7 +12,8 @@ import { useEffect, useSyncExternalStore, type DependencyList } from 'react';
 
 import { readJson, STORAGE_KEYS, writeJson } from '@/lib/storage';
 
-export type CommandGroup = 'Listings' | 'Recent' | 'Go to' | 'Actions' | 'Views' | 'Settings' | (string & {});
+export type CommandGroup =
+  'Listings' | 'Recent' | 'Go to' | 'Actions' | 'Views' | 'Settings' | (string & {});
 
 export interface CommandItem {
   /** Unique, stable id (`<feature>.<action>`). Later registrations with the same id replace earlier ones. */
@@ -60,7 +61,11 @@ function subscribe(listener: Listener) {
 }
 
 export function useCommandItemsSnapshot(): readonly CommandItem[] {
-  return useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
+  return useSyncExternalStore(
+    subscribe,
+    () => snapshot,
+    () => snapshot,
+  );
 }
 
 /** Register palette items for the lifetime of the calling component. */
@@ -87,7 +92,11 @@ export function togglePalette(): void {
 }
 
 export function usePaletteOpen(): boolean {
-  return useSyncExternalStore(subscribe, () => open, () => false);
+  return useSyncExternalStore(
+    subscribe,
+    () => open,
+    () => false,
+  );
 }
 
 export function takeInitialQuery(): string {
@@ -107,7 +116,10 @@ export interface RecentListing {
 /** Call when a listing's detail is opened. Keeps the last 8, newest first. */
 export function rememberRecentListing(listing: RecentListing): void {
   const current = readJson<RecentListing[]>(STORAGE_KEYS.recentListings, []);
-  writeJson(STORAGE_KEYS.recentListings, [listing, ...current.filter((l) => l.id !== listing.id)].slice(0, 8));
+  writeJson(
+    STORAGE_KEYS.recentListings,
+    [listing, ...current.filter((l) => l.id !== listing.id)].slice(0, 8),
+  );
 }
 
 export function readRecentListings(): RecentListing[] {

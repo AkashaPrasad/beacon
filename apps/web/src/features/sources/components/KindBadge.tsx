@@ -1,9 +1,9 @@
+import { cn } from '@/lib/utils';
 import type { SourceKind } from '@kestrel/shared';
 
 import { KIND_ICONS } from '../lib/kind-icons';
 import { KIND_LABELS } from '../lib/rows';
 
-import { cn } from '@/lib/utils';
 
 /** How Beacon reads a source: an ATS API (free), a public API / feed (free) or the crawler (credits). */
 export function KindBadge({ kind, className }: { kind: SourceKind; className?: string }) {

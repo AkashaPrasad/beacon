@@ -1,16 +1,19 @@
-import { EmptyState } from '@kestrel/ui';
 import { Compass } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { BeaconMark } from '@/components/brand/BeaconMark';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@kestrel/ui';
 
 /** 404 (any unknown path). Public, so it works signed out too. */
 export function Component() {
   return (
     <div data-testid="not-found-page" className="flex min-h-dvh flex-col bg-bg">
       <header className="flex h-topbar items-center px-gutter pt-safe">
-        <Link to="/" className="flex items-center gap-2 rounded-sm text-fg focus-visible:focus-ring">
+        <Link
+          to="/"
+          className="flex items-center gap-2 rounded-sm text-fg focus-visible:focus-ring"
+        >
           <BeaconMark className="size-6" />
           <span className="font-display text-[1.25rem] leading-none">Beacon</span>
         </Link>

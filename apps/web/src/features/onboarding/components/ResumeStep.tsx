@@ -29,6 +29,14 @@ import {
 import { isApiError } from '@/lib/api';
 import { cn } from '@kestrel/ui';
 
+/** Action-bar line for a disabled [Continue]: what the step still needs. */
+function describeMissing(missing: StepErrors, started: boolean): string {
+  if (!started) return 'Upload your resume, or fill in the essentials, to continue.';
+  if (missing.gradYear && missing.skills) return 'Add your graduation year and one skill to continue.';
+  if (missing.gradYear) return 'Add your graduation year to continue.';
+  return 'Add at least one skill to continue.';
+}
+
 export interface ResumeStepProps {
   onDone: () => void;
 }
@@ -53,7 +61,6 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
   const [draft, setDraft] = useState<ProfileDraft>(EMPTY_DRAFT);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [refined, setRefined] = useState(false);
-  const [attempted, setAttempted] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const gradYearRef = useRef<HTMLSelectElement>(null);
@@ -74,8 +81,13 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  // Errors show once the user has tried to continue, and clear live as they are fixed.
-  const errors: StepErrors = attempted ? validateResumeStep(draft) : {};
+  // [Continue] needs a graduation year and one skill (USERFLOW §1.4). Until then it stays disabled and
+  // the action bar says what is missing; the fields themselves ask inline ("we couldn't find it").
+  const missing: StepErrors = validateResumeStep(draft);
+  const ready = !missing.gradYear && !missing.skills;
+  const busy = phase === 'uploading' || phase === 'reading';
+  const started = mode === 'manual' || phase === 'done' || draft.skills.length > 0 || draft.education.length > 0;
+  const missingLine = busy || ready ? null : describeMissing(missing, started);
 
   const onFile = useCallback(async (picked: File) => {
     abort.current?.abort();
@@ -138,7 +150,6 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
 
   useStepActions('resume', {
     onContinue: async () => {
-      setAttempted(true);
       const found = validateResumeStep(draft);
       if (found.gradYear || found.skills) {
         if (found.gradYear) gradYearRef.current?.focus();
@@ -155,6 +166,8 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
       }
     },
     pending: updateProfile.isPending || updateMe.isPending,
+    disabled: !ready || busy,
+    meta: missingLine,
     onSkip: async () => {
       abort.current?.abort();
       try {
@@ -199,7 +212,7 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
                 onCancel={() => abort.current?.abort()}
               />
 
-              <AnimatePresence initial={false}>
+              <AnimatePresence initial={false} mode="wait">
                 {copy && (
                   <m.div
                     key={issue?.kind}
@@ -278,7 +291,7 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
                   Upload a resume instead
                 </Button>
               </div>
-              <ManualProfileForm draft={draft} onChange={setDraft} errors={errors} gradYearRef={gradYearRef} />
+              <ManualProfileForm draft={draft} onChange={setDraft} gradYearRef={gradYearRef} />
             </m.div>
           )}
         </AnimatePresence>
@@ -289,13 +302,19 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
             Couldn’t save your profile. Check your connection and press Continue again.
           </p>
         )}
+        {missingLine && (
+          <p className="text-small text-fg-tertiary sm:hidden" data-testid="onboarding-resume-missing">
+            {missingLine}
+          </p>
+        )}
       </div>
 
       <aside
         aria-label="Parsed profile"
         className={cn('min-w-0 lg:sticky lg:top-6 lg:self-start', (!showPreview || mode === 'manual') && 'max-lg:hidden')}
       >
-        <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+        {/* On desktop the preview scrolls inside itself, so it never slides under the action bar. */}
+        <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain">
           {showPreview ? (
             <ParsedPreview
               draft={draft}
@@ -305,7 +324,6 @@ export function ResumeStep({ onDone }: ResumeStepProps) {
               email={email}
               warnings={warnings}
               refinedWithAi={refined}
-              errors={mode === 'upload' ? errors : {}}
               gradYearRef={mode === 'upload' ? gradYearRef : undefined}
               readOnly={mode === 'manual'}
             />

@@ -1,7 +1,9 @@
-import { LIMITS } from '@kestrel/shared';
-
-/** Resume upload rules (API.md §4: PDF or DOCX, ≤ 10 MB; magic bytes are checked server-side too). */
-export const RESUME_MAX_BYTES: number = LIMITS.resumeMaxBytes;
+/**
+ * Resume upload rules. The UI accepts PDF or DOCX up to 5 MB (USERFLOW §1.4, DESIGN §6.1); the API
+ * accepts up to 10 MB (shared `LIMITS.resumeMaxBytes`, API.md §4) and answers 413 above that. Magic
+ * bytes are checked server-side too.
+ */
+export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
 export const RESUME_ACCEPT =
   '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 

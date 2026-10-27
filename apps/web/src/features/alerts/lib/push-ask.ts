@@ -77,3 +77,11 @@ export function writeSoftAskDismissedAt(at: number): void {
     /* private mode: the card simply shows again next time */
   }
 }
+
+/** `usePushSubscription().support` / `getPushSupport()` → the environment `softAskMode` reads. */
+export function envFromSupport(
+  support: 'unsupported' | 'ios-needs-install' | 'default' | 'granted' | 'denied',
+): PushEnvironment {
+  if (support === 'ios-needs-install') return { permission: 'default', iosNeedsInstall: true };
+  return { permission: support, iosNeedsInstall: false };
+}

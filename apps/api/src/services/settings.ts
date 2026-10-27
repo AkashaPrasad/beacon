@@ -1,5 +1,6 @@
-import { DEFAULT_WEIGHTS } from '@kestrel/shared';
 import type { Types } from 'mongoose';
+
+import { DEFAULT_WEIGHTS } from '@kestrel/shared';
 
 import { Settings, type SettingsDoc } from '../models/settings.js';
 

@@ -1,4 +1,4 @@
-import { model, models, Schema, type Model, type Types } from 'mongoose';
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
 
 export const ONBOARDING_STEPS = ['consent', 'resume', 'preferences', 'sources', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
@@ -17,7 +17,11 @@ export interface UserDoc {
   email: string;
   name: string;
   avatarUrl: string | null;
-  googleSub: string;
+  /** Google account id; null for email + password accounts that never used Google. */
+  googleSub: string | null;
+  /** bcrypt hash; null for Google-only accounts. Never serialised. */
+  passwordHash: string | null;
+  passwordSetAt: Date | null;
   role: 'user' | 'admin';
   onboardingStep: OnboardingStep;
   onboardingCompletedAt: Date | null;
@@ -41,10 +45,12 @@ const consentSchema = new Schema(
 
 const userSchema = new Schema(
   {
-    email: { type: String, required: true, lowercase: true, trim: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     name: { type: String, required: true, trim: true },
     avatarUrl: { type: String, default: null },
-    googleSub: { type: String, required: true, unique: true },
+    googleSub: { type: String, default: null },
+    passwordHash: { type: String, default: null },
+    passwordSetAt: { type: Date, default: null },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     onboardingStep: { type: String, enum: ONBOARDING_STEPS, default: 'consent' },
     onboardingCompletedAt: { type: Date, default: null },
@@ -56,4 +62,16 @@ const userSchema = new Schema(
   { timestamps: true, collection: 'users' },
 );
 
-export const User: Model<UserDoc> = (models['User'] as Model<UserDoc> | undefined) ?? model<UserDoc>('User', userSchema as unknown as Schema<UserDoc>);
+userSchema.index({ email: 1 });
+// Partial so email + password accounts (googleSub null) do not collide on null.
+userSchema.index(
+  { googleSub: 1 },
+  { name: 'googleSub_partial_unique', unique: true, partialFilterExpression: { googleSub: { $type: 'string' } } },
+);
+// At most one account per email can hold a password (login looks it up by email).
+userSchema.index(
+  { email: 1 },
+  { name: 'email_password_unique', unique: true, partialFilterExpression: { passwordHash: { $type: 'string' } } },
+);
+
+export const User: Model<UserDoc> = (mongoose.models['User'] as Model<UserDoc> | undefined) ?? model<UserDoc>('User', userSchema as unknown as Schema<UserDoc>);

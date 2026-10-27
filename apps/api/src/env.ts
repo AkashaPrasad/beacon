@@ -26,6 +26,11 @@ const envSchema = z
       .string()
       .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)')
       .optional(),
+    /** bcrypt cost for email + password accounts (12 in production; tests lower it). */
+    PASSWORD_HASH_COST: z.coerce.number().int().min(4).max(15).default(12),
+    /** Seeded on boot as `role: 'admin'` when both are set (password re-hashed when it changes). */
+    ADMIN_EMAIL: z.email().optional(),
+    ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters').optional(),
 
     // URLs
     WEB_URL: z.url().default('http://localhost:5173'),

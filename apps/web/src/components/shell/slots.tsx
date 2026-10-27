@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-import { ShellSlotsContext, useShellSlots, type ShellSlotName, type ShellSlotsValue } from './slots-context';
+import {
+  ShellSlotsContext,
+  useShellSlots,
+  type ShellSlotName,
+  type ShellSlotsValue,
+} from './slots-context';
 
 /**
  * Shell slots let a screen put content into the app chrome without touching the shell:
@@ -21,7 +26,10 @@ export function ShellSlotsProvider({ children }: { children: ReactNode }) {
   const setFilled = useCallback((name: ShellSlotName, delta: 1 | -1) => {
     setFilledState((prev) => ({ ...prev, [name]: Math.max(0, (prev[name] ?? 0) + delta) }));
   }, []);
-  const value = useMemo(() => ({ nodes, register, filled, setFilled }), [nodes, register, filled, setFilled]);
+  const value = useMemo(
+    () => ({ nodes, register, filled, setFilled }),
+    [nodes, register, filled, setFilled],
+  );
   return <ShellSlotsContext.Provider value={value}>{children}</ShellSlotsContext.Provider>;
 }
 
@@ -29,7 +37,10 @@ export function ShellSlotsProvider({ children }: { children: ReactNode }) {
 export function ShellSlotOutlet({ name, className }: { name: ShellSlotName; className?: string }) {
   const slots = useShellSlots();
   const register = slots?.register;
-  const ref = useCallback((node: HTMLDivElement | null) => register?.(name, node), [name, register]);
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => register?.(name, node),
+    [name, register],
+  );
   return <div ref={ref} data-shell-slot={name} className={className} />;
 }
 

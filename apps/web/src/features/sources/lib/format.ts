@@ -103,6 +103,18 @@ export function formatAbsolute(
   return `${formatShortDate(date, timeZone)}, ${time} ${zone}`;
 }
 
+/** "10:42" (24 h) in a zone; for "Showing results from 10:42". */
+export function formatTime(value: Date | string | number, timeZone = 'Asia/Kolkata'): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(date);
+}
+
 /** `yyyy-mm-dd` in a zone, for `<input type="date">`. */
 export function toDateInputValue(
   value: Date | string | null | undefined,

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { api, ApiError, buildUrl, isApiError } from '@/lib/api';
 import { sessionHint } from '@/lib/storage';
@@ -63,7 +64,7 @@ export function useUpdateWeights() {
   });
 }
 
-// ── Screen extensions (Settings > AI & keys, Privacy & data) ──────────────────────────────────────
+// ── Screen extensions (Settings > AI & keys, Notifications, Privacy & data) ──────────────────────
 
 export interface AiSettingsPut {
   provider: AiProvider;
@@ -74,19 +75,38 @@ export interface AiSettingsPut {
   enabled: boolean;
 }
 
+export interface AiTestBody {
+  provider?: AiProvider;
+  baseUrl?: string | null;
+  model?: string | null;
+  apiKey?: string;
+}
+
 function setCachedAi(qc: ReturnType<typeof useQueryClient>, ai: AiSettings) {
   qc.setQueryData<Settings>(queryKeys.settings, (current) => (current ? { ...current, ai } : current));
 }
 
-/** PUT /v1/settings/ai: provider, base URL, model and (optionally) a new key. */
-export function usePutAiSettings() {
+/**
+ * Calls that may carry an API key. They deliberately bypass `useMutation`: TanStack keeps mutation
+ * variables in its cache (and the IndexedDB persister writes paused ones to disk), and a key must never
+ * live anywhere but the input it was typed into and the one request that sends it.
+ */
+export function useAiKeyRequests() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationKey: ['settings', 'ai', 'put'],
-    mutationFn: (body: AiSettingsPut) => api.put<{ ai: AiSettings }>('/v1/settings/ai', body),
-    onSuccess: ({ ai }) => setCachedAi(qc, ai),
-    onSettled: () => void qc.invalidateQueries({ queryKey: queryKeys.me }),
-  });
+  const save = useCallback(
+    async (body: AiSettingsPut): Promise<AiSettings> => {
+      const { ai } = await api.put<{ ai: AiSettings }>('/v1/settings/ai', body);
+      setCachedAi(qc, ai);
+      void qc.invalidateQueries({ queryKey: queryKeys.me });
+      return ai;
+    },
+    [qc],
+  );
+  const test = useCallback(
+    (body: AiTestBody) => api.post<AiTestResult>('/v1/settings/ai/test', body, { timeoutMs: 20_000 }),
+    [],
+  );
+  return { save, test };
 }
 
 /** DELETE /v1/settings/ai/key: falls back to the consent choice (USERFLOW §5.2). */
@@ -157,7 +177,10 @@ export async function downloadExport(now: Date = new Date()): Promise<string> {
   return name;
 }
 
-/** DELETE /v1/account: 204 + cookie cleared. Clears every cached query afterwards. */
+/**
+ * DELETE /v1/account: 204 + cookie cleared. Afterwards it forgets everything exactly like signing out
+ * (memory cache, the IndexedDB copy via `beacon:signed-out`, the session hint); the caller navigates.
+ */
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
@@ -167,6 +190,28 @@ export function useDeleteAccount() {
       sessionHint.set(false);
       qc.clear();
       qc.setQueryData(queryKeys.me, null);
+      window.dispatchEvent(new Event('beacon:signed-out'));
+    },
+  });
+}
+
+/**
+ * Settings > Notifications [Send a test notification]. `POST /v1/push/test` is requested in
+ * docs/SHARED-REQUESTS.md (web → api); until it exists, the test of the given alert rule is used
+ * (`POST /v1/alerts/:id/test`, which enqueues the same notify job with `test: true`).
+ */
+export function useSendTestNotification() {
+  return useMutation({
+    mutationKey: ['push', 'test'],
+    mutationFn: async (fallbackRuleId: string | null) => {
+      try {
+        return await api.post<{ queued: boolean }>('/v1/push/test');
+      } catch (error) {
+        if (isApiError(error) && (error.status === 404 || error.status === 405) && fallbackRuleId) {
+          return api.post<{ queued: boolean }>(`/v1/alerts/${fallbackRuleId}/test`);
+        }
+        throw error;
+      }
     },
   });
 }

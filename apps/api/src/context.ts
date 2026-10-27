@@ -32,6 +32,8 @@ export interface AppContext {
   llmRetryDelaysMs: number[];
   /** Resolve DNS for user-supplied URLs and refuse private addresses. */
   resolveDns: boolean;
+  /** bcrypt cost for password hashes. */
+  passwordCost: number;
 }
 
 export type ContextInput = Pick<AppContext, 'env' | 'logger' | 'redis'> & Partial<AppContext>;
@@ -75,6 +77,7 @@ export function createContext(rawInput: ContextInput): AppContext {
     rateLimits: DEFAULT_RATE_LIMITS,
     llmRetryDelaysMs: [1_000, 3_000],
     resolveDns: env.NODE_ENV !== 'test',
+    passwordCost: env.PASSWORD_HASH_COST,
     ...input,
   };
 }

@@ -35,12 +35,19 @@ export const DEFAULT_APPEARANCE: Appearance = {
   motion: 'system',
 };
 
-export const ACCENT_LABELS: Record<Accent, string> = { amber: 'Signal amber', teal: 'Teal', cobalt: 'Cobalt', ink: 'Ink' };
+export const ACCENT_LABELS: Record<Accent, string> = {
+  amber: 'Signal amber',
+  teal: 'Teal',
+  cobalt: 'Cobalt',
+  ink: 'Ink',
+};
 
 const pick = <T extends string>(values: readonly T[], value: unknown, fallback: T): T =>
   values.includes(value as T) ? (value as T) : fallback;
 
-export function normaliseAppearance(input: Partial<Record<keyof Appearance, unknown>> | null | undefined): Appearance {
+export function normaliseAppearance(
+  input: Partial<Record<keyof Appearance, unknown>> | null | undefined,
+): Appearance {
   const a = input ?? {};
   // `rufous` was the pre-launch name of the brand preset.
   const accent = a.accent === 'rufous' || a.accent === 'default' ? 'amber' : a.accent;
@@ -102,14 +109,20 @@ export function toServerAppearance(a: Appearance): AppearanceSettings {
     accent: a.accent === 'amber' ? 'default' : a.accent,
     density: a.density,
     fontSize: a.fontSize === 'xl' ? 'lg' : a.fontSize,
-    reducedMotion: a.motion === 'reduced' ? 'reduce' : a.motion === 'full' ? 'no-preference' : 'system',
+    reducedMotion:
+      a.motion === 'reduced' ? 'reduce' : a.motion === 'full' ? 'no-preference' : 'system',
   };
 }
 
-export function fromServerAppearance(server: Partial<AppearanceSettings>, local: Appearance): Appearance {
+export function fromServerAppearance(
+  server: Partial<AppearanceSettings>,
+  local: Appearance,
+): Appearance {
   const fontSize: FontSize =
     // The server can't store xl yet; keep a local xl when the server says lg.
-    server.fontSize === 'lg' && local.fontSize === 'xl' ? 'xl' : pick(FONT_SIZES, server.fontSize, local.fontSize);
+    server.fontSize === 'lg' && local.fontSize === 'xl'
+      ? 'xl'
+      : pick(FONT_SIZES, server.fontSize, local.fontSize);
   return normaliseAppearance({
     theme: server.theme ?? local.theme,
     accent: server.accent === undefined ? local.accent : server.accent,

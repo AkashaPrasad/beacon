@@ -8,9 +8,17 @@
 //
 // Env: API_URL (default http://localhost:4000), LOAD_TOKEN (JWT for Authorization: Bearer;
 // without it /v1/feed is reported as not run), LOAD_LABEL (free text for the results table).
-// Options: --connections N, --duration S, --soak-minutes M, --json out.json.
+// Options: --connections N, --duration S, --soak-minutes M, --json out.json,
+//   --soak-connections N (default 20), --pid PID (sample that local process's RSS with `ps` when
+//   the API exposes no memory endpoint),
+//   --rotate-ip / --no-rotate-ip (default: on for localhost targets). The API rate-limits by
+//   client IP (300 requests / 15 min, API.md §1.5); one machine would hit 429 within seconds and
+//   measure the limiter, not the feed. Rotating `X-Forwarded-For` per request emulates distinct
+//   clients. It only has an effect where the API trusts that header without a proxy in front
+//   (local dev, TRUST_PROXY=1); in production Caddy overwrites it with CF-Connecting-IP.
 // Exit 1 when a target that ran misses its threshold (feed p95 < 300 ms, < 1 % errors) or the
 // soak shows a heap leak.
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +35,11 @@ const { values: args } = parseArgs({
     connections: { type: 'string' },
     duration: { type: 'string' },
     'soak-minutes': { type: 'string', default: '10' },
+    'soak-connections': { type: 'string', default: '20' },
+    pid: { type: 'string' },
     json: { type: 'string' },
+    'rotate-ip': { type: 'boolean' },
+    'no-rotate-ip': { type: 'boolean', default: false },
   },
 });
 
@@ -37,6 +49,14 @@ const LABEL = process.env.LOAD_LABEL ?? (API_URL.includes('localhost') ? 'local 
 const connections = Number(args.connections ?? (args.light ? 10 : 50));
 const duration = Number(args.duration ?? (args.light ? 15 : 30));
 const soakMinutes = Number(args['soak-minutes']);
+const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(API_URL);
+const rotateIp = args['no-rotate-ip'] ? false : (args['rotate-ip'] ?? isLocal);
+let ipSeq = 0;
+/** 10.64.0.0/10 addresses, one per request (see --rotate-ip above). */
+const nextIp = () => {
+  ipSeq = (ipSeq + 1) % 4_000_000;
+  return `10.${64 + ((ipSeq >> 16) & 63)}.${(ipSeq >> 8) & 255}.${ipSeq & 255}`;
+};
 
 /** p-th percentile of a sorted array (nearest rank). */
 function percentile(sorted, p) {
@@ -50,7 +70,10 @@ const fmtMb = (b) => (b === null || b === undefined ? '–' : `${(b / 1024 / 102
 
 async function preflight(path, headers) {
   try {
-    const res = await fetch(`${API_URL}${path}`, { headers, signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${API_URL}${path}`, {
+      headers: rotateIp ? { ...headers, 'x-forwarded-for': nextIp() } : headers,
+      signal: AbortSignal.timeout(10_000),
+    });
     return { status: res.status, body: await res.text() };
   } catch (err) {
     return { status: 0, body: String(err?.cause?.code ?? err?.message ?? err) };
@@ -62,8 +85,24 @@ function run({ name, path, headers = {}, conns = connections, seconds = duration
   return new Promise((resolve, reject) => {
     const latencies = [];
     const statuses = {};
+    const target = rotateIp
+      ? {
+          url: API_URL,
+          requests: [
+            {
+              method: 'GET',
+              path,
+              headers,
+              setupRequest: (req) => ({
+                ...req,
+                headers: { ...req.headers, 'x-forwarded-for': nextIp() },
+              }),
+            },
+          ],
+        }
+      : { url: `${API_URL}${path}`, headers };
     const instance = autocannon(
-      { url: `${API_URL}${path}`, connections: conns, duration: seconds, headers, timeout: 10 },
+      { ...target, connections: conns, duration: seconds, timeout: 10 },
       (err, result) => {
         if (err) return reject(err);
         latencies.sort((a, b) => a - b);
@@ -121,6 +160,14 @@ async function sampleMemory(headers) {
     const heapUsed = num(/^nodejs_heap_size_used_bytes\s+([0-9.e+]+)/m);
     if (rss !== null || heapUsed !== null) return { source: '/metrics', rss, heapUsed };
   }
+  if (args.pid) {
+    try {
+      const kb = Number(execFileSync('ps', ['-o', 'rss=', '-p', args.pid], { encoding: 'utf8' }));
+      if (kb > 0) return { source: `ps rss (pid ${args.pid})`, rss: kb * 1024, heapUsed: null };
+    } catch {
+      /* process gone */
+    }
+  }
   return null;
 }
 
@@ -149,7 +196,9 @@ if (health.status !== 200) {
   process.exit(2);
 }
 
-console.log(`Beacon load test → ${API_URL} (${connections} connections, ${duration} s per target)`);
+console.log(
+  `Beacon load test → ${API_URL} (${connections} connections, ${duration} s per target${rotateIp ? ', rotating X-Forwarded-For' : ''})`,
+);
 results.push(await run({ name: 'healthz', path: '/healthz' }));
 
 const auth = TOKEN ? { authorization: `Bearer ${TOKEN}` } : null;
@@ -180,6 +229,7 @@ let soak = null;
 if (args.soak && !args.light) {
   const path = auth ? '/v1/feed?limit=20' : '/healthz';
   const headers = auth ?? {};
+  const soakConns = Number(args['soak-connections']);
   const first = await sampleMemory(headers);
   if (!first)
     notes.push(
@@ -189,13 +239,13 @@ if (args.soak && !args.light) {
   const t0 = Date.now();
   if (first) samples.push({ t: 0, ...first });
   console.log(
-    `Soak: ${soakMinutes} min on ${path}, 20 connections${first ? `, memory from ${first.source}` : ''}`,
+    `Soak: ${soakMinutes} min on ${path}, ${soakConns} connections${first ? `, memory from ${first.source}` : ''}`,
   );
   const r = await run({
     name: `soak ${soakMinutes} min`,
     path,
     headers,
-    conns: 20,
+    conns: soakConns,
     seconds: soakMinutes * 60,
     onTick: first
       ? () => {
@@ -213,7 +263,8 @@ if (args.soak && !args.light) {
     const steady = samples.filter((s) => s.t >= 60_000);
     const heapSlope = slopeMbPerMin(steady, 'heapUsed');
     const rssSlope = slopeMbPerMin(steady, 'rss');
-    const maxHeap = Math.max(...samples.map((s) => s.heapUsed ?? 0));
+    const heaps = samples.map((s) => s.heapUsed).filter((v) => typeof v === 'number');
+    const maxHeap = heaps.length ? Math.max(...heaps) : null;
     soak = {
       samples: samples.length,
       startHeap: samples[0]?.heapUsed ?? null,
@@ -223,8 +274,10 @@ if (args.soak && !args.light) {
       endRss: samples.at(-1)?.rss ?? null,
       heapSlope,
       rssSlope,
-      // A leak grows steadily: > 1 MB/min of heap after warm-up over a 10-minute run.
-      stable: heapSlope === null ? null : heapSlope < 1,
+      // A leak grows steadily: > 1 MB/min of heap after warm-up over a 10-minute run. Without a
+      // heap figure (ps RSS only), allow 2 MB/min: RSS also moves with allocator behaviour.
+      stable: heapSlope !== null ? heapSlope < 1 : rssSlope !== null ? rssSlope < 2 : null,
+      basis: heapSlope !== null ? 'heap' : rssSlope !== null ? 'rss' : null,
     };
     if (soak.stable === false) failed = true;
   }
@@ -245,7 +298,7 @@ const latencyRows = results.map(
     `| ${date} UTC | ${LABEL} | \`${r.path}\` | ${r.connections} | ${r.seconds} s | ${r.requests.toLocaleString('en-IN')} | ${Math.round(r.rps).toLocaleString('en-IN')} | ${fmtMs(r.p50)} | ${fmtMs(r.p95)} | ${fmtMs(r.p99)} | ${(r.errorRate * 100).toFixed(2)} % | ${r.pass ? 'pass' : '**fail**'} |`,
 );
 const soakRow = soak
-  ? `| ${date} UTC | ${LABEL} | ${soakMinutes} min | ${soak.samples} | ${fmtMb(soak.startHeap)} → ${fmtMb(soak.endHeap)} (max ${fmtMb(soak.maxHeap)}) | ${fmtMb(soak.startRss)} → ${fmtMb(soak.endRss)} | ${soak.heapSlope === null ? '–' : soak.heapSlope.toFixed(2)} | ${soak.stable === null ? '–' : soak.stable ? 'stable' : '**leak?**'} |`
+  ? `| ${date} UTC | ${LABEL} | ${soakMinutes} min | ${soak.samples} | ${fmtMb(soak.startHeap)} → ${fmtMb(soak.endHeap)} (max ${fmtMb(soak.maxHeap)}) | ${fmtMb(soak.startRss)} → ${fmtMb(soak.endRss)} | ${soak.heapSlope === null ? '–' : soak.heapSlope.toFixed(2)} | ${soak.rssSlope === null ? '–' : soak.rssSlope.toFixed(2)} | ${soak.stable === null ? '–' : soak.stable ? 'stable' : '**leak?**'} |`
   : null;
 
 console.log(
@@ -255,9 +308,9 @@ console.log('|---|---|---|---|---|---|---|---|---|---|---|---|');
 for (const row of latencyRows) console.log(row);
 if (soakRow) {
   console.log(
-    '\n| Date | Target | Soak | Samples | Heap used MB | RSS MB | Heap slope MB/min | Verdict |',
+    '\n| Date | Target | Soak | Samples | Heap used MB | RSS MB | Heap slope MB/min | RSS slope MB/min | Verdict |',
   );
-  console.log('|---|---|---|---|---|---|---|---|');
+  console.log('|---|---|---|---|---|---|---|---|---|');
   console.log(soakRow);
 }
 for (const n of notes) console.log(`note: ${n}`);

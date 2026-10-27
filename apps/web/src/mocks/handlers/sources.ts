@@ -655,7 +655,7 @@ export const sourcesHandlers = [
     return HttpResponse.json({ source: publicSource(source), detection: det }, { status: 201 });
   }),
 
-  http.get('*/v1/sources/:id', async ({ params }) => {
+  http.get('*/v1/sources/:id', ({ params }) => {
     const d = getDb();
     const s =
       d.personal.find((x) => x.id === params.id) ?? d.community.find((x) => x.id === params.id);

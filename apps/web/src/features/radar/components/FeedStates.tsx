@@ -3,39 +3,16 @@
  * since-last-visit strip, warming-up strip, empty variants with a next action, error with retry,
  * stale-results strip and skeleton rows (150 ms delay, ≥ 300 ms once shown, crossfade).
  */
-import { EmptyState, formatShortDate, ListSkeleton, tweens, variants } from '@kestrel/ui';
 import { AlertCircle, CircleCheck, CircleDashed, Radar, RotateCw, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { m } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-
-import { formatCount } from '../lib/format';
-import { SKELETON_DELAY_MS, SKELETON_MIN_MS } from '../lib/motion';
 
 import type { FeedSummary } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { EmptyState, formatShortDate, ListSkeleton, tweens, variants } from '@kestrel/ui';
 
-// ── Skeleton gate (MOTION §5.7) ──────────────────────────────────────────────
-
-/** True while the skeleton should be visible: after 150 ms of loading, and for at least 300 ms. */
-export function useSkeletonGate(loading: boolean): boolean {
-  const [visible, setVisible] = useState(false);
-  const shownAt = useRef(0);
-  useEffect(() => {
-    if (loading) {
-      const t = setTimeout(() => {
-        shownAt.current = performance.now();
-        setVisible(true);
-      }, SKELETON_DELAY_MS);
-      return () => clearTimeout(t);
-    }
-    const remaining = Math.max(0, SKELETON_MIN_MS - (performance.now() - shownAt.current));
-    const t = setTimeout(() => setVisible(false), remaining);
-    return () => clearTimeout(t);
-  }, [loading]);
-  return visible;
-}
+import { formatCount } from '../lib/format';
 
 export function FeedSkeleton({ rows = 8 }: { rows?: number }) {
   return (
@@ -47,33 +24,7 @@ export function FeedSkeleton({ rows = 8 }: { rows?: number }) {
 
 // ── Since last visit (DESIGN §6.2, USERFLOW §3.1) ────────────────────────────
 
-const DISMISS_KEY = 'beacon:radar:summary-dismissed';
 const DAY = 86_400_000;
-
-function readDismissed(): string | null {
-  try {
-    return localStorage.getItem(DISMISS_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function useSummaryDismissal(lastSeenFeedAt: Date | null) {
-  const marker = lastSeenFeedAt ? lastSeenFeedAt.toISOString() : null;
-  const [dismissed, setDismissed] = useState(() => readDismissed());
-  return {
-    dismissed: marker != null && dismissed === marker,
-    dismiss: () => {
-      if (!marker) return;
-      try {
-        localStorage.setItem(DISMISS_KEY, marker);
-      } catch {
-        // ignore: the strip just reappears next visit
-      }
-      setDismissed(marker);
-    },
-  };
-}
 
 export function SummaryStrip({
   summary,
@@ -135,6 +86,9 @@ export function SummaryStrip({
 
 export type WarmingPhase = 'warming' | 'ready';
 
+/** `progress` is an additive summary field requested from the API (SHARED-REQUESTS "web-radar → api"). */
+export type WarmingSummary = FeedSummary & { progress?: { done: number; total: number } };
+
 export function WarmingStrip({
   phase,
   summary,
@@ -142,12 +96,11 @@ export function WarmingStrip({
   onDismiss,
 }: {
   phase: WarmingPhase;
-  summary: FeedSummary | undefined;
+  summary: WarmingSummary | undefined;
   slow: boolean;
   onDismiss: () => void;
 }) {
-  // `progress` is an additive field requested from the API (SHARED-REQUESTS "web → api").
-  const progress = (summary as (FeedSummary & { progress?: { done: number; total: number } }) | undefined)?.progress;
+  const progress = summary?.progress;
   const fraction = progress && progress.total > 0 ? progress.done / progress.total : null;
   return (
     <div data-testid="radar-warming-strip" className="relative border-b border-border-subtle bg-surface-sunken">

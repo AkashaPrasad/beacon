@@ -5,6 +5,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
+
+import { detectSource } from '@/api/sources';
+import { isApiError } from '@/lib/api';
+
 import {
   DETECT_DEBOUNCE_MS,
   detectErrorFrom,
@@ -12,9 +16,6 @@ import {
   initialDetectState,
   type DetectError,
 } from './detect-machine';
-
-import { detectSource } from '@/api/sources';
-import { isApiError } from '@/lib/api';
 
 export function toDetectError(error: unknown): DetectError {
   if (isApiError(error)) {

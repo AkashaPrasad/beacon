@@ -1,6 +1,13 @@
-import type { Notification, NotificationKind } from '@kestrel/shared';
-import { formatRelative } from '@kestrel/ui';
-import { Bell, BellDot, BellRing, CalendarClock, CircleX, Inbox, Info, type LucideIcon } from 'lucide-react';
+import {
+  Bell,
+  BellDot,
+  BellRing,
+  CalendarClock,
+  CircleX,
+  Inbox,
+  Info,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
@@ -11,7 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { pushTargetUrl } from '@/lib/push-url';
 import { cn } from '@/lib/utils';
+import type { Notification, NotificationKind } from '@kestrel/shared';
+import { formatRelative } from '@kestrel/ui';
 
 const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   match: BellRing,
@@ -62,7 +72,7 @@ function NotificationCentre({ onNavigate }: { onNavigate: () => void }) {
     if (!n.readAt) markRead.mutate({ ids: [n.id] });
     onNavigate();
     if (n.listingId) void navigate(`/radar/${n.listingId}`);
-    else if (n.url) void navigate(n.url);
+    else if (n.url) void navigate(pushTargetUrl(n.url, window.location.origin));
   };
 
   const list = (filter?: NotificationKind) => {
@@ -96,7 +106,9 @@ function NotificationCentre({ onNavigate }: { onNavigate: () => void }) {
       return (
         <div className="px-4 py-8 text-center">
           <p className="text-h3 text-fg">All caught up.</p>
-          <p className="mt-1 text-small text-fg-secondary">Deadline reminders and nudges will show up here.</p>
+          <p className="mt-1 text-small text-fg-secondary">
+            Deadline reminders and nudges will show up here.
+          </p>
         </div>
       );
     }
@@ -111,16 +123,37 @@ function NotificationCentre({ onNavigate }: { onNavigate: () => void }) {
                 onClick={() => open(n)}
                 className="flex w-full gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-fast hover:bg-surface-hover hover:duration-0 focus-visible:focus-ring-inset"
               >
-                <Icon className="mt-0.5 size-4 shrink-0 text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />
+                <Icon
+                  className="mt-0.5 size-4 shrink-0 text-fg-secondary"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className={cn('text-small', n.readAt ? 'text-fg-secondary' : 'font-medium text-fg')}>{n.title}</span>
-                  {n.body && <span className="line-clamp-2 text-small text-fg-tertiary">{n.body}</span>}
+                  <span
+                    className={cn(
+                      'text-small',
+                      n.readAt ? 'text-fg-secondary' : 'font-medium text-fg',
+                    )}
+                  >
+                    {n.title}
+                  </span>
+                  {n.body && (
+                    <span className="line-clamp-2 text-small text-fg-tertiary">{n.body}</span>
+                  )}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  <time className="font-mono text-mono-sm text-fg-tertiary" dateTime={n.createdAt.toISOString()}>
+                  <time
+                    className="font-mono text-mono-sm text-fg-tertiary"
+                    dateTime={n.createdAt.toISOString()}
+                  >
                     {formatRelative(n.createdAt)}
                   </time>
-                  {!n.readAt && <span className="size-1.5 rounded-full bg-accent-strong" aria-label="Unread" />}
+                  {!n.readAt && (
+                    <>
+                      <span className="size-1.5 rounded-full bg-accent-strong" aria-hidden="true" />
+                      <span className="sr-only">Unread</span>
+                    </>
+                  )}
                 </span>
               </button>
             </li>
@@ -155,7 +188,11 @@ function NotificationCentre({ onNavigate }: { onNavigate: () => void }) {
       </Tabs>
       <PushSoftAsk className="border-t border-border-subtle px-4 py-3" />
       <footer className="border-t border-border-subtle px-4 py-2">
-        <Link to="/notifications" onClick={onNavigate} className="text-small text-accent-strong hover:underline">
+        <Link
+          to="/notifications"
+          onClick={onNavigate}
+          className="text-small text-accent-strong hover:underline"
+        >
           View all notifications
         </Link>
       </footer>

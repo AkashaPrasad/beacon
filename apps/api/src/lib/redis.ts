@@ -8,7 +8,7 @@ import type { Logger } from '../logger.js';
  */
 export type RedisClient = Pick<
   Redis,
-  'get' | 'mget' | 'incr' | 'incrby' | 'expire' | 'hincrby' | 'ping' | 'del' | 'set' | 'quit'
+  'get' | 'mget' | 'incr' | 'incrby' | 'expire' | 'hincrby' | 'hgetall' | 'ping' | 'del' | 'set' | 'quit'
 > & {
   call: (command: string, ...args: (string | number | Buffer)[]) => Promise<unknown>;
 };
@@ -53,6 +53,8 @@ export const redisKeys = {
   crawlerCredits: (day: string) => `crawler:credits:${day}`,
   crawlerSelfHosted: (day: string) => `crawler:selfhosted:${day}`,
   crawlerBackend: 'crawler:backend',
+  crawlerBackendReason: 'crawler:backend:reason',
+  crawlerCloudRemaining: 'crawler:cloud:remaining',
   crawlerUser: (userId: string, day: string) => `crawler:user:${userId}:${day}`,
   llmCalls: (userId: string, day: string) => `llm:calls:${userId}:${day}`,
   llmTokens: (userId: string, day: string) => `llm:tokens:${userId}:${day}`,

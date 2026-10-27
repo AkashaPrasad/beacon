@@ -1,6 +1,7 @@
-import { createOnceTracker, tweens, usePrefersReducedMotion } from '@kestrel/ui';
 import { animate } from 'motion/react';
 import { useEffect, useRef, type ComponentProps } from 'react';
+
+import { createOnceTracker, tweens, usePrefersReducedMotion } from '@kestrel/ui';
 
 import { formatCount } from '../../lib/format';
 

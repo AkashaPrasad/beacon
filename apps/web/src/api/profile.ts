@@ -83,7 +83,11 @@ export function usePatchProfileOptimistic() {
       if (context?.previous) qc.setQueryData(queryKeys.profile, context.previous);
     },
     onSuccess: (data) => {
-      qc.setQueryData(queryKeys.profile, data);
+      // While other inline edits are still in flight, keep their optimistic values: the last response wins.
+      if (qc.isMutating({ mutationKey: ['profile', 'patch'] }) <= 1) qc.setQueryData(queryKeys.profile, data);
+    },
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: ['profile', 'patch'] }) > 1) return;
       void qc.invalidateQueries({ queryKey: queryKeys.me });
       void qc.invalidateQueries({ queryKey: queryKeys.feed.all });
     },

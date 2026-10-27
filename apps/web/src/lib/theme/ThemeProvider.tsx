@@ -1,9 +1,9 @@
-import { usePrefersReducedMotion } from '@kestrel/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 
-import { useMediaQuery } from '../use-media-query';
+import { usePrefersReducedMotion } from '@kestrel/ui';
 
+import { useMediaQuery } from '../use-media-query';
 import {
   applyAppearance,
   normaliseAppearance,
@@ -22,7 +22,13 @@ import { ThemeContext, type AppearanceChangeSource, type ThemeContextValue } fro
  * - Theme flips crossfade via a View Transition; Motion's `MotionConfig` lives in `<MotionProvider>`.
  * - Server sync is done by `<AppearanceSync>` (inside the signed-in shell) via `onUserChange`.
  */
-export function ThemeProvider({ children, initial }: { children: ReactNode; initial?: Partial<Appearance> }) {
+export function ThemeProvider({
+  children,
+  initial,
+}: {
+  children: ReactNode;
+  initial?: Partial<Appearance>;
+}) {
   const [appearance, setState] = useState<Appearance>(() =>
     initial ? normaliseAppearance(initial) : readStoredAppearance(),
   );
@@ -53,28 +59,37 @@ export function ThemeProvider({ children, initial }: { children: ReactNode; init
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const setAppearance = useCallback((patch: Partial<Appearance>, source: AppearanceChangeSource = 'user') => {
-    const prev = current.current;
-    const next = normaliseAppearance({ ...prev, ...patch });
-    if (sameAppearance(prev, next)) return;
-    current.current = next;
-    storeAppearance(next);
-    const nextResolved = resolveTheme(next.theme);
-    const themeFlips = resolveTheme(prev.theme) !== nextResolved;
-    const doc = typeof document === 'undefined' ? null : document;
-    // Theme changes crossfade the whole page with a View Transition (MOTION §5.14); everything else is instant.
-    if (themeFlips && source === 'user' && doc && 'startViewTransition' in doc && !reducedRef.current) {
-      doc.documentElement.setAttribute('data-vt', 'theme');
-      const transition = doc.startViewTransition(() => {
-        flushSync(() => setState(next));
-        applyAppearance(next, nextResolved, { brandAccent: brandRef.current });
-      });
-      void transition.finished.finally(() => doc.documentElement.removeAttribute('data-vt'));
-    } else {
-      setState(next);
-    }
-    if (source === 'user') queueMicrotask(() => listeners.current.forEach((l) => l(next)));
-  }, []);
+  const setAppearance = useCallback(
+    (patch: Partial<Appearance>, source: AppearanceChangeSource = 'user') => {
+      const prev = current.current;
+      const next = normaliseAppearance({ ...prev, ...patch });
+      if (sameAppearance(prev, next)) return;
+      current.current = next;
+      storeAppearance(next);
+      const nextResolved = resolveTheme(next.theme);
+      const themeFlips = resolveTheme(prev.theme) !== nextResolved;
+      const doc = typeof document === 'undefined' ? null : document;
+      // Theme changes crossfade the whole page with a View Transition (MOTION §5.14); everything else is instant.
+      if (
+        themeFlips &&
+        source === 'user' &&
+        doc &&
+        'startViewTransition' in doc &&
+        !reducedRef.current
+      ) {
+        doc.documentElement.setAttribute('data-vt', 'theme');
+        const transition = doc.startViewTransition(() => {
+          flushSync(() => setState(next));
+          applyAppearance(next, nextResolved, { brandAccent: brandRef.current });
+        });
+        void transition.finished.finally(() => doc.documentElement.removeAttribute('data-vt'));
+      } else {
+        setState(next);
+      }
+      if (source === 'user') queueMicrotask(() => listeners.current.forEach((l) => l(next)));
+    },
+    [],
+  );
 
   const toggleTheme = useCallback(() => {
     setAppearance({ theme: resolvedTheme === 'dark' ? 'light' : 'dark' });
@@ -99,7 +114,15 @@ export function ThemeProvider({ children, initial }: { children: ReactNode; init
       onUserChange,
       setBrandAccent,
     }),
-    [appearance, resolvedTheme, reducedMotion, setAppearance, toggleTheme, onUserChange, setBrandAccent],
+    [
+      appearance,
+      resolvedTheme,
+      reducedMotion,
+      setAppearance,
+      toggleTheme,
+      onUserChange,
+      setBrandAccent,
+    ],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

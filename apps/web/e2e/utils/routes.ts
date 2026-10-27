@@ -65,7 +65,11 @@ export function route(name: string): AppRoute {
   return r;
 }
 
-export const byTestId = (page: Page, id: TestId): Locator => page.getByTestId(id);
+/**
+ * `getByTestId` with completion for the contract ids (docs/TESTIDS.md). Screen specs may pass
+ * their own screen-local ids too; only contract ids take part in `needs()` / skip reasons.
+ */
+export const byTestId = (page: Page, id: TestId | (string & {})): Locator => page.getByTestId(id);
 
 /** Skip reason when the route's page root has not landed in apps/web/src yet. */
 export function routePending(r: AppRoute, extra: readonly TestId[] = []): string | null {

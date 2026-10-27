@@ -1,0 +1,291 @@
+- generic [ref=f8e1]:
+  - link "Skip to content" [ref=f8e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f8e23]:
+    - generic [ref=f8e24]:
+      - banner [ref=f8e25]:
+        - generic [ref=f8e26]:
+          - link "Beacon, go to Radar" [ref=f8e27] [cursor=pointer]:
+            - /url: /radar
+            - generic [ref=f8e32]: Beacon
+          - navigation "Primary" [ref=f8e33]:
+            - link "Radar" [ref=f8e34] [cursor=pointer]:
+              - /url: /radar
+            - link "Deadlines" [ref=f8e35] [cursor=pointer]:
+              - /url: /deadlines
+            - link "Tracker" [ref=f8e36] [cursor=pointer]:
+              - /url: /tracker
+            - link "Sources" [ref=f8e38] [cursor=pointer]:
+              - /url: /sources
+            - link "Alerts" [ref=f8e39] [cursor=pointer]:
+              - /url: /alerts
+          - generic [ref=f8e40]:
+            - button "Search or jump to…" [ref=f8e41] [cursor=pointer]:
+              - generic [ref=f8e45]: Search or jump…
+              - generic [aria-hidden] [ref=f8e46]:
+                - generic: ⌘K
+            - button "Notifications, 5 unread" [ref=f8e47] [cursor=pointer]:
+              - generic [ref=f8e48]: "5"
+            - 'button "Account: Aarav Mehta" [ref=f8e50] [cursor=pointer]':
+              - generic [ref=f8e51]: AM
+      - main [ref=f8e54]:
+        - generic [ref=f8e56]:
+          - generic [ref=f8e57]:
+            - generic [ref=f8e58]:
+              - heading "Tracker" [level=1] [ref=f8e59]
+              - generic [ref=f8e60]: 11 tracked
+            - radiogroup "Tracker view" [ref=f8e62]:
+              - radio "Board" [checked] [ref=f8e63] [cursor=pointer]
+              - radio "Table" [ref=f8e66] [cursor=pointer]
+            - button "Add listing" [ref=f8e70] [cursor=pointer]
+          - region "Application analytics" [ref=f8e72]:
+            - generic [ref=f8e73]:
+              - generic [ref=f8e74]: Applied
+              - generic [ref=f8e76]:
+                - text: "8"
+                - generic [ref=f8e77]: "8"
+            - generic [ref=f8e78]:
+              - generic [ref=f8e79]: Response rate
+              - generic [ref=f8e81]:
+                - generic [ref=f8e82]:
+                  - text: "50"
+                  - generic [ref=f8e83]: "50"
+                - text: "%"
+            - generic [ref=f8e84]:
+              - generic [ref=f8e85]: Median reply
+              - generic [ref=f8e87]:
+                - generic [ref=f8e88]:
+                  - text: "11"
+                  - generic [ref=f8e89]: "11"
+                - text: d
+            - generic [ref=f8e90]:
+              - generic [ref=f8e91]: Best sources
+              - list "Response rate by source" [ref=f8e92]:
+                - listitem [ref=f8e93]:
+                  - generic "CRED" [ref=f8e94]
+                  - generic [ref=f8e95]:
+                    - text: 100%
+                    - generic [ref=f8e96]: ", 2 of 2 replied"
+                - listitem [ref=f8e99]:
+                  - generic "Meridian AI Lab" [ref=f8e100]
+                  - generic [ref=f8e101]:
+                    - text: 100%
+                    - generic [ref=f8e102]: ", 1 of 1 replied"
+                - listitem [ref=f8e105]:
+                  - generic "YC startups hiring interns" [ref=f8e106]
+                  - generic [ref=f8e107]:
+                    - text: 50%
+                    - generic [ref=f8e108]: ", 1 of 2 replied"
+          - region [ref=f8e111]:
+            - generic [ref=f8e112]:
+              - heading "Needs attention" [level=2] [ref=f8e113]
+              - generic [ref=f8e114]: "4"
+            - list [ref=f8e115]:
+              - listitem [ref=f8e116]:
+                - generic [ref=f8e120]:
+                  - paragraph [ref=f8e121]: 33 days without a reply. Most roles that go quiet this long don't come back.
+                  - button "Data Analyst Intern · Acme Analytics" [ref=f8e122] [cursor=pointer]
+                - generic [ref=f8e123]:
+                  - button "Move to Ghosted" [ref=f8e124] [cursor=pointer]
+                  - button "Keep waiting" [ref=f8e125] [cursor=pointer]
+              - listitem [ref=f8e126]:
+                - generic [ref=f8e131]:
+                  - paragraph [ref=f8e132]: Your test is due within a day. The Acme assessment closes soon.
+                  - button "SDE Intern · Acme" [ref=f8e133] [cursor=pointer]
+                - button "Open" [ref=f8e135] [cursor=pointer]
+            - button [ref=f8e136] [cursor=pointer]
+          - generic [ref=f8e138]:
+            - region "Board" [ref=f8e139]:
+              - region [ref=f8e140]:
+                - generic [ref=f8e141]:
+                  - heading "Saved" [level=2] [ref=f8e144]
+                  - generic [ref=f8e146]:
+                    - generic [ref=f8e147]: 2 cards
+                    - generic [aria-hidden] [ref=f8e148]: "2"
+                  - button "Add to Saved" [ref=f8e149] [cursor=pointer]
+                - list "Saved" [ref=f8e150]:
+                  - listitem [ref=f8e151]:
+                    - generic [ref=f8e152]:
+                      - generic [ref=f8e153]:
+                        - generic [ref=f8e154]:
+                          - generic [ref=f8e156]: D
+                          - generic [ref=f8e157]:
+                            - paragraph [ref=f8e158]: Monsoon Hack 2026
+                            - paragraph [ref=f8e159]: Devfolio
+                        - generic [ref=f8e160]:
+                          - generic [ref=f8e161]: Saved 4d
+                          - time [ref=f8e162]: 4d left
+                      - generic [ref=f8e163]: Saved. In Saved 4 days.
+                      - button "Move Monsoon Hack 2026" [ref=f8e165] [cursor=pointer]
+                  - listitem [ref=f8e166]:
+                    - generic [ref=f8e167]:
+                      - generic [ref=f8e168]:
+                        - generic [ref=f8e169]:
+                          - generic [ref=f8e171]: I
+                          - generic [ref=f8e172]:
+                            - paragraph [ref=f8e173]: Summer Research Fellowship
+                            - paragraph [ref=f8e174]: Indus Institute of Science
+                        - generic [ref=f8e175]:
+                          - generic [ref=f8e176]: Saved 4d
+                          - time [ref=f8e177]: 22d left
+                      - generic [ref=f8e178]: Saved. In Saved 4 days.
+                      - button "Move Summer Research Fellowship" [ref=f8e180] [cursor=pointer]
+              - region [ref=f8e181]:
+                - generic [ref=f8e182]:
+                  - heading "Applied" [level=2] [ref=f8e186]
+                  - generic [ref=f8e188]:
+                    - generic [ref=f8e189]: 3 cards
+                    - generic [aria-hidden] [ref=f8e190]: "3"
+                  - button "Add to Applied" [ref=f8e191] [cursor=pointer]
+                - list "Applied" [ref=f8e192]:
+                  - listitem [ref=f8e193]:
+                    - generic [ref=f8e194]:
+                      - generic [ref=f8e195]:
+                        - generic [ref=f8e196]:
+                          - generic [ref=f8e198]: "N"
+                          - generic [ref=f8e199]:
+                            - paragraph [ref=f8e200]: Platform Engineering Intern
+                            - paragraph [ref=f8e201]: Northwind Labs
+                        - generic [ref=f8e202]:
+                          - generic [ref=f8e203]: Applied 11d
+                          - generic [ref=f8e204]:
+                            - generic [ref=f8e205]: Follow up
+                            - generic "1 note" [ref=f8e211]:
+                              - generic [ref=f8e215]: "1"
+                              - generic [ref=f8e216]: note
+                      - generic [ref=f8e217]: Applied. Applied 11 days ago. Follow up.
+                      - button "Move Platform Engineering Intern" [ref=f8e219] [cursor=pointer]
+                  - listitem [ref=f8e220]:
+                    - generic [ref=f8e221]:
+                      - generic [ref=f8e222]:
+                        - generic [ref=f8e223]:
+                          - generic [ref=f8e225]: A
+                          - generic [ref=f8e226]:
+                            - paragraph [ref=f8e227]: Data Analyst Intern
+                            - paragraph [ref=f8e228]: Acme Analytics
+                        - generic [ref=f8e229]:
+                          - generic [ref=f8e230]: Applied 33d
+                          - generic [ref=f8e231]: Move to Ghosted?
+                      - generic [ref=f8e236]: Applied. Applied 33 days ago. Move to Ghosted?.
+                      - button "Move Data Analyst Intern" [ref=f8e238] [cursor=pointer]
+                  - listitem [ref=f8e239]:
+                    - generic [ref=f8e240]:
+                      - generic [ref=f8e241]:
+                        - generic [ref=f8e242]:
+                          - generic [ref=f8e244]: K
+                          - generic [ref=f8e245]:
+                            - paragraph [ref=f8e246]: Frontend Intern
+                            - paragraph [ref=f8e247]: Kestrel Pay
+                        - generic [ref=f8e248]: Applied 2d
+                      - generic [ref=f8e250]: Applied. Applied 2 days ago.
+                      - button "Move Frontend Intern" [ref=f8e252] [cursor=pointer]
+              - region [ref=f8e253]:
+                - generic [ref=f8e254]:
+                  - heading "OA / Test" [level=2] [ref=f8e259]
+                  - generic [ref=f8e261]:
+                    - generic [ref=f8e262]: 1 card
+                    - generic [aria-hidden] [ref=f8e263]: "1"
+                  - button "Add to OA / Test" [ref=f8e264] [cursor=pointer]
+                - list "OA / Test" [ref=f8e265]:
+                  - listitem [ref=f8e266]:
+                    - generic [ref=f8e267]:
+                      - generic [ref=f8e268]:
+                        - generic [ref=f8e269]:
+                          - generic [ref=f8e271]: A
+                          - generic [ref=f8e272]:
+                            - paragraph [ref=f8e273]: SDE Intern
+                            - paragraph [ref=f8e274]: Acme
+                        - generic [ref=f8e275]:
+                          - generic [ref=f8e276]: Test 1d
+                          - time [ref=f8e277]: Due today
+                          - generic [ref=f8e278]: Test due
+                      - generic [ref=f8e285]: OA / Test. In OA / Test 1 day. Test due.
+                      - button "Move SDE Intern" [ref=f8e287] [cursor=pointer]
+              - region [ref=f8e288]:
+                - generic [ref=f8e289]:
+                  - heading "Interview" [level=2] [ref=f8e293]
+                  - generic [ref=f8e295]:
+                    - generic [ref=f8e296]: 2 cards
+                    - generic [aria-hidden] [ref=f8e297]: "2"
+                  - button "Add to Interview" [ref=f8e298] [cursor=pointer]
+                - list "Interview" [ref=f8e299]:
+                  - listitem [active] [ref=f8e300]:
+                    - generic [ref=f8e301]:
+                      - generic [ref=f8e302]:
+                        - generic [ref=f8e303]:
+                          - generic [ref=f8e305]: "N"
+                          - generic [ref=f8e306]:
+                            - paragraph [ref=f8e307]: Backend Engineering Intern
+                            - paragraph [ref=f8e308]: Northwind Labs
+                        - generic [ref=f8e309]: Interview today
+                      - generic [ref=f8e311]: Interview. In Interview today.
+                      - button "Move Backend Engineering Intern" [ref=f8e313] [cursor=pointer]
+                  - listitem [ref=f8e314]:
+                    - generic [ref=f8e315]:
+                      - generic [ref=f8e316]:
+                        - generic [ref=f8e317]:
+                          - generic [ref=f8e319]: M
+                          - generic [ref=f8e320]:
+                            - paragraph [ref=f8e321]: ML Research Intern
+                            - paragraph [ref=f8e322]: Meridian AI Lab
+                        - generic [ref=f8e323]:
+                          - generic [ref=f8e324]: Interview 7d
+                          - generic [ref=f8e325]: Any news?
+                      - generic [ref=f8e332]: Interview. In Interview 7 days. Any news?.
+                      - button "Move ML Research Intern" [ref=f8e334] [cursor=pointer]
+              - region [ref=f8e335]:
+                - generic [ref=f8e336]:
+                  - heading "Offer" [level=2] [ref=f8e340]
+                  - generic [ref=f8e342]:
+                    - generic [ref=f8e343]: 1 card
+                    - generic [aria-hidden] [ref=f8e344]: "1"
+                  - button "Add to Offer" [ref=f8e345] [cursor=pointer]
+                - list "Offer" [ref=f8e346]:
+                  - listitem [ref=f8e347]:
+                    - generic [ref=f8e348]:
+                      - generic [ref=f8e349]:
+                        - generic [ref=f8e350]:
+                          - generic [ref=f8e352]: L
+                          - generic [ref=f8e353]:
+                            - paragraph [ref=f8e354]: Mobile Engineering Intern
+                            - paragraph [ref=f8e355]: Lotus Labs
+                        - generic [ref=f8e356]:
+                          - generic [ref=f8e357]: Offer today
+                          - time [ref=f8e358]: 6d left
+                      - generic [ref=f8e359]: Offer. In Offer today.
+                      - button "Move Mobile Engineering Intern" [ref=f8e361] [cursor=pointer]
+              - region [ref=f8e362]:
+                - generic [ref=f8e363]:
+                  - heading "Closed · Rejected" [level=2] [ref=f8e367]: Closed
+                  - generic [ref=f8e369]:
+                    - generic [ref=f8e370]: 2 cards
+                    - generic [aria-hidden] [ref=f8e371]: "2"
+                  - button "Add to Rejected" [ref=f8e372] [cursor=pointer]
+                - radiogroup "Closed cards" [ref=f8e374]:
+                  - radio "Rejected, 1" [checked] [ref=f8e375] [cursor=pointer]:
+                    - generic [ref=f8e376]:
+                      - text: Rejected
+                      - generic [ref=f8e377]: "1"
+                  - radio "Ghosted, 1" [ref=f8e378] [cursor=pointer]:
+                    - generic [ref=f8e379]:
+                      - text: Ghosted
+                      - generic [ref=f8e380]: "1"
+                - list "Closed · Rejected" [ref=f8e381]:
+                  - listitem [ref=f8e382]:
+                    - generic [ref=f8e383]:
+                      - generic [ref=f8e384]:
+                        - generic [ref=f8e385]:
+                          - generic [ref=f8e387]: S
+                          - generic [ref=f8e388]:
+                            - paragraph [ref=f8e389]: Growth Intern
+                            - paragraph [ref=f8e390]: Saffron Foods
+                        - generic [ref=f8e391]: Rejected 14d
+                      - generic [ref=f8e393]: Rejected. In Rejected 14 days.
+                      - button "Move Growth Intern" [ref=f8e395] [cursor=pointer]
+            - status [ref=f8e396]
+            - generic [ref=f8e397]: Moved Backend Engineering Intern to Interview.
+    - region "Notifications alt+T":
+      - list:
+        - listitem [ref=f8e398]:
+          - generic [ref=f8e399]: Moved to Interview.
+          - button "Undo" [ref=f8e401] [cursor=pointer]

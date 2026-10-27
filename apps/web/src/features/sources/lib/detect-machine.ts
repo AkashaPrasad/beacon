@@ -8,11 +8,15 @@
  * Responses carry the request id they answer; a response for an older request is ignored, so a
  * slow first lookup can never overwrite the result for what the user typed last.
  */
+import type { DetectResult } from '@/api/types';
 import { SOURCE_KIND_LABELS, tryNormaliseUrl } from '@kestrel/shared';
 
-import type { DetectResult } from '@/api/types';
 
 export const DETECT_DEBOUNCE_MS = 400;
+
+/** DESIGN §8 copy #10 (source detection, failure). */
+export const NO_LISTINGS_MESSAGE =
+  "We couldn't find listings on that page. Try the company's careers page, or a Greenhouse, Lever or Ashby link.";
 
 export type { DetectResult };
 
@@ -107,8 +111,8 @@ export function classifyResult(input: string, url: string, result: DetectResult)
       error: {
         kind: 'bad-token',
         message: result.boardToken
-          ? `${SOURCE_KIND_LABELS[result.kind]} has no board called “${result.boardToken}”. Check the link on the company's careers page.`
-          : result.message || 'That board has no open listings or does not exist.',
+          ? `No ${SOURCE_KIND_LABELS[result.kind]} board called “${result.boardToken}”. Check the link on the company's careers page.`
+          : result.message || NO_LISTINGS_MESSAGE,
       },
     };
   }

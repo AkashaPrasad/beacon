@@ -1,7 +1,7 @@
-import { Bell, Keyboard, LogOut, Rss, Settings, User, type LucideIcon } from 'lucide-react';
+import { Activity, Bell, Keyboard, LogOut, Rss, Settings, User, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
-import { useMe } from '@/api/me';
+import { isAdmin, useMe } from '@/api/me';
 import { ThemeToggle } from '@/components/shell/ThemeToggle';
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 
@@ -23,6 +23,7 @@ export function MeSheet() {
     { icon: Rss, label: 'Sources', action: () => go('/sources') },
     { icon: Settings, label: 'Settings', action: () => go('/settings/appearance') },
     { icon: Bell, label: 'Notifications', action: () => go('/notifications') },
+    ...(isAdmin(me) ? [{ icon: Activity, label: 'Admin', action: () => go('/admin') }] : []),
     { icon: Keyboard, label: 'Shortcuts', action: () => openSheet('shortcuts') },
     {
       icon: LogOut,

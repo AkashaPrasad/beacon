@@ -1,11 +1,10 @@
-import type { RefreshInterval } from '@kestrel/shared';
-import { CompanyLogo, TypeBadge, useNow, variants } from '@kestrel/ui';
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type ColumnOrderState,
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table';
@@ -16,6 +15,7 @@ import {
   ArrowUpDown,
   Columns3,
   MoreHorizontal,
+  PanelRightOpen,
   Pencil,
   RefreshCw,
   SquareArrowOutUpRight,
@@ -23,22 +23,7 @@ import {
 } from 'lucide-react';
 import { m } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-
-import { formatAbsolute, formatRelative } from '../lib/format';
-import { HEALTH_ORDER } from '../lib/health';
-import { clearSourceJustAdded, isSourceJustAdded } from '../lib/just-added';
-import {
-  displayUrl,
-  INTERVAL_LABELS,
-  INTERVAL_OPTIONS,
-  KIND_LABELS,
-  shortPackName,
-  type SourceTableRow,
-} from '../lib/rows';
-
-import { CountUp } from './common/CountUp';
-import { HealthBadge } from './HealthBadge';
-import { KindBadge } from './KindBadge';
+import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -61,14 +46,40 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBreakpoint } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
+import type { RefreshInterval } from '@kestrel/shared';
+import { CompanyLogo, TypeBadge, useNow, variants } from '@kestrel/ui';
+
+import { CountUp } from './common/CountUp';
+import { HealthBadge } from './HealthBadge';
+import { KindBadge } from './KindBadge';
+import { formatAbsolute, formatRelative } from '../lib/format';
+import { HEALTH_ORDER } from '../lib/health';
+import {
+  barOpacity,
+  justAddedAge,
+  LIVE_INSERT_BAR_MS,
+  normaliseUrlKey,
+  shouldPlayEnter,
+} from '../lib/just-added';
+import { packPath, sourcePath } from '../lib/paths';
+import {
+  displayUrl,
+  INTERVAL_LABELS,
+  INTERVAL_OPTIONS,
+  KIND_LABELS,
+  shortPackName,
+  type SourceTableRow,
+} from '../lib/rows';
 
 export interface SourcesTableActions {
   onToggle: (row: SourceTableRow, enabled: boolean) => void;
   onInterval: (row: SourceTableRow, interval: RefreshInterval) => void;
   onRefresh: (row: SourceTableRow) => void;
+  /** Quick edit (name, type, interval) in a small dialog; the source page has everything. */
   onEdit: (row: SourceTableRow) => void;
   onDelete: (row: SourceTableRow) => void;
-  onManagePack: (packId: string) => void;
+  /** Hover / focus on a row's link: warm the source page. */
+  onPrefetch?: (row: SourceTableRow) => void;
 }
 
 type ColumnId =
@@ -85,13 +96,30 @@ type ColumnId =
 
 interface ColumnMeta {
   width: string;
+  /** Width in the simple list, when it differs. */
+  simpleWidth?: string;
   align?: 'right' | 'center';
   label: string;
-  /** Can be hidden from the Columns menu. */
-  hideable?: boolean;
 }
 
 export const SOURCES_COLUMNS_KEY = 'beacon:sources:columns';
+
+/** The simple list (default): what most people need to scan. */
+const SIMPLE_ORDER: ColumnOrderState = ['name', 'kind', 'health', 'listings', 'enabled', 'menu'];
+const SIMPLE_HIDDEN: VisibilityState = { scope: false, types: false, interval: false, lastChecked: false };
+/** "Details": every column, health first (DESIGN §10.5). */
+const DETAILS_ORDER: ColumnOrderState = [
+  'health',
+  'name',
+  'kind',
+  'scope',
+  'types',
+  'interval',
+  'lastChecked',
+  'listings',
+  'enabled',
+  'menu',
+];
 
 const helper = createColumnHelper<SourceTableRow>();
 
@@ -107,18 +135,22 @@ function SortIcon({ dir }: { dir: false | 'asc' | 'desc' }) {
 }
 
 /**
- * Sources table (DESIGN §10.5): TanStack Table for sorting and column visibility, TanStack Virtual for
- * 300+ rows. ARIA grid semantics on divs so each virtual row can carry a positioning wrapper.
+ * Sources table (DESIGN §10.5). By default a calm list: name, how it's read, a health mark, listings
+ * and the switch. `details` adds health words, scope, types, interval and last check, plus sorting
+ * and the column menu. TanStack Table for sorting/visibility, TanStack Virtual for 300+ rows; ARIA
+ * table semantics on divs so each virtual row can carry a positioning wrapper.
  */
 export function SourcesTable({
   rows,
   actions,
+  details,
   visibility,
   emptyFilter,
 }: {
   rows: SourceTableRow[];
   actions: SourcesTableActions;
-  /** Column visibility from the Columns menu (lifted so the toolbar can render it). */
+  details: boolean;
+  /** Column visibility from the Columns menu (details view only). */
   visibility: VisibilityState;
   emptyFilter?: ReactNode;
 }) {
@@ -126,15 +158,20 @@ export function SourcesTable({
   const bp = useBreakpoint();
   const phone = bp === 'base' || bp === 'sm';
   const [sorting, setSorting] = useState<SortingState>([]);
+  const showDetails = details && !phone;
 
   const columns = useMemo(
     () => [
       helper.accessor((r) => HEALTH_ORDER[r.status], {
         id: 'health',
         header: 'Health',
-        meta: { width: '112px', label: 'Health' } satisfies ColumnMeta,
+        meta: { width: '112px', simpleWidth: '48px', align: undefined, label: 'Health' } satisfies ColumnMeta,
         cell: ({ row }) => (
-          <HealthBadge status={row.original.status} reason={row.original.reason} />
+          <HealthBadge
+            status={row.original.status}
+            reason={row.original.reason}
+            variant={showDetails ? 'word' : 'icon'}
+          />
         ),
       }),
       helper.accessor('name', {
@@ -143,47 +180,58 @@ export function SourcesTable({
         sortingFn: (a, b) => a.original.name.localeCompare(b.original.name),
         meta: { width: 'minmax(200px, 1fr)', label: 'Source' } satisfies ColumnMeta,
         cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2.5">
+          <Link
+            to={sourcePath(row.original.id)}
+            onMouseEnter={() => actions.onPrefetch?.(row.original)}
+            onFocus={() => actions.onPrefetch?.(row.original)}
+            aria-disabled={row.original.optimistic || undefined}
+            onClick={(e) => row.original.optimistic && e.preventDefault()}
+            className="group/name -mx-1 flex min-w-0 items-center gap-2.5 rounded-sm px-1 py-1 focus-visible:focus-ring-inset"
+          >
             <CompanyLogo name={row.original.name} domain={row.original.domain} size={20} />
-            <div className="min-w-0">
-              <div className="truncate text-body font-medium text-fg" title={row.original.name}>
+            <span className="min-w-0">
+              <span
+                className="block truncate text-body font-medium text-fg group-hover/name:underline group-hover/name:underline-offset-3"
+                title={row.original.url}
+              >
                 {row.original.name}
-              </div>
-              <div className="truncate text-caption text-fg-tertiary" title={row.original.url}>
-                {displayUrl(row.original.url)}
-              </div>
-            </div>
-          </div>
+              </span>
+              {showDetails ? (
+                <span className="block truncate text-caption text-fg-tertiary">
+                  {displayUrl(row.original.url)}
+                </span>
+              ) : null}
+            </span>
+          </Link>
         ),
       }),
       helper.accessor((r) => KIND_LABELS[r.kind], {
         id: 'kind',
-        header: 'Kind',
-        meta: { width: '128px', label: 'Kind', hideable: true } satisfies ColumnMeta,
+        header: 'Read as',
+        meta: { width: '136px', label: 'Read as' } satisfies ColumnMeta,
         cell: ({ row }) => <KindBadge kind={row.original.kind} />,
       }),
       helper.accessor((r) => (r.scope === 'personal' ? '0' : `1${r.packName ?? ''}`), {
         id: 'scope',
         header: 'Scope',
-        meta: { width: '148px', label: 'Scope', hideable: true } satisfies ColumnMeta,
+        meta: { width: '148px', label: 'Scope' } satisfies ColumnMeta,
         cell: ({ row }) =>
-          row.original.scope === 'personal' ? (
-            <span className="text-small text-fg-secondary">Personal</span>
+          row.original.scope === 'personal' || !row.original.packId ? (
+            <span className="text-small text-fg-secondary">Yours</span>
           ) : (
-            <button
-              type="button"
-              onClick={() => row.original.packId && actions.onManagePack(row.original.packId)}
-              className="max-w-full truncate rounded-xs text-left text-small text-fg-secondary hover:text-fg focus-visible:focus-ring"
+            <Link
+              to={packPath(row.original.packId)}
+              className="max-w-full truncate rounded-xs text-small text-fg-secondary hover:text-fg hover:underline focus-visible:focus-ring"
               title={row.original.packName ?? undefined}
             >
               {shortPackName(row.original.packName ?? 'Pack')}
-            </button>
+            </Link>
           ),
       }),
       helper.accessor((r) => r.typeTag ?? '', {
         id: 'types',
         header: 'Types',
-        meta: { width: '120px', label: 'Types', hideable: true } satisfies ColumnMeta,
+        meta: { width: '120px', label: 'Types' } satisfies ColumnMeta,
         cell: ({ row }) =>
           row.original.typeTag ? (
             <TypeBadge type={row.original.typeTag} />
@@ -195,7 +243,7 @@ export function SourcesTable({
         id: 'interval',
         header: 'Every',
         enableSorting: false,
-        meta: { width: '112px', label: 'Refresh interval', hideable: true } satisfies ColumnMeta,
+        meta: { width: '112px', label: 'Refresh interval' } satisfies ColumnMeta,
         cell: ({ row }) =>
           row.original.editable ? (
             <Select
@@ -230,7 +278,7 @@ export function SourcesTable({
       helper.accessor((r) => (r.lastCheckedAt ? new Date(r.lastCheckedAt).getTime() : 0), {
         id: 'lastChecked',
         header: 'Last check',
-        meta: { width: '112px', label: 'Last check', hideable: true } satisfies ColumnMeta,
+        meta: { width: '112px', label: 'Last check' } satisfies ColumnMeta,
         cell: ({ row }) => (
           <span
             className="font-mono text-mono-sm whitespace-nowrap text-fg-secondary"
@@ -273,16 +321,22 @@ export function SourcesTable({
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span
-                  tabIndex={0}
-                  className="inline-flex rounded-full focus-visible:focus-ring"
-                  aria-label={`${row.original.name} is on through its pack`}
+                <Link
+                  to={row.original.packId ? packPath(row.original.packId) : '/sources?tab=packs'}
+                  className="inline-flex cursor-default rounded-full focus-visible:focus-ring"
+                  aria-label={`${row.original.name} is on through ${row.original.packName ?? 'its pack'}. Manage the pack`}
                 >
-                  <Switch checked disabled aria-hidden="true" tabIndex={-1} />
-                </span>
+                  {/* Read-only switch visual: pack rows follow the pack's own switch. */}
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-5 w-9 items-center rounded-full bg-accent p-0.5 opacity-50"
+                  >
+                    <span className="block size-4 translate-x-4 rounded-full bg-surface-raised shadow-sm" />
+                  </span>
+                </Link>
               </TooltipTrigger>
               <TooltipContent>
-                Shared through {row.original.packName ?? 'a pack'}. Turn the pack off in Packs.
+                On through {row.original.packName ?? 'a pack'}. Manage it on the pack’s page.
               </TooltipContent>
             </Tooltip>
           ),
@@ -294,28 +348,29 @@ export function SourcesTable({
         cell: ({ row }) => <RowMenu row={row.original} actions={actions} />,
       }),
     ],
-    [actions, now],
+    [actions, now, showDetails],
   );
 
   const effectiveVisibility = useMemo((): VisibilityState => {
-    if (phone)
-      return {
-        kind: false,
-        scope: false,
-        types: false,
-        interval: false,
-        lastChecked: false,
-        health: false,
-      };
-    const narrow: VisibilityState =
-      bp === 'md' || bp === 'lg' ? { scope: false, types: false } : {};
+    if (phone) {
+      return { kind: false, scope: false, types: false, interval: false, lastChecked: false, health: false };
+    }
+    if (!showDetails) return SIMPLE_HIDDEN;
+    const narrow: VisibilityState = bp === 'md' || bp === 'lg' ? { scope: false, types: false } : {};
     return { ...narrow, ...visibility };
-  }, [phone, bp, visibility]);
+  }, [phone, bp, visibility, showDetails]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table returns unmemoisable functions; the compiler skips this component, which is intended.
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnVisibility: effectiveVisibility },
+    state: {
+      // Sorting belongs to the details view; the simple list keeps the natural order.
+      sorting: showDetails ? sorting : [],
+      columnVisibility: effectiveVisibility,
+      columnOrder: showDetails ? DETAILS_ORDER : SIMPLE_ORDER,
+    },
+    enableSorting: showDetails,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -323,25 +378,32 @@ export function SourcesTable({
   });
 
   const visibleColumns = table.getVisibleLeafColumns();
-  const template = visibleColumns.map((c) => (c.columnDef.meta as ColumnMeta).width).join(' ');
+  const template = visibleColumns
+    .map((c) => {
+      const meta = c.columnDef.meta as ColumnMeta;
+      return showDetails ? meta.width : (meta.simpleWidth ?? meta.width);
+    })
+    .join(' ');
   const tableRows = table.getRowModel().rows;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useFillViewport(scrollRef);
   // TanStack Virtual returns fresh functions each render; the React Compiler skips this component.
-  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: tableRows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (i) => {
       const r = tableRows[i]?.original;
-      return r && r.editable && (r.status === 'error' || r.status === 'paused')
-        ? 76
-        : phone
-          ? 64
-          : 44;
+      const base = phone ? 64 : showDetails ? 44 : 56;
+      return r && r.editable && (r.status === 'error' || r.status === 'paused') ? base + 32 : base;
     },
-    getItemKey: (i) => tableRows[i]?.id ?? i,
+    // Personal rows are keyed by URL, not id: the optimistic row (temp id) and the saved row (server
+    // id) stay one element, so the live insert never replays when the id swaps.
+    getItemKey: (i) => {
+      const r = tableRows[i]?.original;
+      if (!r) return i;
+      return r.editable ? `personal:${normaliseUrlKey(r.url)}` : `pack:${r.id}`;
+    },
     overscan: 12,
   });
 
@@ -353,9 +415,18 @@ export function SourcesTable({
         aria-label="Sources"
         aria-rowcount={tableRows.length + 1}
         data-testid="sources-table"
+        data-view={showDetails ? 'details' : 'simple'}
         className="relative min-h-60 overflow-auto overscroll-contain [scrollbar-width:thin]"
       >
-        <div role="rowgroup" className="sticky top-0 z-sticky border-b border-border bg-surface">
+        <div
+          role="rowgroup"
+          className={
+            showDetails
+              ? 'sticky top-0 z-sticky border-b border-border bg-surface'
+              : // The simple list needs no visible header; screen readers still get one.
+                'sr-only'
+          }
+        >
           <div
             role="row"
             aria-rowindex={1}
@@ -409,7 +480,7 @@ export function SourcesTable({
           <div role="rowgroup">
             <div role="row">
               <div role="cell" className="px-gutter py-10 text-center text-body text-fg-secondary">
-                {emptyFilter ?? 'No sources.'}
+                {emptyFilter ?? 'No sources yet.'}
               </div>
             </div>
           </div>
@@ -420,7 +491,8 @@ export function SourcesTable({
               if (!row) return null;
               const r = row.original;
               const showReason = r.editable && (r.status === 'error' || r.status === 'paused');
-              const animateIn = isSourceJustAdded(r.url);
+              const age = r.editable ? justAddedAge(r.url) : null;
+              const animateIn = shouldPlayEnter(age);
               return (
                 <div
                   key={v.key}
@@ -435,6 +507,7 @@ export function SourcesTable({
                   className="absolute inset-x-0 top-0"
                   style={{ transform: `translateY(${v.start}px)` }}
                 >
+                  {age !== null ? <LiveInsertBar age={age} /> : null}
                   <m.div
                     role="row"
                     aria-rowindex={v.index + 2}
@@ -443,12 +516,10 @@ export function SourcesTable({
                     variants={variants.row}
                     initial={animateIn ? 'hidden' : false}
                     animate="visible"
-                    onAnimationComplete={() => animateIn && clearSourceJustAdded(r.url)}
                     className={cn(
                       'grid items-center border-b border-border-subtle px-gutter transition-colors duration-fast hover:bg-surface-hover hover:duration-0',
-                      phone ? 'min-h-16 py-2' : 'min-h-row-table',
+                      phone ? 'min-h-16 py-2' : showDetails ? 'min-h-row-table' : 'min-h-14',
                       !r.enabled && 'text-fg-tertiary [&_img]:opacity-60',
-                      animateIn && 'shadow-[inset_2px_0_0_var(--color-accent-strong)]',
                     )}
                     style={{ gridTemplateColumns: template }}
                   >
@@ -465,7 +536,11 @@ export function SourcesTable({
                           )}
                         >
                           {phone && cell.column.id === 'name' ? (
-                            <PhoneNameCell row={r} now={now} />
+                            <PhoneNameCell
+                              row={r}
+                              now={now}
+                              onPrefetch={() => actions.onPrefetch?.(r)}
+                            />
                           ) : (
                             flexRender(cell.column.columnDef.cell, cell.getContext())
                           )}
@@ -475,9 +550,12 @@ export function SourcesTable({
                     {showReason ? (
                       <div
                         role="cell"
-                        className="col-span-full -mt-1 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-[124px] max-md:pl-cell"
+                        className={cn(
+                          'col-span-full -mt-1 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 max-md:pl-cell',
+                          showDetails ? 'pl-[124px]' : 'pl-[42px]',
+                        )}
                       >
-                        <span className="text-small text-fg-secondary">└ {r.reason}</span>
+                        <span className="text-small text-fg-secondary">{r.reason}</span>
                         {r.status === 'error' ? (
                           <span className="flex gap-1">
                             <Button
@@ -485,10 +563,10 @@ export function SourcesTable({
                               variant="secondary"
                               onClick={() => actions.onRefresh(r)}
                             >
-                              Retry now
+                              Try again
                             </Button>
                             <Button size="xs" variant="ghost" onClick={() => actions.onEdit(r)}>
-                              Edit URL
+                              Fix the link
                             </Button>
                           </span>
                         ) : null}
@@ -505,24 +583,58 @@ export function SourcesTable({
   );
 }
 
-/** Phone layout: the name cell carries health, listings and last check (DESIGN §10.5 mobile card list). */
-function PhoneNameCell({ row, now }: { row: SourceTableRow; now: Date }) {
+/** Phone layout: one link per card with health, last check and kind (DESIGN §10.5 mobile card list). */
+function PhoneNameCell({
+  row,
+  now,
+  onPrefetch,
+}: {
+  row: SourceTableRow;
+  now: Date;
+  onPrefetch: () => void;
+}) {
   return (
-    <div className="flex min-w-0 items-start gap-2.5">
+    <Link
+      to={sourcePath(row.id)}
+      onFocus={onPrefetch}
+      onTouchStart={onPrefetch}
+      aria-disabled={row.optimistic || undefined}
+      onClick={(e) => row.optimistic && e.preventDefault()}
+      className="flex w-full min-w-0 items-start gap-2.5 rounded-sm text-left focus-visible:focus-ring-inset"
+    >
       <CompanyLogo name={row.name} domain={row.domain} size={28} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-body font-medium text-fg" title={row.name}>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body font-medium text-fg" title={row.name}>
           {row.name}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 text-caption text-fg-tertiary">
-          <HealthBadge status={row.status} reason={row.reason} className="h-5 text-caption" />
+        </span>
+        <span className="flex flex-wrap items-center gap-x-2 text-caption text-fg-tertiary">
+          <HealthBadge
+            status={row.status}
+            reason={row.reason}
+            interactive={false}
+            className="h-5 text-caption"
+          />
           <span className="font-mono">
             {row.lastCheckedAt ? formatRelative(row.lastCheckedAt, now) : 'Never'}
           </span>
           <span>{KIND_LABELS[row.kind]}</span>
-        </div>
-      </div>
-    </div>
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/** MOTION §5.5 live insert: the 2 px accent-strong bar fades out over 4 s (opacity only). */
+function LiveInsertBar({ age }: { age: number }) {
+  const remaining = Math.max(0, LIVE_INSERT_BAR_MS - age) / 1000;
+  return (
+    <m.span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 left-0 z-raised w-0.5 bg-accent-strong"
+      initial={{ opacity: barOpacity(age) }}
+      animate={{ opacity: 0 }}
+      transition={{ type: 'tween', duration: remaining, ease: 'linear' }}
+    />
   );
 }
 
@@ -540,23 +652,30 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem asChild>
+          <Link to={sourcePath(row.id)}>
+            <PanelRightOpen strokeWidth={1.5} /> Open details
+          </Link>
+        </DropdownMenuItem>
         {row.editable ? (
           <>
             <DropdownMenuItem onSelect={() => actions.onRefresh(row)}>
-              <RefreshCw strokeWidth={1.5} /> Refresh now
+              <RefreshCw strokeWidth={1.5} /> Check now
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => actions.onEdit(row)}>
-              <Pencil strokeWidth={1.5} /> Edit
+              <Pencil strokeWidth={1.5} /> Quick edit…
             </DropdownMenuItem>
           </>
-        ) : (
-          <DropdownMenuItem onSelect={() => row.packId && actions.onManagePack(row.packId)}>
-            <Columns3 strokeWidth={1.5} /> Show pack
+        ) : row.packId ? (
+          <DropdownMenuItem asChild>
+            <Link to={packPath(row.packId)}>
+              <Columns3 strokeWidth={1.5} /> Show pack
+            </Link>
           </DropdownMenuItem>
-        )}
+        ) : null}
         <DropdownMenuItem asChild>
           <a href={row.url} target="_blank" rel="noreferrer noopener">
-            <SquareArrowOutUpRight strokeWidth={1.5} /> Open page
+            <SquareArrowOutUpRight strokeWidth={1.5} /> Open the page
           </a>
         </DropdownMenuItem>
         {row.editable ? (
@@ -572,7 +691,7 @@ function RowMenu({ row, actions }: { row: SourceTableRow; actions: SourcesTableA
   );
 }
 
-/** Columns menu (column visibility, persisted per device). */
+/** Columns menu (details view; column visibility, persisted per device). */
 export function ColumnsMenu({
   value,
   onChange,
@@ -581,7 +700,7 @@ export function ColumnsMenu({
   onChange: (v: VisibilityState) => void;
 }) {
   const items: { id: ColumnId; label: string }[] = [
-    { id: 'kind', label: 'Kind' },
+    { id: 'kind', label: 'Read as' },
     { id: 'scope', label: 'Scope' },
     { id: 'types', label: 'Types' },
     { id: 'interval', label: 'Refresh interval' },
@@ -590,7 +709,7 @@ export function ColumnsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="max-md:hidden">
+        <Button variant="ghost" size="sm">
           <Columns3 strokeWidth={1.5} /> Columns
         </Button>
       </DropdownMenuTrigger>

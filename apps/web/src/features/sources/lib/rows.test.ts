@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import type { CommunityRow, PackDTO, SourceRow } from '@/api/sources';
+
 import { buildRows, displayUrl, matchesQuery, packSummaries, shortPackName } from './rows';
 
-import type { CommunityRow, PackDTO, SourceRow } from '@/api/sources';
 
 const now = new Date('2026-10-27T06:30:00Z');
 
@@ -44,7 +45,7 @@ function community(patch: Partial<CommunityRow> = {}): CommunityRow {
     packId: 'top-indian-product',
     subscribed: true,
     ...patch,
-  } as CommunityRow;
+  };
 }
 
 const packs: PackDTO[] = [

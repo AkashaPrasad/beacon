@@ -3,8 +3,8 @@ import { m } from 'motion/react';
 import { Tabs as TabsPrimitive } from 'radix-ui';
 import * as React from 'react';
 
-import { springs } from '@kestrel/ui';
 import { cn } from '@/lib/utils';
+import { springs } from '@kestrel/ui';
 
 interface TabsContextValue {
   value: string | undefined;

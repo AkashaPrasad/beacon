@@ -3,6 +3,8 @@
  * filters + keyset pagination. Cold start (no match docs yet): visible listings by posted date,
  * or by vector similarity when the profile already has an embedding (`warmingUp: true`).
  */
+import type { PipelineStage, Types } from 'mongoose';
+
 import {
   APPROX_FX_PER_USD,
   convertCurrency,
@@ -17,10 +19,13 @@ import {
   type OpportunityType,
   type PayPeriod,
 } from '@kestrel/shared';
-import type { PipelineStage, Types } from 'mongoose';
 
 import type { AppContext } from '../context.js';
+import { FEED_DESCRIPTION_CHARS, toFitResult, toListingPublic } from './serialize.js';
+import { getVisibility, visibleSourceFilter } from './visibility.js';
+import { sha256Hex, stableStringify } from '../lib/crypto.js';
 import { badCursor } from '../lib/errors.js';
+import { withTimeout } from '../lib/redis.js';
 import { escapeRegex, toObjectId } from '../lib/validate.js';
 import { candidatesForUser } from '../lib/vector.js';
 import { Interaction, Match, type MatchDoc } from '../models/activity.js';
@@ -28,8 +33,6 @@ import { Listing, type ListingDoc } from '../models/listing.js';
 import { Profile } from '../models/profile.js';
 import type { FeedQueryApi } from '../schemas/index.js';
 
-import { FEED_DESCRIPTION_CHARS, toFitResult, toListingPublic } from './serialize.js';
-import { getVisibility } from './visibility.js';
 
 export interface FeedItemDTO {
   listing: ListingPublic;
@@ -90,7 +93,7 @@ export function listingFilter(q: FeedQueryApi, now: Date, prefix = ''): Filter {
     and.push({ [f('company')]: { $in: companies.map((c) => new RegExp(`^${escapeRegex(c)}$`, 'i')) } });
   }
   const sourceIds = [...(q.sourceId ? [q.sourceId] : []), ...(q.sourceIds ?? [])];
-  if (sourceIds.length) and.push({ [f('sourceId')]: { $in: sourceIds.map(toObjectId) } });
+  if (sourceIds.length) and.push(visibleSourceFilter(sourceIds.map(toObjectId), prefix));
   if (q.q) {
     for (const word of q.q.split(/\s+/).filter(Boolean).slice(0, 8)) {
       const rx = { $regex: escapeRegex(word), $options: 'i' };
@@ -175,7 +178,7 @@ function sortStages(
   const p = (field: string) => `$${listingPrefix}${field}`;
   const sk =
     kind === 'fit'
-      ? `$${scoreField}`
+      ? `$${scoreField ?? 'score'}`
       : kind === 'deadline'
         ? { $ifNull: [p('deadlineAt'), FAR_FUTURE] }
         : { $ifNull: [p('postedAt'), p('firstSeenAt')] };
@@ -222,8 +225,43 @@ function toItem(listing: ListingDoc, match: MatchDoc | null, row: Row): FeedItem
   };
 }
 
+/** Feed aggregations give up after this long, so abandoned requests cannot keep mongod busy. */
+export const FEED_MAX_TIME_MS = 5_000;
+const TOTAL_CACHE_TTL_SECONDS = 60;
+
+/** Listing fields the feed never needs from the join (the 384-d embedding is ~4.6 kB per doc). */
+const LISTING_JOIN_PROJECTION = { embedding: 0, contentHash: 0, structured: 0 } as const;
+
+function aggregate<T>(model: typeof Match | typeof Listing, pipeline: PipelineStage[]) {
+  return (model as typeof Listing).aggregate<T>(pipeline).option({ maxTimeMS: FEED_MAX_TIME_MS });
+}
+
+/**
+ * `total` is display-only, so it is cached per user + filter set for 60 s (Redis); a cache
+ * failure just recomputes it.
+ */
+async function cachedTotal(
+  ctx: AppContext,
+  userId: Types.ObjectId,
+  q: FeedQueryApi,
+  path: string,
+  compute: () => Promise<number>,
+): Promise<number> {
+  const { cursor: _cursor, limit: _limit, ...filters } = q;
+  const key = `feed:total:${userId.toString()}:${sha256Hex(`${path}:${stableStringify(filters)}`).slice(0, 24)}`;
+  try {
+    const hit = await withTimeout(ctx.redis.get(key), 500, 'feed total cache');
+    if (hit !== null && Number.isFinite(Number(hit))) return Number(hit);
+  } catch {
+    /* recompute */
+  }
+  const total = await compute();
+  void withTimeout(ctx.redis.set(key, String(total), 'EX', TOTAL_CACHE_TTL_SECONDS), 500, 'feed total cache').catch(() => undefined);
+  return total;
+}
+
 async function countPipeline(model: typeof Match | typeof Listing, pre: PipelineStage[]): Promise<number> {
-  const result = await (model as typeof Listing).aggregate<{ n: number }>([...pre, { $count: 'n' }]);
+  const result = await aggregate<{ n: number }>(model, [...pre, { $count: 'n' }]);
   return result[0]?.n ?? 0;
 }
 
@@ -239,16 +277,27 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
     if (cursor && cursor['k'] !== kind) throw badCursor();
     const pre: PipelineStage[] = [
       { $match: { userId, ...(q.minFit !== undefined ? { score: { $gte: q.minFit } } : {}) } },
-      { $lookup: { from: 'listings', localField: 'listingId', foreignField: '_id', as: 'listing' } },
+      {
+        $lookup: {
+          from: 'listings',
+          localField: 'listingId',
+          foreignField: '_id',
+          pipeline: [{ $project: LISTING_JOIN_PROJECTION }],
+          as: 'listing',
+        },
+      },
       { $unwind: '$listing' },
       { $match: listingFilter(q, now, 'listing.') },
       ...interactionStages(userId, 'listingId', hideHidden, q.savedOnly),
     ];
-    const rows = await Match.aggregate<Row & MatchDoc & { listing: ListingDoc }>([
-      ...pre,
-      ...sortStages(kind, 'score', 'listing.', 'listingId', cursor),
-      { $limit: limit + 1 },
-      trackerStage(userId, 'listingId'),
+    const [rows, total] = await Promise.all([
+      aggregate<Row & MatchDoc & { listing: ListingDoc }>(Match, [
+        ...pre,
+        ...sortStages(kind, 'score', 'listing.', 'listingId', cursor),
+        { $limit: limit + 1 },
+        trackerStage(userId, 'listingId'),
+      ]),
+      q.cursor ? Promise.resolve(undefined) : cachedTotal(ctx, userId, q, 'match', () => countPipeline(Match, pre)),
     ]);
     const page = rows.slice(0, limit);
     const last = page.at(-1);
@@ -256,13 +305,13 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
       items: page.map((row) => toItem(row.listing, row, row)),
       nextCursor: rows.length > limit && last ? cursorFor(kind, last) : null,
       warmingUp: false,
-      ...(q.cursor ? {} : { total: await countPipeline(Match, pre) }),
+      ...(total === undefined ? {} : { total }),
     };
   }
 
   // ── Cold start ──
   const visibility = await getVisibility(userId);
-  const baseMatch: Filter = { ...listingFilter(q, now), sourceId: { $in: visibility.sourceIds } };
+  const baseMatch: Filter = { $and: [listingFilter(q, now), visibleSourceFilter(visibility.sourceIds)] };
   const profile = await Profile.findOne({ userId }, { embedding: 1 }).lean<{ embedding?: number[] }>();
   const embedding = profile?.embedding ?? [];
   const useVector = embedding.length === EMBEDDING_DIM && q.sort !== 'deadline';
@@ -275,14 +324,15 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
       embedding,
       {
         sourceIds: visibility.sourceIds,
-        ...(q.types?.length ? { types: q.types as OpportunityType[] } : {}),
+        ...(q.types?.length ? { types: q.types } : {}),
         ...(q.includeExpired ? {} : { deadlineAfter: now }),
       },
       200,
     );
     const rank = new Map(candidates.map((c, i) => [c.listingId, i]));
-    const rows = await Listing.aggregate<Row & ListingDoc>([
+    const rows = await aggregate<Row & ListingDoc>(Listing, [
       { $match: { $and: [baseMatch, { _id: { $in: candidates.map((c) => toObjectId(c.listingId)) } }] } },
+      { $project: LISTING_JOIN_PROJECTION },
       ...interactionStages(userId, '_id', hideHidden, q.savedOnly),
       { $addFields: { _lid: '$_id', _sk: null } },
       trackerStage(userId, '_id'),
@@ -299,12 +349,19 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
 
   const kind: SortKind = q.sort === 'deadline' ? 'deadline' : 'posted';
   if (cursor && cursor['k'] !== kind) throw badCursor();
-  const pre: PipelineStage[] = [{ $match: baseMatch }, ...interactionStages(userId, '_id', hideHidden, q.savedOnly)];
-  const rows = await Listing.aggregate<Row & ListingDoc>([
-    ...pre,
-    ...sortStages(kind, null, '', '_id', cursor),
-    { $limit: limit + 1 },
-    trackerStage(userId, '_id'),
+  const pre: PipelineStage[] = [
+    { $match: baseMatch },
+    { $project: LISTING_JOIN_PROJECTION },
+    ...interactionStages(userId, '_id', hideHidden, q.savedOnly),
+  ];
+  const [rows, total] = await Promise.all([
+    aggregate<Row & ListingDoc>(Listing, [
+      ...pre,
+      ...sortStages(kind, null, '', '_id', cursor),
+      { $limit: limit + 1 },
+      trackerStage(userId, '_id'),
+    ]),
+    q.cursor ? Promise.resolve(undefined) : cachedTotal(ctx, userId, q, 'cold', () => countPipeline(Listing, pre)),
   ]);
   const page = rows.slice(0, limit);
   const last = page.at(-1);
@@ -312,7 +369,7 @@ export async function getFeed(ctx: AppContext, userId: Types.ObjectId, q: FeedQu
     items: page.map((row) => toItem(row, null, row)),
     nextCursor: rows.length > limit && last ? cursorFor(kind, last) : null,
     warmingUp: true,
-    ...(q.cursor ? {} : { total: await countPipeline(Listing, pre) }),
+    ...(total === undefined ? {} : { total }),
   };
 }
 
@@ -359,7 +416,7 @@ export async function getFeedSummary(
   } else {
     const visibility = await getVisibility(userId);
     rows = await Listing.aggregate([
-      { $match: { ...visibleFilter, sourceId: { $in: visibility.sourceIds } } },
+      { $match: { $and: [visibleFilter, visibleSourceFilter(visibility.sourceIds)] } },
       ...interactionStages(userId, '_id', true, false),
       facet(''),
     ]);

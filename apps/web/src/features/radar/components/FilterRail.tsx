@@ -5,20 +5,10 @@
  * Groups (each collapsible, persisted): Type · Deadline · Work mode & location · Stipend floor ·
  * Grad year · Company · Source · Freshness · Saved only, then Saved views (localStorage + palette).
  */
-import { OPPORTUNITY_TYPES, type OpportunityType } from '@kestrel/shared';
-import { TYPE_META } from '@kestrel/ui';
-import { Bookmark, ChevronDown, Layers, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Bookmark, ChevronDown, Layers, Pin, PinOff, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 
-import {
-  DEADLINE_WINDOWS,
-  FRESHNESS_WINDOWS,
-  REMOTE_FILTERS,
-  remoteLabel,
-  type RadarFilters,
-} from '../lib/filters';
-import { deleteView, restoreView, saveView, useSavedViews, type SavedView } from '../lib/savedViews';
 
 import { useSources } from '@/api/sources';
 import { toggleRail, useRailCollapsed } from '@/components/shell/shell-state';
@@ -30,6 +20,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { readJson, writeJson } from '@/lib/storage';
 import { withUndo } from '@/lib/undo';
 import { cn } from '@/lib/utils';
+import { OPPORTUNITY_TYPES, type OpportunityType } from '@kestrel/shared';
+import { TYPE_META } from '@kestrel/ui';
+
+import {
+  DEADLINE_WINDOWS,
+  FRESHNESS_WINDOWS,
+  REMOTE_FILTERS,
+  remoteLabel,
+  type RadarFilters,
+} from '../lib/filters';
+import { deleteView, restoreView, saveView, useSavedViews, type SavedView } from '../lib/savedViews';
 
 // ── Persisted open/closed state per group ────────────────────────────────────
 
@@ -222,13 +223,17 @@ const GRAD_YEARS = Array.from({ length: 6 }, (_, i) => thisYear - 1 + i);
 
 // ── Saved views ──────────────────────────────────────────────────────────────
 
-function SavedViews({ search, onApply }: { search: string; onApply: (view: SavedView) => void }) {
+/** Saved views: name the current filters and view, then come back to them in one click (or ⌘K). */
+export function SavedViews({ search, onApply }: { search: string; onApply: (view: SavedView) => void }) {
   const views = useSavedViews();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const current = views.find((v) => v.search === search);
   return (
-    <Group id="views" label="Saved views" count={views.length || undefined}>
+    <div className="flex flex-col">
+      {views.length === 0 && (
+        <p className="pb-1 text-caption text-fg-tertiary">Save the filters you use most, then switch with one click.</p>
+      )}
       <ul className="flex flex-col gap-0.5">
         {views.map((view, index) => (
           <li key={view.id} className="group/view flex items-center">
@@ -296,7 +301,7 @@ function SavedViews({ search, onApply }: { search: string; onApply: (view: Saved
           {current ? `Saved as “${current.name}”` : 'Save this view'}
         </Button>
       )}
-    </Group>
+    </div>
   );
 }
 
@@ -309,11 +314,10 @@ export interface FilterRailProps {
   activeCount: number;
   typeCounts?: Partial<Record<OpportunityType, number>>;
   companySuggestions: string[];
-  /** Current radar search string (for saved views). */
-  search: string;
-  onApplyView: (view: SavedView) => void;
-  /** Inline rail (≥ lg) honours the shell's collapsed state; sheets never collapse. */
+  /** Inline rail (pinned, ≥ lg) honours the shell's collapsed state; the popover never collapses. */
   variant: 'inline' | 'sheet';
+  /** "Pin as sidebar" (popover) / "Unpin" (rail). Omitted where pinning is not available (phones). */
+  pin?: { pinned: boolean; onToggle: () => void };
 }
 
 export function FilterRail({
@@ -323,9 +327,8 @@ export function FilterRail({
   activeCount,
   typeCounts,
   companySuggestions,
-  search,
-  onApplyView,
   variant,
+  pin,
 }: FilterRailProps) {
   const collapsedState = useRailCollapsed();
   const collapsed = variant === 'inline' && collapsedState;
@@ -370,6 +373,23 @@ export function FilterRail({
           <Button variant="ghost" size="xs" onClick={onReset}>
             Reset
           </Button>
+        )}
+        {pin && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={pin.onToggle}
+                aria-label={pin.pinned ? 'Unpin filters' : 'Pin filters as a sidebar'}
+                aria-pressed={pin.pinned}
+                data-testid="radar-filters-pin"
+                className="grid size-7 place-items-center rounded-sm text-fg-tertiary hover:bg-surface-hover hover:text-fg focus-visible:focus-ring"
+              >
+                {pin.pinned ? <PinOff className="size-4" strokeWidth={1.5} /> : <Pin className="size-4" strokeWidth={1.5} />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{pin.pinned ? 'Unpin: back to a popover' : 'Pin as a sidebar'}</TooltipContent>
+          </Tooltip>
         )}
         {variant === 'inline' && (
           <Tooltip>
@@ -571,7 +591,6 @@ export function FilterRail({
         />
       </section>
 
-      <SavedViews search={search} onApply={onApplyView} />
     </div>
   );
 }

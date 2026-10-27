@@ -42,5 +42,6 @@ export function removeKey(key: string): void {
  */
 export const sessionHint = {
   get: (): boolean => readJson<boolean>(STORAGE_KEYS.session, false),
-  set: (value: boolean) => (value ? writeJson(STORAGE_KEYS.session, true) : removeKey(STORAGE_KEYS.session)),
+  set: (value: boolean) =>
+    value ? writeJson(STORAGE_KEYS.session, true) : removeKey(STORAGE_KEYS.session),
 };

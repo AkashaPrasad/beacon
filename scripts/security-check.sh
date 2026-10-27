@@ -159,7 +159,7 @@ if want secrets; then
         val=${!key:-}
         [ ${#val} -ge 8 ] || continue
         class=secret
-        case $key in *_ID|*_IP|*_ARN|*_IDS|*_SG_ID|*SELF_HOSTED_URL) class=identifier ;; esac
+        case $key in *_ID|*_IP|*_ARN|*_IDS|*SELF_HOSTED_URL) class=identifier ;; esac
         # Credentials embedded in URIs (mongodb+srv://user:pass@host): scan the password alone too.
         pw=$(printf '%s' "$val" | sed -nE 's#^[a-z+]+://[^:/@]+:([^@]+)@.*#\1#p')
         if [ ${#pw} -ge 6 ]; then printf '%s\n' "$pw" >>"$WORK/patterns"; printf '%s\t%s\n' "$key(password)" secret >>"$WORK/keys"; fi

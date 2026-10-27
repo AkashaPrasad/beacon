@@ -7,6 +7,7 @@ export type ErrorCode =
   | 'BAD_REQUEST'
   | 'UNAUTHENTICATED'
   | 'INVALID_GOOGLE_TOKEN'
+  | 'INVALID_CREDENTIALS'
   | 'CSRF'
   | 'FORBIDDEN'
   | 'NOT_FOUND'

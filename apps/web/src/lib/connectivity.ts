@@ -19,7 +19,8 @@ let probing = false;
 
 function set(next: Partial<State>) {
   const merged = { ...state, ...next };
-  if (merged.browserOnline === state.browserOnline && merged.apiReachable === state.apiReachable) return;
+  if (merged.browserOnline === state.browserOnline && merged.apiReachable === state.apiReachable)
+    return;
   state = merged;
   listeners.forEach((l) => l());
 }

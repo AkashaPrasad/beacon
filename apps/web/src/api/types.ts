@@ -91,6 +91,17 @@ export interface MePatch {
 }
 
 export type GoogleAuthBody = { credential: string } | { code: string; redirectUri: string };
+/** `POST /v1/auth/login` (email + password, BRIEF addendum). */
+export interface EmailLoginBody {
+  email: string;
+  password: string;
+}
+/** `POST /v1/auth/register`: password ≥ 8 characters; no email verification. */
+export interface RegisterBody {
+  name: string;
+  email: string;
+  password: string;
+}
 export interface GoogleAuthResponse {
   user: PublicUser;
   isNew: boolean;
@@ -235,7 +246,13 @@ export type TrackerItemDTO = TrackerItem & { history: { stage: TrackerStage; at:
 export type TrackerCreateBody =
   | { listingId: string; stage?: TrackerStage; notes?: string }
   | {
-      manual: { title: string; company: string; url?: string; type?: OpportunityType; deadlineAt?: Date };
+      manual: {
+        title: string;
+        company: string;
+        url?: string;
+        type?: OpportunityType;
+        deadlineAt?: Date;
+      };
       stage?: TrackerStage;
       notes?: string;
     };
@@ -250,9 +267,27 @@ export interface TrackerAnalytics {
   responseRate: number;
   medianResponseDays: number | null;
   stageCounts: Record<TrackerStage, number>;
-  bestSources: { sourceId: string; name: string; applied: number; responded: number; responseRate: number }[];
-  followUp: { id: string; title: string; company: string; appliedAt: Date; daysSinceActivity: number }[];
-  moveOn: { id: string; title: string; company: string; appliedAt: Date; daysSinceActivity: number }[];
+  bestSources: {
+    sourceId: string;
+    name: string;
+    applied: number;
+    responded: number;
+    responseRate: number;
+  }[];
+  followUp: {
+    id: string;
+    title: string;
+    company: string;
+    appliedAt: Date;
+    daysSinceActivity: number;
+  }[];
+  moveOn: {
+    id: string;
+    title: string;
+    company: string;
+    appliedAt: Date;
+    daysSinceActivity: number;
+  }[];
 }
 
 // ── Notifications & push (§8, §9) ─────────────────────────────────────────────
@@ -281,4 +316,57 @@ export interface AiTestResult {
 export interface WeightsResponse {
   weights: WeightsInput;
   normalised: Weights;
+}
+
+// ── Admin (API §10.1 `GET /v1/admin/overview`, role `admin`) ───────────────────────
+
+export interface AdminQueueDepth {
+  name: string;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+}
+export interface AdminSourceRun {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  sourceKind: SourceKind | (string & {});
+  reason: string;
+  status: 'ok' | 'not_modified' | 'error' | 'deferred' | 'skipped' | (string & {});
+  startedAt: Date;
+  finishedAt: Date | null;
+  durationMs: number | null;
+  found: number;
+  new: number;
+  updated: number;
+  unchanged: number;
+  errors: { kind: string; message: string }[];
+  backend: 'cloud' | 'selfhosted' | (string & {}) | null;
+  creditsUsed: number;
+}
+export interface AdminOverview {
+  generatedAt: Date;
+  users: { total: number; admins: number; withPassword: number; withGoogle: number; newLast7d: number };
+  listings: { total: number; active: number; archived: number; byType: Partial<Record<OpportunityType, number>> };
+  sources: {
+    total: number;
+    byScope: { personal: number; community: number };
+    byHealth: Partial<Record<'pending' | 'healthy' | 'degraded' | 'failing', number>>;
+    byKind: Partial<Record<SourceKind, number>>;
+  };
+  queues: AdminQueueDepth[];
+  /** Set when Redis was unreachable (then `queues` is empty). */
+  queuesError: string | null;
+  crawler: {
+    date: string;
+    backend: 'cloud' | 'selfhosted';
+    cloudUsedToday: number;
+    selfHostedUsedToday: number;
+    cap: number;
+    backendReason: string | null;
+    cloudRemaining: number | null;
+  };
+  recentRuns: AdminSourceRun[];
 }

@@ -4,7 +4,12 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { env } from '@/lib/env';
-import { beginGoogleRedirect, createOAuthState, GOOGLE_SCOPES, oauthRedirectUri } from '@/lib/google-auth';
+import {
+  beginGoogleRedirect,
+  createOAuthState,
+  GOOGLE_SCOPES,
+  oauthRedirectUri,
+} from '@/lib/google-auth';
 import { cn } from '@/lib/utils';
 
 import { GoogleMark } from './GoogleMark';
@@ -15,7 +20,13 @@ type Starter = () => void;
  * Mounted on intent (hover/focus/touch): loads GIS and exposes its redirect code client. The code
  * client is configured once with `state`, so the state is created when GIS mounts, not on click.
  */
-function GisLoader({ starter, state }: { starter: MutableRefObject<Starter | null>; state: string }) {
+function GisLoader({
+  starterRef,
+  state,
+}: {
+  starterRef: MutableRefObject<Starter | null>;
+  state: string;
+}) {
   const login = useGoogleLogin({
     flow: 'auth-code',
     ux_mode: 'redirect',
@@ -26,23 +37,29 @@ function GisLoader({ starter, state }: { starter: MutableRefObject<Starter | nul
   });
   const { scriptLoadedSuccessfully } = useGoogleOAuth();
   useEffect(() => {
-    starter.current = scriptLoadedSuccessfully ? login : null;
+    starterRef.current = scriptLoadedSuccessfully ? login : null;
     return () => {
-      starter.current = null;
+      starterRef.current = null;
     };
-  }, [login, starter, scriptLoadedSuccessfully]);
+  }, [login, starterRef, scriptLoadedSuccessfully]);
   return null;
 }
 
-function GisProvider({ starter, state }: { starter: MutableRefObject<Starter | null>; state: string }) {
+function GisProvider({
+  starterRef,
+  state,
+}: {
+  starterRef: MutableRefObject<Starter | null>;
+  state: string;
+}) {
   return (
     <GoogleOAuthProvider
       clientId={env.googleClientId}
       onScriptLoadError={() => {
-        starter.current = null;
+        starterRef.current = null;
       }}
     >
-      <GisLoader starter={starter} state={state} />
+      <GisLoader starterRef={starterRef} state={state} />
     </GoogleOAuthProvider>
   );
 }
@@ -58,7 +75,11 @@ export interface GoogleSignInButtonProps {
  * "Continue with Google" (DESIGN §6.1): `lg` secondary button with the official G. No Google script is
  * loaded until the visitor shows intent, so public pages stay first-party only (Lighthouse, privacy).
  */
-export function GoogleSignInButton({ next = null, className, label = 'Continue with Google' }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({
+  next = null,
+  className,
+  label = 'Continue with Google',
+}: GoogleSignInButtonProps) {
   const [gisState, setGisState] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const starter = useRef<Starter | null>(null);
@@ -97,13 +118,17 @@ export function GoogleSignInButton({ next = null, className, label = 'Continue w
         aria-busy={busy || undefined}
       >
         {busy ? (
-          <LoaderCircle className="size-5 animate-spin text-fg-secondary" strokeWidth={1.5} aria-hidden="true" />
+          <LoaderCircle
+            className="size-5 animate-spin text-fg-secondary"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
         ) : (
           <GoogleMark className="size-5" />
         )}
         {busy ? 'Opening Google…' : label}
       </Button>
-      {gisState && <GisProvider starter={starter} state={gisState} />}
+      {gisState && <GisProvider starterRef={starter} state={gisState} />}
     </>
   );
 }

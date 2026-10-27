@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import {
   canonicaliseSkill,
   educationSchema,
@@ -7,11 +9,9 @@ import {
   projectSchema,
   type ProfileInput,
 } from '@kestrel/shared';
-import { z } from 'zod';
 
 import { generateStructured, type LlmConfig, type LlmResult } from '../ai/llm.js';
 import type { AppContext } from '../context.js';
-
 import type { ParsedProfile } from './parse.js';
 
 const nullableString = z.string().nullish();

@@ -23,7 +23,8 @@ export function RequireAuth() {
 export function RequireOnboarded() {
   const { data: me } = useMe();
   if (!me) return null;
-  if (!me.onboarding.consent || me.onboarding.step === 'consent') return <Navigate to="/welcome" replace />;
+  if (!me.onboarding.consent || me.onboarding.step === 'consent')
+    return <Navigate to="/welcome" replace />;
   if (!isOnboarded(me)) return <Navigate to={nextPathFor(me)} replace />;
   return <Outlet />;
 }
@@ -55,5 +56,7 @@ export function PublicOnly() {
 export function OnboardingIndex() {
   const { data: me } = useMe();
   if (!me) return null;
-  return <Navigate to={nextPathFor(me) === '/radar' ? '/onboarding/resume' : nextPathFor(me)} replace />;
+  return (
+    <Navigate to={nextPathFor(me) === '/radar' ? '/onboarding/resume' : nextPathFor(me)} replace />
+  );
 }

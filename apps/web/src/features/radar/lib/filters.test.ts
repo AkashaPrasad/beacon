@@ -41,6 +41,8 @@ describe('filtersFromSearchParams', () => {
       sourceIds: ['src_1'],
       postedWithin: 7,
       savedOnly: true,
+      showHidden: false,
+      newOnly: false,
       minFit: 65,
       sort: 'deadline',
     });

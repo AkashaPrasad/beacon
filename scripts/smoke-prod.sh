@@ -51,16 +51,25 @@ hdr() { grep -i "^$2:" "$WORK/$1.h" | tail -1 | cut -d: -f2- | tr -d '\r' | sed 
 
 echo "Beacon smoke · web $WEB_URL · api $API_URL$([ $FULL = 1 ] && echo ' · full')"
 
-# ── Reachability gate: one clear failure instead of twenty when DNS/TLS/origin is down ──
+# ── Reachability: one clear failure per host instead of twenty; each host's checks run only if it answers ──
 reach() {
-  local code; code=$(curl -sS -m 15 -o /dev/null -w '%{http_code}' "$1" 2>"$WORK/reach.err")
-  if [ "$code" = 000 ]; then echo "000 ($(tr -d '\n' <"$WORK/reach.err" | cut -c1-120))"; else echo "$code"; fi
+  local code err; code=$(curl -sS -m 15 -o /dev/null -w '%{http_code}' "$1" 2>"$WORK/reach.err")
+  if [ "$code" != 000 ]; then echo "$code"; return; fi
+  err=$(tr -d '\n' <"$WORK/reach.err" | cut -c1-140)
+  case $err in
+    *"handshake failure"*|*"alert number 40"*)
+      echo "000 (TLS handshake refused: $err. Behind Cloudflare this usually means no edge certificate covers the hostname; Universal SSL covers the apex and one subdomain level only)" ;;
+    *) echo "000 ($err)" ;;
+  esac
 }
+API_OK=1; WEB_OK=1
 api_reach=$(reach "$API_URL/healthz"); web_reach=$(reach "$WEB_URL/")
-case $api_reach in [1-5][0-9][0-9]) ;; *) bad "API unreachable at $API_URL: $api_reach"; ;; esac
-case $web_reach in [1-5][0-9][0-9]) ;; *) bad "web unreachable at $WEB_URL: $web_reach"; ;; esac
-if [ "$FAILS" -gt 0 ]; then echo "smoke: stopped, nothing to test until both hosts answer"; exit 1; fi
+case $api_reach in [1-5][0-9][0-9]) ;; *) bad "API unreachable at $API_URL: $api_reach"; API_OK=0 ;; esac
+case $web_reach in [1-5][0-9][0-9]) ;; *) bad "web unreachable at $WEB_URL: $web_reach"; WEB_OK=0 ;; esac
+case $web_reach in 52[0-9]) bad "web $WEB_URL answers $web_reach from Cloudflare (origin unreachable: Pages project / custom domain not attached?)" ;; esac
+if [ $API_OK = 0 ] && [ $WEB_OK = 0 ]; then echo "smoke: stopped, neither host answers"; exit 1; fi
 
+if [ $API_OK = 1 ]; then
 # ── API liveness / readiness ──────────────────────────────────────────────────
 c=$(get healthz "$API_URL/healthz")
 [ "$c" = 200 ] && grep -q '"ok":true' "$WORK/healthz.b" && ok "GET /healthz 200 {ok:true}" || bad "GET /healthz → $c $(head -c 120 "$WORK/healthz.b" 2>/dev/null)"
@@ -74,7 +83,9 @@ if [ "$c" = 200 ] && node -e 'const d=JSON.parse(require("fs").readFileSync(proc
 else bad "GET /openapi.json → $c (not an OpenAPI 3 document)"; fi
 c=$(get docs "$API_URL/docs")
 [ "$c" = 200 ] && ok "GET /docs 200" || warn "GET /docs → $c"
+fi
 
+if [ $WEB_OK = 1 ]; then
 # ── Web ───────────────────────────────────────────────────────────────────────
 c=$(get web "$WEB_URL/")
 title=$( (tr -d '\n' <"$WORK/web.b") 2>/dev/null | sed -nE 's/.*<title>([^<]*)<\/title>.*/\1/p')
@@ -85,9 +96,11 @@ c=$(get web_sw "$WEB_URL/sw.js")
 [ "$c" = 200 ] && ok "GET /sw.js 200" || warn "GET /sw.js → $c (service worker not served at /sw.js)"
 c=$(get web_manifest "$WEB_URL/manifest.webmanifest")
 [ "$c" = 200 ] && ok "GET /manifest.webmanifest 200" || warn "GET /manifest.webmanifest → $c"
+fi
 
 # ── Security headers ──────────────────────────────────────────────────────────
-for target in healthz web; do
+targets=""; [ $API_OK = 1 ] && targets="healthz"; [ $WEB_OK = 1 ] && targets="$targets web"
+for target in $targets; do
   label=$([ $target = web ] && echo web || echo api)
   for h in content-security-policy strict-transport-security x-content-type-options referrer-policy; do
     v=$(hdr $target "$h")
@@ -117,6 +130,7 @@ for url in "$API_URL" "$WEB_URL"; do
   esac
 done
 
+if [ $API_OK = 1 ]; then
 # ── CORS ──────────────────────────────────────────────────────────────────────
 get cors_ok "$API_URL/v1/me" -X OPTIONS -H "Origin: $WEB_URL" -H 'Access-Control-Request-Method: GET' >/dev/null
 a=$(hdr cors_ok access-control-allow-origin); cr=$(hdr cors_ok access-control-allow-credentials)
@@ -157,7 +171,7 @@ if [ $FULL = 1 ]; then
       sid=$(node -e 'try{console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).source.id)}catch{}' "$WORK/src_add.b")
       if [ "$c" != 201 ] || [ -z "$sid" ]; then bad "POST /v1/sources → $c $(head -c 160 "$WORK/src_add.b")"; else
         health=pending
-        for i in $(seq 1 24); do
+        for _ in $(seq 1 24); do
           sleep 5
           get src_poll "$API_URL/v1/sources/$sid" "${cookie[@]}" >/dev/null
           health=$(node -e 'try{const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).source;console.log(`${s.health} ${s.listingsFound}`)}catch{console.log("unknown")}' "$WORK/src_poll.b")
@@ -169,6 +183,7 @@ if [ $FULL = 1 ]; then
       fi
     fi
   fi
+fi
 fi
 
 # ── Timing summary ────────────────────────────────────────────────────────────

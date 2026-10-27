@@ -77,7 +77,11 @@ export class ApiError extends Error {
 
   /** Worth retrying automatically (network, timeout, 5xx except 501). */
   get isTransient(): boolean {
-    return this.code === 'NETWORK' || this.code === 'TIMEOUT' || (this.status >= 500 && this.status !== 501);
+    return (
+      this.code === 'NETWORK' ||
+      this.code === 'TIMEOUT' ||
+      (this.status >= 500 && this.status !== 501)
+    );
   }
 }
 
@@ -85,7 +89,8 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
-export type QueryValue = string | number | boolean | null | undefined | readonly (string | number)[];
+export type QueryValue =
+  string | number | boolean | null | undefined | readonly (string | number)[];
 export type QueryParams = Record<string, QueryValue>;
 
 export interface RequestOptions {
@@ -109,14 +114,16 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 }
 
 export function buildUrl(path: string, query?: QueryParams): string {
-  const url = new URL(path.startsWith('http') ? path : `${env.apiUrl}${path.startsWith('/') ? '' : '/'}${path}`);
+  const url = new URL(
+    path.startsWith('http') ? path : `${env.apiUrl}${path.startsWith('/') ? '' : '/'}${path}`,
+  );
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined || value === null || value === '') continue;
       if (Array.isArray(value)) {
         if (value.length) url.searchParams.set(key, value.join(','));
       } else {
-        url.searchParams.set(key, String(value as string | number | boolean));
+        url.searchParams.set(key, String(value));
       }
     }
   }
@@ -137,7 +144,7 @@ function anySignal(signals: (AbortSignal | undefined)[]): AbortSignal {
 async function parseError(res: Response): Promise<ApiError> {
   const requestId = res.headers.get('X-Request-Id');
   const retryAfter = Number(res.headers.get('Retry-After'));
-  let body: unknown = null;
+  let body: unknown;
   try {
     const text = await res.text();
     body = text ? parseJson(text) : null;
@@ -148,9 +155,12 @@ async function parseError(res: Response): Promise<ApiError> {
     body && typeof body === 'object' && 'error' in body
       ? ((body as { error: Record<string, unknown> }).error ?? {})
       : null;
-  const code = typeof envelope?.code === 'string' ? envelope.code.toUpperCase() : `HTTP_${res.status}`;
+  const code =
+    typeof envelope?.code === 'string' ? envelope.code.toUpperCase() : `HTTP_${res.status}`;
   const message =
-    typeof envelope?.message === 'string' && envelope.message ? envelope.message : defaultMessage(res.status);
+    typeof envelope?.message === 'string' && envelope.message
+      ? envelope.message
+      : defaultMessage(res.status);
   return new ApiError({
     status: res.status,
     code: code === 'UNAUTHORIZED' ? 'UNAUTHENTICATED' : code,
@@ -173,9 +183,20 @@ function defaultMessage(status: number): string {
 
 /** Low-level request. Prefer the `api.get/post/…` helpers. */
 export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', query, body, headers, signal, timeoutMs = DEFAULT_TIMEOUT_MS, auth = 'required' } = options;
+  const {
+    method = 'GET',
+    query,
+    body,
+    headers,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    auth = 'required',
+  } = options;
   const timeout = new AbortController();
-  const timer = setTimeout(() => timeout.abort(new DOMException('Timeout', 'TimeoutError')), timeoutMs);
+  const timer = setTimeout(
+    () => timeout.abort(new DOMException('Timeout', 'TimeoutError')),
+    timeoutMs,
+  );
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
 
   let res: Response;
@@ -190,7 +211,7 @@ export async function request<T = unknown>(path: string, options: RequestOptions
         ...(body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
-      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       signal: anySignal([signal, timeout.signal]),
     });
   } catch (error) {
@@ -243,15 +264,21 @@ type Opts = Omit<RequestOptions, 'method' | 'body'>;
 
 export const api = {
   get: <T>(path: string, options?: Opts) => request<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: Opts) => request<T>(path, { ...options, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, options?: Opts) => request<T>(path, { ...options, method: 'PUT', body }),
-  patch: <T>(path: string, body?: unknown, options?: Opts) => request<T>(path, { ...options, method: 'PATCH', body }),
+  post: <T>(path: string, body?: unknown, options?: Opts) =>
+    request<T>(path, { ...options, method: 'POST', body }),
+  put: <T>(path: string, body?: unknown, options?: Opts) =>
+    request<T>(path, { ...options, method: 'PUT', body }),
+  patch: <T>(path: string, body?: unknown, options?: Opts) =>
+    request<T>(path, { ...options, method: 'PATCH', body }),
   delete: <T>(path: string, body?: unknown, options?: Opts) =>
     request<T>(path, { ...options, method: 'DELETE', body }),
 };
 
 /** Human copy for an error (DESIGN §8 rule 5: what failed, why, the fix). */
-export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.'): string {
+export function errorMessage(
+  error: unknown,
+  fallback = 'Something went wrong. Try again.',
+): string {
   if (isApiError(error)) return error.message;
   if (error instanceof Error && error.message) return error.message;
   return fallback;

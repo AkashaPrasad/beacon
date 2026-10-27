@@ -6,7 +6,6 @@
  * the threshold (or a 500 px/s fling) commits: the row carries its velocity off-screen and the action
  * runs (with an undo toast). Below it, the row springs back.
  */
-import { gestures, springs, tweens, usePrefersReducedMotion } from '@kestrel/ui';
 import { Bookmark, BookmarkCheck, EyeOff } from 'lucide-react';
 import {
   animate,
@@ -19,12 +18,16 @@ import {
 } from 'motion/react';
 import { useRef, type ReactNode } from 'react';
 
-import { crossedThreshold, hapticTick, resolveSwipe, type SwipeAction } from '../lib/swipe';
 
 import { cn } from '@/lib/utils';
+import { gestures, springs, tweens, usePrefersReducedMotion } from '@kestrel/ui';
+
+import { crossedThreshold, hapticTick, resolveSwipe, type SwipeAction } from '../lib/swipe';
 
 /** MOTION §5.17: `dragElastic={0.5}` (resistance while the row is held). */
 const ELASTIC = 0.5;
+/** A committed hide removes the row well within this; otherwise the row springs back. */
+const RETURN_AFTER_MS = 700;
 
 export interface SwipeRowProps {
   enabled: boolean;
@@ -84,10 +87,14 @@ export function SwipeRow({ enabled, saved, onCommit, children, className }: Swip
       void controls.start({ x: 0, transition: { ...springs.release, velocity: info.velocity.x } });
       return;
     }
-    // Hide: the row continues off-screen with its release velocity, then the list collapses it.
+    // Hide: the row continues off-screen with its release velocity, then the list collapses it. It
+    // stays off-screen until it unmounts; if it is still here a moment later (nothing removed it),
+    // it comes home.
     void animate(x, direction * width(), { ...springs.smooth, velocity: info.velocity.x }).then(() => {
       onCommit(action);
-      x.set(0);
+      setTimeout(() => {
+        if (ref.current?.isConnected) void controls.start({ x: 0, transition: springs.release });
+      }, RETURN_AFTER_MS);
     });
   };
 

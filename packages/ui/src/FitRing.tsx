@@ -85,6 +85,14 @@ export function FitRing({
     return () => {
       observer.disconnect();
       controls.forEach((c) => c.stop());
+      // Never got to play (StrictMode's dev re-run, or unmounted before it scrolled into view):
+      // release the id so the next mount can claim it, and leave the ring showing its value.
+      if (armed.current) {
+        armed.current = false;
+        fitRingOnce.forget(animateId);
+        progress.set(clampScore(score) / 100);
+        count.set(clampScore(score));
+      }
     };
     // Only on mount / id change: later score changes retarget below.
   }, [animateId, reduced]);

@@ -1,9 +1,9 @@
-import { cn } from '@kestrel/ui';
 import { CircleCheck } from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import { useId, type ReactNode } from 'react';
 
 import { tweens } from '@/features/onboarding/lib/motion';
+import { cn } from '@kestrel/ui';
 
 export interface SettingsRowProps {
   label: ReactNode;

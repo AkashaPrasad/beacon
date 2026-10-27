@@ -6,10 +6,11 @@
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
-import { shortTitle } from '../lib/format';
 
 import { PENDING_TRACKER_ID, useHideListing, useSaveListing, useTrackListing } from '@/api/listings';
 import { withUndo } from '@/lib/undo';
+
+import { shortTitle } from '../lib/format';
 
 export interface ActionListing {
   id: string;
@@ -42,6 +43,15 @@ export function useListingActions() {
         message: `Hidden “${shortTitle(listing.title)}”.`,
         run: () => hide.mutateAsync({ id: listing.id, hidden: true }),
         undo: () => hide.mutateAsync({ id: listing.id, hidden: false }),
+      }).promise.catch(ignore);
+    },
+
+    /** From "Show hidden" (palette): brings a hidden listing back into the radar. */
+    unhide(listing: Pick<ActionListing, 'id' | 'title'>) {
+      withUndo({
+        message: `Restored “${shortTitle(listing.title)}” to your radar.`,
+        run: () => hide.mutateAsync({ id: listing.id, hidden: false }),
+        undo: () => hide.mutateAsync({ id: listing.id, hidden: true }),
       }).promise.catch(ignore);
     },
 

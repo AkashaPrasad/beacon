@@ -1,4 +1,10 @@
-import { keepPreviousData, useInfiniteQuery, useQuery, type InfiniteData, type QueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query';
 
 import { api, type QueryParams } from '@/lib/api';
 
@@ -20,7 +26,7 @@ export const feedKeys = {
 };
 
 export function feedQueryParams(filters: FeedFilters): QueryParams {
-  return { ...filters } as QueryParams;
+  return { ...filters };
 }
 
 export function fetchFeedPage(filters: FeedFilters, cursor: string | null, signal?: AbortSignal) {
@@ -66,14 +72,21 @@ export function findFeedItem(qc: QueryClient, listingId: string): FeedItem | und
 }
 
 /** Update one listing's row in every cached feed list (optimistic updates; immutable). */
-export function patchFeedItem(qc: QueryClient, listingId: string, update: (item: FeedItem) => FeedItem): void {
+export function patchFeedItem(
+  qc: QueryClient,
+  listingId: string,
+  update: (item: FeedItem) => FeedItem,
+): void {
   for (const [key, data] of qc.getQueriesData<FeedPages>({ queryKey: feedKeys.lists() })) {
     if (!data?.pages) continue;
     let changed = false;
     const pages = data.pages.map((page) => {
       if (!page.items.some((item) => item.listing.id === listingId)) return page;
       changed = true;
-      return { ...page, items: page.items.map((item) => (item.listing.id === listingId ? update(item) : item)) };
+      return {
+        ...page,
+        items: page.items.map((item) => (item.listing.id === listingId ? update(item) : item)),
+      };
     });
     if (changed) qc.setQueryData<FeedPages>(key, { ...data, pages });
   }

@@ -5,17 +5,23 @@ commands that were actually run. Agents append to their phase; the orchestrator 
 
 ## Phase checklist
 
-- [x] **Phase 0: Discovery.** BRIEF/SPEC read; DESIGN.md, USERFLOW.md, INFRA.md by their agents.
-- [x] **Phase 1: Monorepo and tooling** (2026-10-27)
-- [x] **Phase 2: `packages/shared`** (2026-10-27)
-- [ ] Phase 3: API (in progress by the API agent, see `docs/API.md`)
-- [ ] Phase 4: Worker (in progress by the worker agent)
-- [ ] Phase 5: Web foundation (in progress; shadcn primitives landing in `apps/web/src/components/ui`)
-- [ ] Phase 6: Web screens
-- [ ] Phase 7: Notifications (web push + in-app only)
-- [ ] Phase 8: Testing and hardening
-- [ ] Phase 9: Infra and deploy (Terraform/compose/workflows drafted by the infra agent)
-- [ ] Phase 10: Seed and polish
+Status as of 2026-10-27, from the files on disk. "In progress" means code exists but the phase
+gates (`pnpm lint && pnpm typecheck && pnpm test`, plus the phase's own checks) have not been
+confirmed green after the concurrent agent work.
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 0. Discovery | done | BRIEF, SPEC, DESIGN, MOTION, USERFLOW, INFRA written |
+| 1. Monorepo and tooling | done | pnpm, Turborepo, lint, hooks, Dockerfiles |
+| 2. `packages/shared` | done | 850 tests, 99.7% line coverage |
+| 3. API | in progress | routes for auth, profile, sources, feed, tracker, alerts, settings; seed loader; `docs/API.md` |
+| 4. Worker | in progress | fetchers, pipelines, crawl client, scheduler; integration test present |
+| 5. Web foundation | in progress | shell, theming, auth, data layer, shadcn primitives |
+| 6. Web screens | in progress | radar, deadlines, sources, alerts, tracker, settings, onboarding, notifications, profile |
+| 7. Notifications (web push and in-app only) | in progress | notify pipeline and notification centre exist; end-to-end push unverified |
+| 8. Testing and hardening | in progress | Playwright specs (a11y, keyboard, offline, edge cases), load and security scripts exist; `docs/TESTING.md` and recorded results pending |
+| 9. Infra and deploy | in progress | Terraform, compose, workflows and scripts written; apply partly done, standby AZ move to ap-south-1b, GitHub secrets, first deploy and smoke test pending |
+| 10. Seed and polish | pending | 338-source seed done; first production ingest, `@beacon/*` scope sweep, UX audit, screenshots and handover results pending |
 
 ---
 
@@ -111,3 +117,48 @@ shared/ui/config/api, plus per-file eslint on the api/worker/web skeleton files)
 - npm scope sweep `@kestrel/*` → `@beacon/*` (orchestrator, one pass: package.json names and
   deps, `@kestrel/config/*` extends, eslint configs, `@kestrel/ui/tokens.css` import, ci.yml filters, docs).
 - `test:e2e` is a no-op until `apps/web/playwright.config.ts` exists.
+
+## Phase 4: worker (`apps/worker`, done 2026-10-27)
+
+**Delivered** (contract and behaviour: `docs/WORKER.md`)
+- 7 queues + `dead` (DLQ) + internal `maintenance`. API job shapes accepted as is (embed
+  `{kind:'profile'}`, match `{userId, reason}`, notify `{userId, alertRuleId, test}`, ingest reasons
+  `created|enabled|pack`). Ingest → extract → embed → match runs as a BullMQ flow.
+- Fetchers: Greenhouse, Lever, Ashby, SmartRecruiters (list + detail), Workable (widget),
+  Workday (POST paging + detail), Remotive, Arbeitnow, RemoteOK, Jobicy, The Muse, Adzuna (with
+  keys), Devpost, Devfolio, Unstop, HackerEarth, Kaggle, RSS/Atom, sitemap, Firecrawl (index → ≤ 20
+  detail pages, robots.txt). ETag / If-Modified-Since, 15 s timeouts, typed `SourceError` → source health.
+- CrawlerClient cloud → self-hosted standby (402 / daily cap / < 20 remaining → 6 h), StandbyManager
+  (EC2 Describe/Start/poll, readiness, idle stop every 5 min), `paused:credits` without a standby.
+- Pipelines: ingest (upsert by source+externalId / canonicalKey / URL, seenCount, re-posts,
+  sourceRuns, health), extract (rules for structured; LLM `generateObject` otherwise, cached, metered
+  per owner), embed (bge-small, batch 16), match (visibility = API rule, vector stage 1 + per-type
+  quota + pinned, `computeFit`, top-level FitResult, removal on recompute, incremental with floors,
+  instant rules), ghostcheck (`applyCheck`, weekly), notify (push + in-app, dedupe, quiet hours,
+  caps, digests, 7/3/1 d reminders incl. saved, nudges, rule test, 410 pruning), cleanup.
+- Scheduler (per-source jittered repeatables + fixed jobs), graceful SIGTERM, `/healthz`
+  `/readyz` `/metrics` (`beacon_worker_*`) on 4001.
+- This session's contract fixes against API.md: collection names `tracker_items`, `alert_rules`,
+  `push_subscriptions` (were camelCase); `matches` shape; `applyCheck`; `profiles.embeddedAt`; credit cap default 500.
+- Worker image now defaults to `node:22-bookworm-slim` (onnxruntime fails on Alpine, see DECISIONS).
+
+**Verified (commands run)**
+```bash
+pnpm --filter @kestrel/worker lint && pnpm --filter @kestrel/worker typecheck \
+  && pnpm --filter @kestrel/worker test && pnpm --filter @kestrel/worker build
+#   13 files: 109 passed, 1 skipped (opt-in model test); integration tests ran against local Redis
+RUN_MODEL_TESTS=1 HF_HOME=<cache> pnpm --filter @kestrel/worker exec vitest run src/lib/embeddings.model.test.ts
+#   cold ≈ 19 s (34 MB download); warm: load 134 ms, 1.5 ms/text, +81 MB RSS
+set -a; source secrets.env; set +a; VECTOR_SEARCH=memory MONGODB_DB=beacon_dev REDIS_URL=redis://localhost:6379 \
+  QUEUE_PREFIX=beacon-smoke WORKER_SCHEDULER=false HEALTH_PORT=0 \
+  pnpm --filter @kestrel/worker exec tsx src/scripts/smoke.ts --board groww --llm --firecrawl https://example.com
+#   Groww 10 + Devpost 173 listings, all extracted + 384-d embeddings; 183 matches for usr_aarav;
+#   pipeline drained in 33 s; live LLM extraction OK (23.8 s); Firecrawl cloud scrape OK (1 credit)
+docker build -f apps/worker/Dockerfile -t beacon-worker:wave2 .   # bookworm-slim, 1.16 GB, ok
+#   in-container embedding 384-d ok (as node); /healthz /readyz /metrics ok; SIGTERM → exit 0 (3 runs)
+```
+
+**Pending / for other agents**
+- API: use `listings.sourceIds` for visibility; expose `healthCode` (docs/SHARED-REQUESTS.md worker → api).
+- Web: route the notification deep links (docs/SHARED-REQUESTS.md worker → web).
+- First live standby drill (start → ready → scrape → idle stop) when the infra box is up; unit-tested only so far.

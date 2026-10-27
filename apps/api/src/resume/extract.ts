@@ -40,7 +40,7 @@ export async function extractResumeText(buffer: Buffer, kind: ResumeKind): Promi
 export function cleanText(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
-    .replace(/[  -​  　]/g, ' ')
+    .replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .split('\n')
     .map((line) => line.trim())

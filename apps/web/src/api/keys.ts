@@ -35,4 +35,5 @@ export const queryKeys = {
     list: (unreadOnly = false) => ['notifications', 'list', { unreadOnly }] as const,
   },
   push: { subscriptions: ['push', 'subscriptions'] as const },
+  admin: { overview: ['admin', 'overview'] as const },
 } as const;

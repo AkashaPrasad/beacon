@@ -1,8 +1,7 @@
-import { Shortcut } from '@kestrel/ui';
-import { Keyboard, LogOut, Monitor, Moon, Settings, Sun, User } from 'lucide-react';
+import { Activity, Keyboard, LogOut, Monitor, Moon, Settings, Sun, User } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
-import { useMe } from '@/api/me';
+import { isAdmin, useMe } from '@/api/me';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { ThemePref } from '@/lib/theme/appearance';
 import { useTheme } from '@/lib/theme/context';
+import { Shortcut } from '@kestrel/ui';
 
 import { initials } from './initials';
 import { openSheet } from './shell-state';
@@ -66,6 +66,11 @@ export function UserMenu() {
             <Shortcut keys="g p" />
           </DropdownMenuShortcut>
         </DropdownMenuItem>
+        {isAdmin(me) && (
+          <DropdownMenuItem onSelect={() => void navigate('/admin')} data-testid="user-menu-admin">
+            <Activity /> Admin
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => void navigate('/settings/appearance')}>
           <Settings /> Settings
           <DropdownMenuShortcut>

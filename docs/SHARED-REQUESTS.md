@@ -61,16 +61,76 @@ dev MSW handlers. Each item says who it is for.
     mock-mode switches and how auth state is decided (`GET /v1/me` 200 vs 401), so the QA
     route table in `apps/web/e2e/utils/routes.ts` can be checked against it.
 
+Findings from the usability smoke (`e2e/smoke-all.spec.ts`, MSW mode, desktop Chromium +
+iPhone 14, 2026-10-27 19:48 IST; `docs/TESTING.md` "Usability smoke" has the run log). Both
+journeys complete end to end; what fails is axe serious/critical and console errors:
+
+12. **[web-foundation] WCAG 2.5.3 label-in-name on the shell, every signed-in screen**:
+    `global-search` shows "Search or jump…" but is named "Search or jump to…" (make the visible
+    text a prefix of the name, e.g. `aria-label="Search or jump…"` or drop the aria-label), and
+    `user-menu` shows the initials "AS" but is named "Account: Aarav Sharma" (start the name with
+    the visible text, e.g. "AS, account menu for Aarav Sharma", or hide the initials from AT and
+    keep the name). These two nodes are the only violation on sources, alerts, tracker, profile,
+    settings (all four tabs) and notifications.
+13. **[design/web-foundation] Contrast of `text-fg-tertiary`**: #7f7872 on #fcfbf9 is 4.2:1 and
+    #736c65 on #ebe8e3 (hover row) is 4.23:1, below 4.5:1 for 13–14 px text. It is used for the
+    radar row meta line ("Remote · ₹45k/mo · 2d ago · Greenhouse"), "Rolling", `text-deadline-far`
+    countdowns and the ghost "low" badge (4.46:1). Radar first run: 59 nodes; deadlines: 15–22.
+    Darken the tertiary token (light theme) to ≥ 4.5:1 or move text uses to `fg-secondary`.
+14. **[web-onboarding] Landing**: the dimmed demo rows (`opacity-40`, "Data Analyst Intern",
+    2.49:1) fail contrast, and 4–6 buttons whose `aria-label` truncates the visible title
+    ("Platform Engineering…") fail label-in-name. If the demo is decorative, mark it
+    `aria-hidden="true"` + `inert`; otherwise raise the contrast and drop the shortened labels.
+15. **[web-radar] Drawer**: `div[aria-label="Loading tips"]` has an aria-label without a role
+    (axe aria-prohibited-attr, serious): give it `role="status"` (or drop the label).
+    `radar-fit-threshold` and the deadlines pills also fail label-in-name (deadlines: 47 nodes on
+    desktop, 13 on phone): start each accessible name with the visible text.
+16. **[web-onboarding] Resume step**: the skill proficiency toggle ("MongoDB proficiency: …")
+    is below the 24 × 24 px target size with no spacing (WCAG 2.5.8 target-size).
+17. **[packages/ui CompanyLogo] Console errors + privacy**: logos load from
+    `https://www.google.com/s2/favicons?domain=…` (WebKit: `t3.gstatic.com/faviconV2`), which
+    answers 404 for unknown domains, so every radar/sources page logs "Failed to load resource:
+    404" (3–5 per screen in the smoke) and every company a student browses is sent to Google.
+    Proxy/cache favicons through the API (or ship monograms only) so there are no third-party
+    requests and no console errors.
+18. **[web-foundation] Security headers for Pages**: there is no `apps/web/public/_headers`, so
+    the web origin serves no CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy` or
+    `frame-ancestors` (`scripts/smoke-prod.sh` FAILs these). Add `_headers` for `/*` with at
+    least `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
+    `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
+    `Content-Security-Policy: frame-ancestors 'none'; …` (script/connect sources for the API
+    origin, Google sign-in and MSW off in prod), and `Permissions-Policy`.
+19. **[web-workspace] Alerts builder, "Type condition" popover**: in Chromium, clicking an option
+    (e.g. "Hackathon") inside the popover opened from the New alert rule dialog never lands:
+    Playwright reports `<div role="group" cmdk-group-items>` intercepting pointer events on the
+    `cmdk-item`. jsdom tests do not hit-test, so `AlertsView.test.tsx` passes. Please check the
+    item/group stacking (pointer-events or an overlay inside the nested popover); the smoke now
+    saves the default rule instead so it can continue.
+
+## qa → infra
+
+1. **`api.beacon.spacesdrive.cc` fails the TLS handshake at Cloudflare** (2026-10-27 19:51 IST,
+   `scripts/smoke-prod.sh`): `curl` → `sslv3 alert handshake failure` (alert 40) while
+   `beacon.spacesdrive.cc` gets a valid edge certificate. Universal SSL (Free plan) covers the apex
+   and **one** subdomain level (`*.spacesdrive.cc`); `api.beacon.spacesdrive.cc` is two levels
+   deep, so no edge certificate exists for it. Options: Advanced Certificate Manager for
+   `*.beacon.spacesdrive.cc` (paid), enable Total TLS (needs ACM), or move the API to a first-level
+   name such as `beacon-api.spacesdrive.cc` (then update `API_HOST`, the Caddyfile, CORS, the
+   web build's `VITE_API_URL`, Google origins and docs).
+2. **`https://beacon.spacesdrive.cc` answers 522** (Cloudflare could not reach the origin): the
+   DNS record exists but the Pages project / custom domain is not serving yet. Re-run
+   `pnpm smoke:prod` after `deploy-web.yml`.
+
 ## qa → api
 
 1. **[done: `src/services/serialize.ts`]** **`SourceDTO.healthCode`** (worker writes `healthCode`, e.g. `paused:credits`; see
    `apps/worker/src/models/source.ts`). The UI needs it to show a paused source distinctly from
    a failing one. Please expose it (nullable) in `GET /v1/sources` and `/v1/sources/:id`.
-2. **Memory sample for the soak test**: `GET /healthz?mem=1` → `{ ok, mem: { rss, heapUsed,
+2. **[dropped 2026-10-27: load/soak tests are out of Phase B scope]** **Memory sample for the soak test**: `GET /healthz?mem=1` → `{ ok, mem: { rss, heapUsed,
    heapTotal, external } }` (bytes, `process.memoryUsage()`), or a `/metrics` route. Public is
    fine if it reveals nothing else; otherwise require `Authorization: Bearer` with an admin user.
    `scripts/load-test.mjs --soak` samples it every 10 s.
-3. **A way to mint a local token for load and contract tests**: e.g.
+3. **[dropped 2026-10-27: load and contract tests are out of Phase B scope]** **A way to mint a local token for load and contract tests**: e.g.
    `pnpm --filter @kestrel/api run dev:token -- --email load@beacon.test` (creates or reuses a
    user in the dev DB and prints a JWT for `Authorization: Bearer`). Never available when
    `NODE_ENV=production`.
@@ -102,7 +162,8 @@ dev MSW handlers. Each item says who it is for.
    variant), filter + sort + cursor + `$limit` on `matches` first and `$lookup` only `limit + 1`
    listings; compute `total` with an indexed `countDocuments` (or cache it in Redis for 60 s, it
    is display-only). Also set `maxTimeMS` (e.g. 5 s) on feed aggregations so abandoned requests
-   cannot keep mongod busy. Re-run: `node scripts/load-test.mjs` (see TESTING.md for the seed).
+   cannot keep mongod busy. (Seeded with 2,000 synthetic listings from `@kestrel/shared` fixtures
+   plus `computeFit` match docs for one user; re-run with `LOAD_TOKEN=… node scripts/load-test.mjs`.)
 7. **OpenAPI vs behaviour** (`pnpm test:contract`, 3 of 10 failing):
    a. Only **12 / 60** operations are exercised by an API test (`src/**/*.test.ts`); the 48
       untested ones are printed by the suite (all of sources, feed, listings, tracker, alerts,
@@ -173,7 +234,7 @@ Contract: `docs/WEB.md`. Items below are things the foundation changed or needs 
    and render `data-pending="true"` + sr-only "Waiting to sync".
 4. **[web-radar] Push deep links.** The worker links listings as `/radar?listing=<id>`; the
    service worker rewrites that to `/radar/<id>` (`lib/push-url.ts`), so `/radar/:listingId`
-   must open the drawer for that id (also from a cold load).
+   must render that listing (now the full `ListingPage`, see #9), also from a cold load.
 5. **[web-radar] Soft ask after the first save (USERFLOW §2).** Render `<PushSoftAsk />`
    (`@/components/push-soft-ask`) under the toolbar once, after the first successful save; it
    handles permission, subscription, the default push rule and the 14-day snooze itself.
@@ -221,3 +282,29 @@ produces today (`ingest {sourceId, reason: created|enabled|pack}`, `embed {kind:
    test), `/radar?sort=fit` (rule digest), `/radar` (daily card). Please route these (`listing`,
    `item` and `rule` open the drawer, item or rule). Push payload: `{title, body, url, tag, notificationId, kind}`,
    which `src/sw.ts` already reads.
+7. **[web-radar] `?listing=` deep links.** The worker writes notification links as
+   `/radar?listing=<id>`. The root layout now rewrites that to `/radar/<id>` (replace) on arrival,
+   and the service worker / bell do the same, so the radar only has to render `ListingPage` for the
+   `:listingId` param (#9), including on a cold load and when the id is not in the current feed page
+   (fetch `GET /v1/listings/:id`; a 404 shows "This listing is no longer available").
+8. **[web-workspace] `/tracker?item=<id>`** must open that item: the root layout already rewrites it to `/tracker/<id>` (#9), so the
+   item page handles it, cold load too; unknown id → quiet toast "That tracker item was removed." and the board), and
+   **`/alerts?rule=<id>`** must scroll to and briefly highlight that rule (`accent-subtle` fade,
+   reduced motion: static outline). `/settings/notifications` is already a route.
+9. **[web-radar, web-workspace] Page-based detail views (owner requirement).** Detail views are
+   full pages with Back, not drawers/sheets. Routes now in `src/app/routes.tsx` (lazy, named
+   `Component`): `/radar/:listingId` → `features/radar/ListingPage.tsx`, `/tracker/:id` →
+   `features/tracker/TrackerItemPage.tsx`, `/sources/:id` → `features/sources/SourcePage.tsx`,
+   `/sources/packs/:id` → `features/sources/PackPage.tsx`, `/alerts/new` and `/alerts/:id` →
+   `features/alerts/AlertEditorPage.tsx`. Each file currently holds a foundation **placeholder**
+   (`DetailPagePlaceholder`, testids `listing-page`, `tracker-item-page`, `source-page`,
+   `pack-page`, `alert-editor-page`): replace its body, keep the `Component` export and the
+   page-root testid. `/sources/packs` renders `SourcesScreen` (Packs tab). The splat routes
+   (`sources/*`, `alerts/*`, `tracker/:itemId?`, `radar/:listingId?`) were replaced by these.
+   Use `<DetailPageHeader parent={{ label: 'Radar', to: '/radar' }} trail={[title]} title={…}
+   pager={{ onPrev, onNext, position: '3 of 142' }} actions={…} />` (`@/components/detail-page-header`,
+   Back = in-app history else the parent, `Esc`/`Backspace` back, `k`/`j` prev/next) or
+   `PageHeader` from `@kestrel/ui` with `back` / `breadcrumbs` / `pager`. `useBackNavigation(fallback?)`
+   is in `@/lib/use-back-navigation`. Keep `ShellSlot name="drawer"` for small tasks only
+   (quick peeks, not the main detail view). Lists should link rows to the page with `<Link>`
+   (prefetch the detail query on hover/focus so the page paints from cache).

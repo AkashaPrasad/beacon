@@ -3,8 +3,9 @@
  * `listings.embedding` (index `listings_embedding`); `memory` (tests, fallback) → in-process
  * cosine scan over a lazily loaded Float32Array matrix with a TTL.
  */
+import { type Types } from 'mongoose';
+
 import { EMBEDDING_DIM, type OpportunityType } from '@kestrel/shared';
-import { Types } from 'mongoose';
 
 import type { Logger } from '../logger.js';
 import { Listing } from '../models/listing.js';
@@ -39,7 +40,8 @@ interface MatrixCache {
   ids: string[];
   types: string[];
   deadlines: (number | null)[];
-  sources: string[];
+  /** Every source each row was seen in (`sourceIds` plus `sourceId`). */
+  sources: string[][];
   matrix: Float32Array;
   norms: Float32Array;
   loadedAt: number;
@@ -55,8 +57,17 @@ export function invalidateVectorCache(): void {
 async function loadMatrix(): Promise<MatrixCache> {
   const docs = await Listing.find(
     { archived: { $ne: true }, [`embedding.${EMBEDDING_DIM - 1}`]: { $exists: true } },
-    { embedding: 1, type: 1, deadlineAt: 1, sourceId: 1 },
-  ).lean<{ _id: Types.ObjectId; embedding: number[]; type: string; deadlineAt: Date | null; sourceId: Types.ObjectId }[]>();
+    { embedding: 1, type: 1, deadlineAt: 1, sourceId: 1, sourceIds: 1 },
+  ).lean<
+    {
+      _id: Types.ObjectId;
+      embedding: number[];
+      type: string;
+      deadlineAt: Date | null;
+      sourceId: Types.ObjectId;
+      sourceIds?: Types.ObjectId[];
+    }[]
+  >();
   const n = docs.length;
   const matrix = new Float32Array(n * EMBEDDING_DIM);
   const norms = new Float32Array(n);
@@ -73,7 +84,7 @@ async function loadMatrix(): Promise<MatrixCache> {
     ids: docs.map((d) => d._id.toString()),
     types: docs.map((d) => d.type),
     deadlines: docs.map((d) => (d.deadlineAt ? new Date(d.deadlineAt).getTime() : null)),
-    sources: docs.map((d) => d.sourceId.toString()),
+    sources: docs.map((d) => [...new Set([d.sourceId, ...(d.sourceIds ?? [])].map(String))]),
     matrix,
     norms,
     loadedAt: Date.now(),
@@ -104,7 +115,7 @@ async function memorySearch(query: readonly number[], filters: VectorFilters, k:
     const id = m.ids[row]!;
     if (exclude.has(id)) continue;
     if (types && !types.has(m.types[row]!)) continue;
-    if (sources && !sources.has(m.sources[row]!)) continue;
+    if (sources && !m.sources[row]!.some((s) => sources.has(s))) continue;
     const deadline = m.deadlines[row];
     if (after !== undefined && deadline !== null && deadline !== undefined && deadline < after) continue;
     const norm = m.norms[row]!;
@@ -126,7 +137,9 @@ export function vectorSearchPipeline(query: readonly number[], filters: VectorFi
     filter['$or'] = [{ deadlineAt: null }, { deadlineAt: { $gte: filters.deadlineAfter } }];
   }
   const post: Record<string, unknown> = {};
-  if (filters.sourceIds) post['sourceId'] = { $in: [...filters.sourceIds] };
+  if (filters.sourceIds) {
+    post['$or'] = [{ sourceIds: { $in: [...filters.sourceIds] } }, { sourceId: { $in: [...filters.sourceIds] } }];
+  }
   if (filters.excludeIds?.length) post['_id'] = { $nin: [...filters.excludeIds] };
   const overfetch = Object.keys(post).length ? Math.min(k * 4, 2_000) : k;
   return [

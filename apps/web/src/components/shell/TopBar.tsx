@@ -1,4 +1,3 @@
-import { layoutIds, Shortcut, springs } from '@kestrel/ui';
 import { Search } from 'lucide-react';
 import { LayoutGroup, m } from 'motion/react';
 import { Link, NavLink, useMatches } from 'react-router';
@@ -7,6 +6,7 @@ import { BeaconMark } from '@/components/brand/BeaconMark';
 import { openPalette } from '@/components/command-palette/registry';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { layoutIds, Shortcut, springs } from '@kestrel/ui';
 
 import { NAV_ITEMS } from './nav';
 import { NotificationBell } from './NotificationBell';
@@ -52,7 +52,10 @@ export function TopBar() {
         {section && <span className="truncate text-h3 text-fg md:hidden">{section}</span>}
 
         <LayoutGroup id="primary-nav">
-          <nav aria-label="Primary" className="ml-3 hidden items-stretch gap-5 self-stretch md:flex">
+          <nav
+            aria-label="Primary"
+            className="ml-3 hidden items-stretch gap-5 self-stretch md:flex"
+          >
             {NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}
@@ -83,7 +86,10 @@ export function TopBar() {
           </nav>
         </LayoutGroup>
 
-        <ShellSlotOutlet name="topbar" className="hidden min-w-0 flex-1 items-center justify-end gap-3 lg:flex" />
+        <ShellSlotOutlet
+          name="topbar"
+          className="hidden min-w-0 flex-1 items-center justify-end gap-3 lg:flex"
+        />
 
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
           <button

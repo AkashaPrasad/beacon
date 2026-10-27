@@ -268,6 +268,10 @@ export function createOnceTracker() {
       seen.add(id);
       return true;
     },
+    /** Un-mark an id whose one-time animation never started (unmounted first, or a StrictMode re-run). */
+    forget(id: string): void {
+      seen.delete(id);
+    },
     reset(): void {
       seen.clear();
     },

@@ -1,5 +1,6 @@
+import mongoose, { model, Schema, type Model, type Types } from 'mongoose';
+
 import type { OpportunityType, RefreshInterval, SourceHealth, SourceKind, SourceScope } from '@kestrel/shared';
-import { model, models, Schema, type Model, type Types } from 'mongoose';
 
 export interface SourceConfigDoc {
   boardToken: string | null;
@@ -28,7 +29,11 @@ export interface SourceDoc {
   enabled: boolean;
   refreshInterval: RefreshInterval;
   health: SourceHealth;
+  /** Worker detail next to `health`, e.g. `paused:credits`, `notfound`, `ratelimited`. */
+  healthCode: string | null;
   lastCheckedAt: Date | null;
+  lastSuccessAt: Date | null;
+  consecutiveFailures: number;
   listingsFound: number;
   errorReason: string | null;
   config: SourceConfigDoc;
@@ -56,7 +61,10 @@ const sourceSchema = new Schema(
     enabled: { type: Boolean, default: true },
     refreshInterval: { type: String, default: 'daily' },
     health: { type: String, default: 'pending' },
+    healthCode: { type: String, default: null },
     lastCheckedAt: { type: Date, default: null },
+    lastSuccessAt: { type: Date, default: null },
+    consecutiveFailures: { type: Number, default: 0 },
     listingsFound: { type: Number, default: 0 },
     errorReason: { type: String, default: null },
     config: { type: Schema.Types.Mixed, default: () => ({ boardToken: null, feedUrl: null, provider: null }) },
@@ -78,4 +86,4 @@ sourceSchema.index(
 sourceSchema.index({ seedKey: 1 }, { unique: true, partialFilterExpression: { seedKey: { $type: 'string' } } });
 
 export const Source: Model<SourceDoc> =
-  (models['Source'] as Model<SourceDoc> | undefined) ?? model<SourceDoc>('Source', sourceSchema as unknown as Schema<SourceDoc>);
+  (mongoose.models['Source'] as Model<SourceDoc> | undefined) ?? model<SourceDoc>('Source', sourceSchema as unknown as Schema<SourceDoc>);

@@ -5,9 +5,9 @@
  * bookmarked, shared and restored with the back button. Defaults are omitted from the URL to keep
  * links short; parsing is lenient (unknown or malformed values fall back to the default).
  */
+import type { FeedFilters } from '@/api/types';
 import { OPPORTUNITY_TYPES, type OpportunityType } from '@kestrel/shared';
 
-import type { FeedFilters } from '@/api/types';
 
 export const DEADLINE_WINDOWS = [7, 14, 30] as const;
 export type DeadlineWindow = (typeof DEADLINE_WINDOWS)[number];
@@ -41,6 +41,10 @@ export interface RadarFilters {
   sourceIds: string[];
   postedWithin: FreshnessWindow | null;
   savedOnly: boolean;
+  /** Include hidden listings (palette "Show hidden"; hidden rows offer Unhide). */
+  showHidden: boolean;
+  /** Only listings first seen since the last visit ("Show new" on the summary strip). Client-side. */
+  newOnly: boolean;
   minFit: number;
   sort: RadarSort;
 }
@@ -57,6 +61,8 @@ export const DEFAULT_FILTERS: Readonly<RadarFilters> = Object.freeze({
   sourceIds: [],
   postedWithin: null,
   savedOnly: false,
+  showHidden: false,
+  newOnly: false,
   minFit: DEFAULT_MIN_FIT,
   sort: 'fit',
 });
@@ -74,6 +80,8 @@ export const PARAM = {
   sourceIds: 'source',
   postedWithin: 'fresh',
   savedOnly: 'saved',
+  showHidden: 'hidden',
+  newOnly: 'new',
   minFit: 'minFit',
   sort: 'sort',
   view: 'view',
@@ -104,6 +112,10 @@ function intOrNull(value: string | null, min: number, max: number): number | nul
 
 function oneOf<T extends string | number>(options: readonly T[], value: unknown): T | null {
   return options.find((option) => String(option) === String(value)) ?? null;
+}
+
+function flag(value: string | null): boolean {
+  return value === '1' || value === 'true';
 }
 
 /** Snap a threshold to the slider grid (0..100, steps of 5). */
@@ -137,7 +149,9 @@ export function filtersFromSearchParams(params: URLSearchParams): RadarFilters {
     companies: csv(params.get(PARAM.companies)),
     sourceIds: csv(params.get(PARAM.sourceIds)),
     postedWithin: oneOf(FRESHNESS_WINDOWS, params.get(PARAM.postedWithin)),
-    savedOnly: params.get(PARAM.savedOnly) === '1' || params.get(PARAM.savedOnly) === 'true',
+    savedOnly: flag(params.get(PARAM.savedOnly)),
+    showHidden: flag(params.get(PARAM.showHidden)),
+    newOnly: flag(params.get(PARAM.newOnly)),
     minFit,
     sort: oneOf(SORTS, params.get(PARAM.sort)) ?? 'fit',
   };
@@ -167,6 +181,8 @@ export function filtersToSearchParams(
   set(PARAM.sourceIds, filters.sourceIds.join(','));
   set(PARAM.postedWithin, filters.postedWithin == null ? null : String(filters.postedWithin));
   set(PARAM.savedOnly, filters.savedOnly ? '1' : null);
+  set(PARAM.showHidden, filters.showHidden ? '1' : null);
+  set(PARAM.newOnly, filters.newOnly ? '1' : null);
   set(PARAM.minFit, filters.minFit === DEFAULT_MIN_FIT ? null : String(clampMinFit(filters.minFit)));
   set(PARAM.sort, filters.sort === 'fit' ? null : filters.sort);
   return next;
@@ -182,7 +198,8 @@ export function viewFromSearchParams(params: URLSearchParams): RadarView {
  * Arrays are sorted so equivalent filters share one cache entry.
  */
 export function filtersToFeedQuery(filters: RadarFilters): FeedFilters {
-  const query: FeedFilters = { sort: filters.sort };
+  // "New since last visit" reads newest first, so the new rows are all on the first pages.
+  const query: FeedFilters = { sort: filters.newOnly ? 'posted' : filters.sort };
   const q = filters.q.trim();
   if (q) query.q = q;
   if (filters.types.length) query.types = [...filters.types].sort();
@@ -198,6 +215,7 @@ export function filtersToFeedQuery(filters: RadarFilters): FeedFilters {
   if (filters.companies.length) query.companies = [...filters.companies];
   if (filters.sourceIds.length) query.sourceIds = [...filters.sourceIds];
   if (filters.savedOnly) query.savedOnly = true;
+  if (filters.showHidden) query.includeHidden = true;
   if (filters.minFit > 0) query.minFit = filters.minFit;
   return query;
 }
@@ -309,6 +327,12 @@ export function activeFilterChips(filters: RadarFilters): ActiveFilterChip[] {
   if (filters.savedOnly) {
     chips.push({ id: 'saved', label: 'Saved only', remove: (f) => ({ ...f, savedOnly: false }) });
   }
+  if (filters.newOnly) {
+    chips.push({ id: 'new', label: 'New since last visit', remove: (f) => ({ ...f, newOnly: false }) });
+  }
+  if (filters.showHidden) {
+    chips.push({ id: 'hidden', label: 'Including hidden', remove: (f) => ({ ...f, showHidden: false }) });
+  }
   if (filters.q.trim()) {
     chips.push({ id: 'q', label: `“${filters.q.trim()}”`, remove: (f) => ({ ...f, q: '' }) });
   }
@@ -317,7 +341,7 @@ export function activeFilterChips(filters: RadarFilters): ActiveFilterChip[] {
 
 /** Number of narrowing filters (badge on the "Filters" button). Search and fit are not counted. */
 export function activeFilterCount(filters: RadarFilters): number {
-  return activeFilterChips(filters).filter((chip) => chip.id !== 'q').length;
+  return activeFilterChips(filters).filter((chip) => chip.id !== 'q' && chip.id !== 'hidden').length;
 }
 
 /** Filters reset to defaults, keeping the threshold and sort the user picked. */
@@ -334,6 +358,7 @@ export function isDefaultFilters(filters: RadarFilters): boolean {
  * (DESIGN §8 #3: "Remote + ₹50k floor + 2026 grads is narrow. [Clear stipend floor]").
  */
 export function narrowestFilter(filters: RadarFilters): { label: string; clear: FilterKey } | null {
+  if (filters.newOnly) return { label: 'Show all, not just new', clear: 'newOnly' };
   if (filters.minStipend) return { label: 'Clear stipend floor', clear: 'minStipend' };
   if (filters.savedOnly) return { label: 'Show all, not just saved', clear: 'savedOnly' };
   if (filters.deadlineWithin != null) return { label: 'Any deadline', clear: 'deadlineWithin' };
@@ -365,5 +390,6 @@ export function describeFilters(filters: RadarFilters): string {
   if (filters.postedWithin != null) parts.push(`posted in ${filters.postedWithin}d`);
   if (filters.companies.length) parts.push(filters.companies.join('/'));
   if (filters.savedOnly) parts.push('saved only');
+  if (filters.newOnly) parts.push('new since last visit');
   return parts.join(' + ');
 }

@@ -1,6 +1,7 @@
+import { describe, expect, it } from 'vitest';
+
 import { computeFit, type FitResult } from '@kestrel/shared';
 import { FIXTURE_NOW, sampleListings, sampleProfiles } from '@kestrel/shared/fixtures';
-import { describe, expect, it } from 'vitest';
 
 import { barScale, buildFitBreakdown, describeRow, formatPoints, formatWeight } from './breakdown';
 

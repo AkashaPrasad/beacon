@@ -24,7 +24,8 @@ this file and the worker shares the data contract (§12–§14). Machine-readabl
 | Cookie | **`beacon_session`**, `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`, plus `Secure` in production |
 | Alternative | `Authorization: Bearer <jwt>` (tests and tools). The cookie wins when both are sent. |
 | Browser fetch | `fetch(url, { credentials: 'include' })`. The web and API hosts are same-site (`*.spacesdrive.cc`), so the Lax cookie is sent. |
-| 401 reasons | `error.details.reason` is `missing`, `expired`, `invalid` (forged or bad signature) or `revoked` (user deleted or logged out everywhere) |
+| 401 reasons | `error.details.reason` is `missing`, `expired`, `invalid` (forged or bad signature) or `revoked` (user deleted, password changed, or logged out everywhere) |
+| Sign-in methods | Google (ID token or auth code, §3) **or** email + password (`/v1/auth/register`, `/v1/auth/login`). All of them set the same cookie. |
 
 Auth column below: **public** = no session needed, **user** = valid session required.
 
@@ -38,7 +39,7 @@ cross-site form posts.
 
 ### 1.3 CORS
 
-Allowed origins: `WEB_URL` and `http://localhost:5173`, with `credentials: true`. Allowed request
+Allowed origins: `WEB_URL`, `http://localhost:5173` (Vite dev) and `http://localhost:4173` (Vite preview / e2e), with `credentials: true`. Allowed request
 headers: `Content-Type`, `X-Requested-With`, `Authorization`. Exposed headers: `RateLimit`,
 `RateLimit-Policy`, `Retry-After`, `X-Request-Id`, `Content-Disposition`.
 
@@ -63,10 +64,11 @@ Validation errors (zod) also carry `issues` at the top of `error`:
 | 400 | `BAD_REQUEST` | malformed JSON, missing multipart file, other client errors |
 | 401 | `UNAUTHENTICATED` | no/expired/forged/revoked session (`details.reason`) |
 | 401 | `INVALID_GOOGLE_TOKEN` | Google ID token or code failed verification |
+| 401 | `INVALID_CREDENTIALS` | email/password sign-in failed (always the same message: unknown email, wrong password and Google-only accounts are indistinguishable), or a wrong `currentPassword` |
 | 403 | `CSRF` | missing `X-Requested-With: beacon` on a mutating request |
-| 403 | `FORBIDDEN` | e.g. trying to modify a community source |
+| 403 | `FORBIDDEN` | e.g. trying to modify a community source; `/v1/admin/*` without `role: 'admin'` |
 | 404 | `NOT_FOUND` | unknown route, or object missing or **owned by another user** (never 403, so ids don't leak) |
-| 409 | `CONFLICT` | duplicate (source URL already added, listing already tracked); `details.existingId` |
+| 409 | `CONFLICT` | duplicate (source URL already added, listing already tracked; `details.existingId`), email already registered (`details.reason: 'email_in_use'`), stale tracker move (`details.reason: 'stale'`, `details.item`), refresh refused (`details.reason: 'disabled' \| 'recently_checked'`) |
 | 413 | `PAYLOAD_TOO_LARGE` | resume > 10 MB, JSON body > 1 MB |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | resume not PDF/DOCX |
 | 422 | `RESUME_NO_TEXT` | scanned or image-only PDF (< 200 chars of text) |
@@ -85,6 +87,9 @@ Every response carries `X-Request-Id` (echoes an incoming `X-Request-Id`, else a
 |---|---|---|---|
 | global | 300 / 15 min | client IP | every route except `/healthz`, `/readyz` |
 | auth | 10 / min | client IP | `POST /v1/auth/google` |
+| credentials | 10 / min | client IP | `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/password` |
+| refresh | 10 / min | user id | `POST /v1/sources/:id/refresh` |
+| pushtest | 20 / hour | user id | `POST /v1/push/test` |
 | detect | 20 / min | user id | `POST /v1/sources/detect` |
 | resume | 5 / min | user id | `POST /v1/profile/resume` |
 | explain | 30 / hour | user id | `POST /v1/listings/:id/explain` |
@@ -107,7 +112,7 @@ opaque. A cursor from a different `sort` → `400 BAD_CURSOR`. An empty result i
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `/healthz` | public | – | `200 { ok: true }` (process up) | – |
+| GET | `/healthz` | public | `?mem=1` adds process memory | `200 { ok: true }` (process up); with `mem=1`: `{ ok: true, mem: { rss, heapUsed, heapTotal, external } }` (bytes, `process.memoryUsage()`) | – |
 | GET | `/readyz` | public | – | `200 { ok: true, mongo: 'up', redis: 'up' }` or `503 { ok: false, mongo: 'up'\|'down', redis: 'up'\|'down' }` | – |
 | GET | `/openapi.json` | public | – | OpenAPI 3.1 document | – |
 | GET | `/docs` | public | – | HTML (Scalar API reference) | – |
@@ -121,13 +126,31 @@ opaque. A cursor from a different `sort` → `400 BAD_CURSOR`. An empty result i
 |---|---|---|---|---|---|---|
 | GET | `/v1/auth/google/url` | public | query `state?` (≤ 512 chars, echoed back by Google), `redirectUri?` (default `${WEB_URL}/auth/callback`; must be in the allowlist) | `200 { url: string, redirectUri: string }`, the Google authorization URL (`response_type=code`, `scope=openid email profile`, `prompt=select_account`, `access_type=online`) | 400 (redirectUri not allowed), 503 (Google not configured) | global |
 | POST | `/v1/auth/google` | public | **(api)** `googleAuthSchema`: `{ credential: string }` (GIS ID token) **or** `{ code: string, redirectUri: url }` (redirect auth-code flow; the API calls `OAuth2Client.getToken({code, redirect_uri})` with `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`, then verifies the returned `id_token` exactly like `credential`) | `200 { user: PublicUser, isNew: boolean }` + `Set-Cookie: beacon_session=…` | 400 (validation, or redirectUri not allowed), 401 `INVALID_GOOGLE_TOKEN`, 403 `CSRF`, 429 | auth |
-| POST | `/v1/auth/logout` | public | – | `204`, clears the cookie (`Max-Age=0`) | 403 `CSRF` | global |
+| POST | `/v1/auth/register` | public | **(api)** `registerSchema` `{ email, password (8..72 bytes), name (1..120) }` | `201 { user: PublicUser, isNew: true }` + `Set-Cookie` | 400, 403 `CSRF`, 409 (`email_in_use`), 429 | credentials |
+| POST | `/v1/auth/login` | public | **(api)** `loginSchema` `{ email, password }` | `200 { user: PublicUser, isNew: false }` + `Set-Cookie` | 400, 401 `INVALID_CREDENTIALS`, 403 `CSRF`, 429 | credentials |
+| POST | `/v1/auth/password` | user | **(api)** `passwordSetSchema` `{ password, currentPassword? }` (`currentPassword` required when the account already has one) | `200 { user: PublicUser }` + a fresh `Set-Cookie`; every other session is signed out | 400, 401 (`INVALID_CREDENTIALS` for a wrong current password), 409, 429 | credentials |
+| POST | `/v1/auth/logout` | public | – | `204`, clears the cookie (`beacon_session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`, plus `Secure` in production) | 403 `CSRF` | global |
 | GET | `/v1/me` | user | – | `MeResponse` (below) | 401 | global |
 | PATCH | `/v1/me` | user | **(api)** `mePatchSchema`: `{ name?, onboardingStep?: 'consent'\|'resume'\|'preferences'\|'sources'\|'done', onboardingCompleted?: boolean, consent?: { version: string, aiMode: 'beacon'\|'byok'\|'off', resumeToAi: boolean } }` | `MeResponse` | 400, 401 | global |
 
 Google verification: `OAuth2Client.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID })`;
 requires `email_verified`. Upsert key is `googleSub`; email, name and picture are refreshed on
 each login.
+
+**Email + password** (BRIEF addendum): bcrypt cost 12 (`PASSWORD_HASH_COST`), password 8..72
+bytes (bcrypt ignores bytes past 72, so longer ones are refused). Emails are trimmed and
+lower-cased. **There is no email verification and no password reset** (Beacon has no email
+provider); a forgotten password can only be replaced by signing in with Google (same email)
+and calling `POST /v1/auth/password`, or by an operator. Account linking:
+- A Google account can add a password later with `POST /v1/auth/password`.
+- Registering an email that already has any account → `409 email_in_use` ("sign in instead").
+- Google sign-in for an email that only has a password account **takes that account over**:
+  `googleSub` is attached, and the password plus every outstanding session are revoked, because
+  password sign-up is unverified and Google has verified the address (prevents pre-hijacking).
+  The seeded admin keeps its password.
+
+`PublicUser` = shared `PublicUser` + `role: 'user' | 'admin'`, `lastSeenFeedAt` and
+`authMethods: { google: boolean, password: boolean }`. It never contains `googleSub` or the hash.
 
 **Redirect flow (what the web app uses):** `GET /v1/auth/google/url?state=<nonce+returnTo>` →
 navigate to `url` → Google redirects to `/auth/callback?code=…&state=…` → the web page checks
@@ -205,6 +228,7 @@ ResumeUploadResponse = {
 | GET | `/v1/sources/:id` | user | – | `{ source: SourceDTO }` (own personal source, or any community source) | 401, 404 | global |
 | PATCH | `/v1/sources/:id` | user | `sourceUpdateSchema` | `{ source: SourceDTO }` | 400, 401, 403 (community), 404 | global |
 | DELETE | `/v1/sources/:id` | user | – | `204` | 401, 403 (community), 404 | global |
+| POST | `/v1/sources/:id/refresh` | user | – | `202 { queued: true, jobId, source: SourceDTO }` (enqueues `ingest {sourceId, reason:'manual'}`). Own personal source, or a **subscribed** community source not checked in the last 15 min. | 401, 404 (foreign, or community not subscribed), 409 (`disabled`, `recently_checked` + `retryAfterSeconds`), 429, 503 (queue down) | refresh |
 | GET | `/v1/sources/community` | user | query **(api)** `communitySourcesQuerySchema`: `pack?`, `kind?`, `q?`, `cursor?`, `limit?` (1..200, default 100) | `{ items: (SourceDTO & { subscribed: boolean })[], nextCursor }` | 400, 401 | global |
 | GET | `/v1/sources/packs` | user | – | `{ items: PackDTO[] }` | 401 | global |
 | POST | `/v1/sources/packs/:packId/enable` | user | – | `{ pack: PackDTO, subscribed: number, ingestQueued: number }` | 401, 404 | global |
@@ -213,7 +237,12 @@ ResumeUploadResponse = {
 | GET | `/v1/sources/credits` | user | – | `CreditsResponse` | 401 | global |
 
 ```ts
-SourceDTO = Source /* shared shape, ids as strings */ & { companyDomain: string | null }
+SourceDTO = Source /* shared shape, ids as strings */ & {
+  companyDomain: string | null,
+  packIds: string[],                 // every pack containing it (community)
+  healthCode: string | null,         // worker detail: ok | not_modified | auth | notfound | ratelimited | network | parse | blocked | paused:credits (null before the first run)
+  lastSuccessAt: Date | null, consecutiveFailures: number,
+}
 PackDTO = { id: string, name: string, sourceCount: number, kinds: Partial<Record<SourceKind, number>>,
             optional: boolean, enabled: boolean }
 DetectResult = DetectSourceResponse /* shared: url, kind, confidence, boardToken, company, name,
@@ -226,7 +255,9 @@ DetectResult = DetectSourceResponse /* shared: url, kind, confidence, boardToken
   config: { boardToken: string|null, feedUrl: string|null, provider: string|null },
 }
 CreditsResponse = { date: 'YYYY-MM-DD' /* UTC */, cloudUsedToday: number, cap: number,
-                    selfHostedUsedToday: number, backend: 'cloud' | 'selfhosted', userUsedToday: number }
+                    selfHostedUsedToday: number, backend: 'cloud' | 'selfhosted', userUsedToday: number,
+                    backendReason: string | null,   // why it switched: payment_required | daily_cap | low_balance:<n>
+                    cloudRemaining: number | null } // last Firecrawl /v2/team/credit-usage result (hourly)
 ```
 
 - Pack ids: `top-indian-product`, `faang-plus-india`, `yc-startups-interns`, `hackathons-india`,
@@ -323,6 +354,10 @@ Explanation = { listingId, profileHash: string | null, source: 'llm' | 'cache' |
 | DELETE | `/v1/tracker/:id` | user | – | `204` | 401, 404 |
 
 - `TrackerItemDTO` = shared `TrackerItem` + `history: { stage, at }[]`.
+- `move` body is **(api)** `trackerMoveBodySchema` = shared `trackerMoveSchema` + optional
+  preconditions `fromStage` (the stage the client thinks the card is in) and `ifUnmodifiedSince`
+  (the card's `updatedAt` as last seen). A mismatch → `409 CONFLICT`, `details: { reason: 'stale',
+  item: TrackerItemDTO }` (another tab moved the card); the client should refetch the board.
 - `move`: `position` is the **0-based target index** in the destination column. The server
   re-indexes that column (and the source column) to `0..n-1` and returns the destination
   column's order. Moving to `applied` sets `appliedAt` if empty. Any stage change appends to
@@ -354,7 +389,9 @@ A response is the first move from `applied` into `oa`, `interview`, `offer` or `
 | PATCH | `/v1/alerts/:id` | user | `alertRulePatchSchema` | `{ rule }` | 400, 401, 404 |
 | DELETE | `/v1/alerts/:id` | user | – | `204` | 401, 404 |
 | POST | `/v1/alerts/:id/test` | user | – | `202 { queued: true, jobId }` (enqueues `notify {userId, alertRuleId, test:true}`) | 401, 404 |
-| GET | `/v1/push/vapid-public-key` | public | – | `{ publicKey: string }` (`VAPID_PUBLIC_KEY`, base64url) | – |
+| POST | `/v1/alerts/preview` | user | `{ conditions?: AlertConditions }` (shared `alertConditionsSchema`, defaults applied) | `{ matchesLast7d, matchesByDay: number[7] /* oldest first */, sample: { listingId, title, company, score, firstSeenAt }[] /* ≤ 5 */, warmingUp }`: the user's matches first seen in the last 7 days that pass the conditions (same test as the worker's notify pipeline) | 400, 401 |
+| POST | `/v1/push/test` | user | – | `202 { queued: true, jobId }` (enqueues `notify {userId, test:true}`: a test push + in-app notification; Settings > Notifications) | 401, 429, 503 |
+| GET | `/v1/push/vapid-public-key` | public | – | `{ publicKey: string }` (`VAPID_PUBLIC_KEY`, base64url) | 503 (push not configured) |
 | GET | `/v1/push/subscriptions` | user | – | `{ items: { id, endpoint, userAgent, createdAt }[] }` | 401 |
 | POST | `/v1/push/subscriptions` | user | **(api)** `pushSubscriptionSchema` `{ endpoint: https-url, keys: { p256dh, auth }, expirationTime?: number\|null, userAgent?: string }` (the browser's `PushSubscription.toJSON()`) | `201 { subscription: { id, endpoint, userAgent, createdAt } }` (upsert by endpoint) | 400, 401 |
 | DELETE | `/v1/push/subscriptions` | user | `{ endpoint }` | `204` | 400, 401 |
@@ -376,6 +413,7 @@ A response is the first move from `applied` into `oa`, `interview`, `offer` or `
 | PUT | `/v1/settings/ai` | user | **(api)** `aiSettingsPutSchema` `{ provider: AiProvider, baseUrl?: url\|null, model?: string\|null, apiKey?: string (8..512), enabled: boolean }` | `{ ai: AiSettings }` | 400, 401 | global |
 | POST | `/v1/settings/ai/test` | user | optional **(api)** `aiTestSchema` `{ provider?, baseUrl?, model?, apiKey? }` (tests these values, else the saved config) | `200 { ok: true, latencyMs, model, provider } \| { ok: false, error: string, latencyMs }` | 400, 401, 422 `AI_NOT_CONFIGURED`, 429 | aitest |
 | DELETE | `/v1/settings/ai/key` | user | – | `{ ai: AiSettings }` | 401 | global |
+| GET | `/v1/settings/ai/usage` | user | – | `{ date: 'YYYY-MM-DD' /* UTC */, calls, cap /* LLM_DAILY_USER_CAP */, tokens: { prompt, completion, total } }` from `llm:calls:*` / `llm:tokens:*` | 401 | global |
 | PUT | `/v1/settings/weights` | user | `weightsInputSchema` (7 sliders, any scale) | `{ weights: WeightsInput, normalised: Weights }` | 400, 401 | global |
 | GET | `/v1/settings/export` | user | – | streamed `application/json`, `Content-Disposition: attachment; filename="beacon-export-<date>.json"` | 401 | global |
 | DELETE | `/v1/account` | user | – | `204` + clears cookie | 401 | global |
@@ -389,6 +427,38 @@ A response is the first move from `applied` into `oa`, `interview`, `offer` or `
 - Account delete cascade: profile, settings, personal sources, subscriptions, interactions,
   matches, explanations, tracker, alerts, notifications, push subscriptions, then the user.
   Listings ingested from deleted personal sources are left for the worker's cleanup.
+
+### 10.1 Admin
+
+| Method | Path | Auth | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/v1/admin/overview` | user with `role: 'admin'` | – | `AdminOverview` (`Cache-Control: no-store`) | 401, 403 `FORBIDDEN` |
+
+```ts
+AdminOverview = {
+  generatedAt: Date,
+  users: { total, admins, withPassword, withGoogle, newLast7d },
+  listings: { total, active, archived, byType: Record<OpportunityType, number> /* not archived */ },
+  sources: { total, byScope: { personal, community }, byHealth: Record<SourceHealth, number>, byKind: Record<SourceKind, number> },
+  queues: { name /* ingest extract embed match ghostcheck notify cleanup dead */, waiting, active, delayed, failed, completed }[],
+  queuesError: string | null,              // set when Redis was unreachable (queues = [])
+  crawler: { date, backend: 'cloud'|'selfhosted', cloudUsedToday, selfHostedUsedToday, cap, backendReason, cloudRemaining },
+  recentRuns: { id, sourceId, sourceName, sourceKind, reason, status, startedAt, finishedAt, durationMs,
+                found, new, updated, unchanged, errors: { kind, message }[] /* ≤ 5 */, backend, creditsUsed }[],  // last 20 `sourceRuns`
+}
+```
+
+The admin account is seeded on boot when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are both set: an
+existing account with that email (e.g. the owner's Google account) is promoted to `admin`; the
+bcrypt hash is replaced only when the configured password no longer verifies (and that also
+signs the admin's other sessions out). Middleware: `requireRole('admin')` after `requireAuth`.
+
+### 10.2 Local tooling
+
+- `pnpm --filter @kestrel/api run dev:token -- --email load@beacon.test [--name X] [--days 7]`
+  creates or reuses the user `dev:<email>` in `MONGODB_URI`/`MONGODB_DB` and prints a JWT for
+  `Authorization: Bearer` on stdout (signed with `JWT_SECRET`, which must match the running API).
+  Refuses to run when `NODE_ENV=production`.
 
 ---
 
@@ -407,12 +477,12 @@ The api and worker share these collections. Field names are camelCase and `_id` 
 
 | Collection | Writer | Shape (beyond `_id`, `createdAt`, `updatedAt`) | Indexes |
 |---|---|---|---|
-| `users` | **api** | `email, name, avatarUrl, googleSub, role, onboardingStep, onboardingCompletedAt, lastLoginAt, lastSeenFeedAt, consent{version,aiMode,resumeToAi,at}, sessionVersion` | `googleSub` unique, `email` |
+| `users` | **api** | `email, name, avatarUrl, googleSub (null for password-only accounts), passwordHash (bcrypt, null for Google-only; never returned), passwordSetAt, role ('user'\|'admin'), onboardingStep, onboardingCompletedAt, lastLoginAt, lastSeenFeedAt, consent{version,aiMode,resumeToAi,at}, sessionVersion` | `googleSub_partial_unique` (unique, partial: string), `email`, `email_password_unique` (unique, partial: `passwordHash` string). Boot drops the legacy non-partial `googleSub_1`. |
 | `profiles` | **api** (worker writes `embedding`, `embeddingHash`, `embeddedAt` only) | shared `Profile` fields + `userId, profileHash, resume{fileName,mimeType,size,textChars,uploadedAt,parsedFrom}, resumeText (≤ 50k chars), embedding: number[384], embeddingHash, embeddedAt` | `userId` unique |
 | `settings` | **api** | shared `Settings` + `ai.keyCiphertext` (string, never returned) | `userId` unique |
 | `sources` | **api** creates and edits; **worker** writes `health, lastCheckedAt, listingsFound, errorReason, etag, lastModified` | shared `Source` + `packIds: string[]` (every pack containing it; `packId` is the first), `companyDomain, country, tags, seedKey` (community only: normalised URL), `config.apiUrl, config.method ('GET'\|'POST'), config.body, config.headers, config.tenant, config.site, config.wdHost` | `ownerId`, `{scope, packIds}`, `{ownerId, url}` unique (partial: personal), `seedKey` unique (partial: string) |
 | `subscriptions` | **api** | `userId, sourceId, packId` (user ↔ community source) | `{userId, sourceId}` unique, `sourceId` |
-| `listings` | **worker** | shared `Listing` + `applyCheck{status:'ok'\|'dead'\|'redirect_home'\|'error', httpStatus, finalUrl, checkedAt}` | `canonicalKey` unique, `sourceId`, `{archived, type, deadlineAt}`, `{postedAt:-1}`, `company`, Atlas vector index (see `apps/api/src/models/indexes.md`) |
+| `listings` | **worker** | shared `Listing` + `sourceIds[]` (every source it was seen in; **visibility checks match `sourceIds` or `sourceId`**) + `applyCheck{status:'ok'\|'dead'\|'redirect_home'\|'error', httpStatus, finalUrl, checkedAt}` | `canonicalKey` unique, `sourceId`, `{archived, type, deadlineAt}`, `{postedAt:-1}`, `company`, Atlas vector index (see `apps/api/src/models/indexes.md`) |
 | `matches` | **worker** | `userId, listingId, score, rawScore, components, contributions, weights, caps, ghostPenalty, hardFails, semanticAvailable, details, explain, computedAt, profileHash` (every `FitResult` field at top level) | `{userId, score:-1}`, `{userId, listingId}` unique |
 | `interactions` | **api** | `userId, listingId, saved, savedAt, hidden, hiddenAt` | `{userId, listingId}` unique, `{userId, saved}` |
 | `explanations` | **api** | `userId, listingId, profileHash, whyFit[], gaps[], tailoringTips[], model, source` | `{userId, listingId, profileHash}` unique |
@@ -432,10 +502,10 @@ The API only produces jobs. Job name = queue name. Default options come from the
 
 | Queue | Payload | Producer trigger | Dedup |
 |---|---|---|---|
-| `ingest` | `{ sourceId: string, reason: 'created'\|'enabled'\|'pack' }` | source create / enable / pack enable | `deduplication.id = ingest:<sourceId>` (ttl 60 s) |
+| `ingest` | `{ sourceId: string, reason: 'created'\|'enabled'\|'pack'\|'manual' }` | source create / enable / pack enable / `POST /v1/sources/:id/refresh` | `deduplication.id = ingest:<sourceId>` (ttl 60 s) |
 | `embed` | `{ kind: 'profile', userId: string }` | profile hash changed | `embed:profile:<userId>` (ttl 10 s) |
 | `match` | `{ userId: string, reason: 'profile'\|'weights'\|'sources'\|'manual' }` | profile/weights/source changes | `match:<userId>` (ttl 10 s) |
-| `notify` | `{ userId: string, alertRuleId: string, test: true }` | `POST /v1/alerts/:id/test` | none |
+| `notify` | `{ userId: string, alertRuleId?: string, test: true }` | `POST /v1/alerts/:id/test` (with `alertRuleId`), `POST /v1/push/test` (without) | none |
 
 ## 14. Redis keys and crypto (shared with the worker)
 

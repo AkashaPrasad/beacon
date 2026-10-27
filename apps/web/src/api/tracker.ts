@@ -9,10 +9,10 @@
  * - `useUpdateTrackerItem()`  PATCH /v1/tracker/:id        notes, contacts, documents, dates, stage
  * - `useDeleteTrackerItem()`  DELETE /v1/tracker/:id
  */
-import type { TrackerStage } from '@kestrel/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { api, isApiError } from '@/lib/api';
+import type { TrackerStage } from '@kestrel/shared';
 
 import { patchListingEverywhere } from './feed-cache';
 import { queryKeys } from './keys';
@@ -188,7 +188,7 @@ export function useUpdateTrackerItem() {
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: queryKeys.tracker.list });
       const previous = qc.getQueryData<TrackerList>(queryKeys.tracker.list);
-      setItems(qc, (items) => items.map((i) => (i.id === id ? ({ ...i, ...patch } as TrackerItemDTO) : i)));
+      setItems(qc, (items) => items.map((i) => (i.id === id ? ({ ...i, ...patch }) : i)));
       return { previous };
     },
     onError: (_e, _v, context) => {
@@ -218,4 +218,11 @@ export function useDeleteTrackerItem() {
     mutationFn: (id: string) => api.delete<void>(`/v1/tracker/${id}`),
     onSettled: () => void qc.invalidateQueries({ queryKey: queryKeys.tracker.all }),
   });
+}
+
+/** The DELETE behind an undoable removal (sent when the undo window closes). */
+export async function deleteTrackerItemRequest(qc: QueryClient, item: Pick<TrackerItemDTO, 'id' | 'listingId'>): Promise<void> {
+  await api.delete<void>(`/v1/tracker/${encodeURIComponent(item.id)}`);
+  if (item.listingId) patchListingEverywhere(qc, item.listingId, { trackerItemId: null });
+  void qc.invalidateQueries({ queryKey: queryKeys.tracker.all });
 }
