@@ -1,41 +1,40 @@
-# Secrets and private notes (never commit)
-info.txt
-secrets.env
-.env
-.env.*
+
 !.env.example
-*.pem
-*.key
-
-# Dependencies and build output
-node_modules/
-dist/
-build/
-.turbo/
-*.tsbuildinfo
-.vite/
-
-# Tests and coverage
-coverage/
-playwright-report/
-test-results/
-blob-report/
-playwright/.cache/
-
-# Terraform local state
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-crash.log
-
-# Logs and OS / editor noise
-*.log
-npm-debug.log*
-pnpm-debug.log*
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+# Dependencies and build output
+# Logs and OS / editor noise
+# Secrets and private notes (never commit)
+# Terraform local state
+# Tests and coverage
+*.key
+*.log
+*.pem
+*.tfplan
+*.tfstate
+*.tfstate*
+*.tfstate.*
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+.idea/
+.terraform/
+.turbo/
+.vite/
+.vscode/*
+Thumbs.db
+blob-report/
+build/
+coverage/
+crash.log
+dist/
+info.txt
+node_modules/
+npm-debug.log*
+opportunity-radar-build-kit.md
+playwright-report/
+playwright/.cache/
+pnpm-debug.log*
+secrets.env
+test-results/
