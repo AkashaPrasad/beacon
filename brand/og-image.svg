@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="og-title og-desc">
+  <title id="og-title">Beacon</title>
+  <desc id="og-desc">Every opportunity that fits you. Nothing that doesn't.</desc>
+  <!-- Dark-theme tokens: bg #131110 · surface #191716 · raised #201E1C · border #2E2B28 · text #EDEAE6 / #B3ADA6 / #968F88
+       accent (signal amber) #FFB547 · fit-great #7FD8AC. Fonts: Instrument Serif, Geist, Geist Mono.
+       Social platforms need the PNG: brand/png/og-image.png (rendered with webfonts by scripts/og-render.html). -->
+  <rect width="1200" height="630" fill="#131110"/>
+
+  <!-- Noise field: rings around the source, each broken where the beam passes (the mark's construction at scale) -->
+  <g fill="none" stroke="#EDEAE6" stroke-opacity="0.06" stroke-width="1.5">
+    <path d="M1037.9 141.2A64 64 0 1 1 1060.4 160.8"/>
+    <path d="M985.8 178.3A128 128 0 1 1 1030.9 217.5"/>
+    <path d="M933.7 215.5A192 192 0 1 1 1001.3 274.3"/>
+    <path d="M881.6 252.7A256 256 0 1 1 971.8 331.1"/>
+    <path d="M829.5 289.8A320 320 0 1 1 942.2 387.8"/>
+    <path d="M777.4 327A384 384 0 1 1 912.7 444.6"/>
+  </g>
+  <!-- The beam: one flat, low-opacity cone from the source onto the row it found -->
+  <path d="M840.9 502.6A470 470 0 0 1 730 406.1L1064 125.9A34 34 0 0 0 1072 132.8Z" fill="#FFB547" fill-opacity="0.07"/>
+  <circle cx="1090" cy="104" r="22" fill="none" stroke="#FFB547" stroke-opacity="0.35" stroke-width="1.5"/>
+  <circle cx="1090" cy="104" r="9" fill="#FFB547"/>
+
+  <!-- Lockup -->
+  <g transform="translate(70.6 40) scale(0.135)">
+    <path d="M396.7 260.7A160 160 0 1 1 251.3 115.3" fill="none" stroke="#FFB547" stroke-width="30" stroke-linecap="round"/>
+    <path d="M334.3 46.4A248 248 0 0 1 465.6 177.7L322 238.7A92 92 0 0 0 273.3 190Z" fill="#FFB547"/>
+    <circle cx="237.4" cy="274.6" r="62" fill="#FFB547"/>
+  </g>
+  <text x="146" y="95" font-family="'Instrument Serif', Georgia, serif" font-size="46" fill="#EDEAE6">Beacon</text>
+
+  <!-- Tagline -->
+  <text font-family="'Instrument Serif', Georgia, serif" font-size="90" letter-spacing="-0.9" fill="#EDEAE6">
+    <tspan x="78" y="270">Every opportunity that fits you.</tspan>
+    <tspan x="78" y="358" fill="#B3ADA6" font-style="italic">Nothing that doesn&#8217;t.</tspan>
+  </text>
+
+  <!-- The row the beam lands on: lit with an amber hairline -->
+  <g transform="translate(80 420)">
+    <rect x="0.75" y="0.75" width="1038.5" height="94.5" rx="12" fill="#191716" stroke="#FFB547" stroke-opacity="0.55" stroke-width="1.5"/>
+    <circle cx="52" cy="48" r="22" fill="none" stroke="#2E2B28" stroke-width="4"/>
+    <circle cx="52" cy="48" r="22" fill="none" stroke="#7FD8AC" stroke-width="4" stroke-linecap="round" stroke-dasharray="118.9 138.3" transform="rotate(-90 52 48)"/>
+    <text x="52" y="54" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Menlo, monospace" font-size="17" font-weight="500" fill="#EDEAE6">86</text>
+    <text x="100" y="42" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="21" font-weight="560" fill="#EDEAE6">Platform Engineering Intern</text>
+    <text x="100" y="70" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#968F88">Northwind Labs · Remote · 45k/mo · 2027 grads</text>
+    <g font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#B3ADA6" text-anchor="middle">
+      <rect x="560.75" y="34.75" width="60.5" height="26.5" rx="6" fill="#201E1C" stroke="#2E2B28" stroke-width="1.5"/>
+      <text x="591" y="53">Go</text>
+      <rect x="630.75" y="34.75" width="94.5" height="26.5" rx="6" fill="#201E1C" stroke="#2E2B28" stroke-width="1.5"/>
+      <text x="678" y="53">Postgres</text>
+      <rect x="734.75" y="34.75" width="110.5" height="26.5" rx="6" fill="#201E1C" stroke="#2E2B28" stroke-width="1.5"/>
+      <text x="790" y="53">Grad year</text>
+    </g>
+    <text x="1008" y="54" text-anchor="end" font-family="'Geist Mono', ui-monospace, Menlo, monospace" font-size="17" fill="#B3ADA6">6d left</text>
+  </g>
+
+  <text x="80" y="584" font-family="'Geist Mono', ui-monospace, Menlo, monospace" font-size="20" fill="#968F88">beacon.spacesdrive.cc</text>
+  <text x="1120" y="584" text-anchor="end" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="20" fill="#968F88">Internships · Hackathons · Scholarships · Research · Open source</text>
+</svg>

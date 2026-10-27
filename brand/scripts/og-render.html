@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- Renders brand/og-image.svg with the real webfonts for the PNG export (social platforms do not accept SVG).
+     From the repo root:
+       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+         --force-device-scale-factor=1 --window-size=1200,630 --virtual-time-budget=10000 \
+         --allow-file-access-from-files --screenshot="$PWD/brand/png/og-image.png" "file://$PWD/brand/scripts/og-render.html"
+     (Linux: google-chrome / chromium with the same flags.) Needs network for Google Fonts. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <style>
+      html, body { margin: 0; padding: 0; background: #131110; overflow: hidden; }
+      img, object { display: block; width: 1200px; height: 630px; }
+    </style>
+  </head>
+  <body>
+    <div id="og"></div>
+    <script>
+      // Load every face first, then inline the SVG so it inherits the webfonts (an <img> would not).
+      const faces = ['400 76px "Instrument Serif"', 'italic 400 76px "Instrument Serif"', '400 16px Geist', '560 21px Geist', '400 17px "Geist Mono"', '500 17px "Geist Mono"'];
+      Promise.all(faces.map((f) => document.fonts.load(f)))
+        .then(() => fetch('../og-image.svg'))
+        .then((r) => r.text())
+        .then((svg) => { document.getElementById('og').innerHTML = svg; });
+    </script>
+  </body>
+</html>
